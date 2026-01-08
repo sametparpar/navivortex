@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>NaviVortex V15 - Precision Flight</title>
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <style>
+    body, html, #cesiumContainer { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #000; }
+    #ui-panel { 
+        position: absolute; top: 20px; left: 20px; 
+        background: rgba(15, 23, 42, 0.95); color: white; 
+        padding: 20px; border-radius: 12px; font-family: 'Inter', sans-serif; 
+        border: 1px solid #38bdf8; width: 260px; z-index: 100;
+    }
+    h1 { margin: 0; font-size: 18px; color: #38bdf8; letter-spacing: 1px; }
+  </style>
+</head>
+<body>
+  <div id="cesiumContainer"></div>
+  <div id="ui-panel">
+    <h1>NAVIVORTEX</h1>
+    <div style="margin-top: 10px; font-size: 13px;">
+        Waypoints: <span id="wp-count" style="color:#38bdf8">0</span><br>
+        Status: <span style="color:#4ade80">FLIGHT READY</span>
+    </div>
+    <div style="font-size:10px; margin-top:10px; color:#94a3b8; line-height:1.4;">
+        • <b>Left Click:</b> Add Waypoint (Lines connect automatically)<br>
+        • <b>WASD:</b> Move Drone (Heading stabilized)<br>
+        • <b>Q / E:</b> Up / Down
+    </div>
+  </div>
+
+  <script>
+    Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzMzEyYzc1OS03OTY0LTQ5MGYtODcwMi0zMGNiYmZjNGIxMTkiLCJpZCI6Mzc2MTk2LCJpYXQiOjE3Njc4NjA4NjJ9.aZRZorILCG4gIlzwCnm1L2SCp58z-TCg6yNaDbPLxnU';
+    const GOOGLE_API_KEY = 'AIzaSyDDPGFsMFFW8Q8s9Y-2aonzk6LofSBuhps';
+
+    const viewer = new Cesium.Viewer('cesiumContainer', {
+      terrain: Cesium.Terrain.fromWorldTerrain(),
+      animation: false, timeline: false, baseLayerPicker: false, geocoder: true
+    });
+
+    let droneEntity, heading = 0, waypoints = [];
+
+    async function init() {
+      try {
+        const tileset = await Cesium.createGooglePhotorealistic3DTileset(GOOGLE_API_KEY);
+        viewer.scene.primitives.add(tileset);
+        
+        const startPos = Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 100);
+        droneEntity = viewer.entities.add({
+            position: startPos,
+            orientation: Cesium.Transforms.headingPitchRollQuaternion(startPos, new Cesium.HeadingPitchRoll(0, 0, 0)),
+            model: { 
+                uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumDrone/CesiumDrone.glb',
+                minimumPixelSize: 128 
+            }
+        });
+
+        viewer.camera.flyTo({ 
+            destination: Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 300),
+            complete: () => { viewer.trackedEntity = droneEntity; } 
+        });
+
+        const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+        handler.setInputAction((click) => {
+            let pos = viewer.scene.pickPosition(click.position);
+            if (!Cesium.defined(pos)) {
+                const ray = viewer.camera.getPickRay(click.position);
+                pos = viewer.scene.globe.pick(ray, viewer.scene);
+            }
+
+            if (Cesium.defined(pos)) {
+                // Noktayı binaların 10m üstüne al (Görünürlük için)
+                const carto = Cesium.Cartographic.fromCartesian(pos);
+                const raisedPos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, carto.height + 10);
+                
+                waypoints.push(raisedPos);
+                document.getElementById('wp-count').innerText = waypoints.length;
+
+                viewer.entities.add({
+                    position: raisedPos,
+                    point: { pixelSize: 10, color: Cesium.Color.YELLOW, disableDepthTestDistance: Number.POSITIVE_INFINITY }
+                });
+
+                if (waypoints.length > 1) {
+                    viewer.entities.add({
+                        polyline: {
+                            positions: [waypoints[waypoints.length - 2], waypoints[waypoints.length - 1]],
+                            width: 5,
+                            material: Cesium.Color.GREEN,
+                            // Çizgiyi bina içinde kalsa bile göster:
+                            depthFailMaterial: Cesium.Color.GREEN,
+                            disableDepthTestDistance: Number.POSITIVE_INFINITY
+                        }
+                    });
+                }
+            }
+        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+        document.addEventListener('keydown', (e) => {
+            if (!droneEntity) return;
+            const p = droneEntity.position.getValue(viewer.clock.currentTime);
+            const c = Cesium.Ellipsoid.WGS84.cartesianToCartographic(p);
+            let lon = Cesium.Math.toDegrees(c.longitude), lat = Cesium.Math.toDegrees(c.latitude), alt = c.height;
+            const s = 0.00005, k = e.key.toLowerCase();
+            
+            if (k === 'a') heading -= 5;
+            if (k === 'd') heading += 5;
+            if (k === 'w') {
+                lat += s * Math.cos(Cesium.Math.toRadians(heading));
+                lon += s * Math.sin(Cesium.Math.toRadians(heading));
+            }
+            if (k === 's') {
+                lat -= s * Math.cos(Cesium.Math.toRadians(heading));
+                lon -= s * Math.sin(Cesium.Math.toRadians(heading));
+            }
+            if (k === 'q') alt += 5;
+            if (k === 'e') alt -= 5;
+
+            const newPos = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
+            droneEntity.position = newPos;
+            droneEntity.orientation = Cesium.Transforms.headingPitchRollQuaternion(newPos, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading), 0, 0));
+        });
+
+      } catch (e) { console.error(e); }
+    }
+    init();
+  </script>
+</body>
+</html>
