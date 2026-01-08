@@ -2,107 +2,110 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>NaviVortex V21 - Origin Lock</title>
+  <title>NaviVortex V22 - Direct Sync</title>
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <style>
-    body, html, #cesiumContainer { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #0b111d; }
+    body, html, #cesiumContainer { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #000; }
     #dashboard {
-        position: absolute; top: 20px; left: 20px; width: 280px; 
-        background: rgba(17, 24, 39, 0.95); z-index: 100; padding: 20px;
-        border: 1px solid #0ea5e9; border-radius: 12px; font-family: 'Inter', sans-serif; color: white;
+        position: absolute; top: 20px; left: 20px; width: 260px; 
+        background: rgba(15, 23, 42, 0.95); z-index: 100; padding: 20px;
+        border: 1px solid #38bdf8; border-radius: 12px; font-family: 'Inter', sans-serif; color: white;
     }
-    .telemetry { background: #1f2937; padding: 10px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #38bdf8; }
+    .telemetry { background: #1e293b; padding: 10px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #38bdf8; }
     .label { font-size: 10px; color: #94a3b8; text-transform: uppercase; }
-    .value { font-size: 18px; font-weight: bold; color: #f1f5f9; }
-    #danger-msg { background: #991b1b; color: #fecaca; padding: 8px; border-radius: 6px; display: none; text-align: center; font-weight: bold; margin-bottom: 10px; }
+    .value { font-size: 16px; font-weight: bold; color: #f1f5f9; }
+    #danger-msg { background: #991b1b; color: #fecaca; padding: 8px; border-radius: 6px; display: none; text-align: center; font-weight: bold; margin-bottom: 10px; font-size: 12px; }
   </style>
 </head>
 <body>
   <div id="dashboard">
-    <h2 style="color:#38bdf8; margin:0;">NAVIVORTEX V21</h2>
+    <h2 style="color:#38bdf8; margin:0; font-size: 18px;">NAVIVORTEX V22</h2>
     <div id="danger-msg">⚠️ COLLISION DETECTED</div>
     <div class="telemetry"><div class="label">Altitude (AMSL)</div><div id="alt-txt" class="value">100 m</div></div>
     <div class="telemetry"><div class="label">Total Path</div><div id="dist-txt" class="value">0 m</div></div>
-    <div class="telemetry"><div class="label">Safety Status</div><div id="safe-txt" class="value" style="color:#22c55e;">CLEAR</div></div>
-    <p style="font-size: 10px; color:#64748b;">* First click connects to Drone position.</p>
-    <button onclick="location.reload()" style="width:100%; padding:10px; background:#374151; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">RESET MISSION</button>
+    <div class="telemetry"><div class="label">Status</div><div id="safe-txt" class="value" style="color:#22c55e;">CLEAR</div></div>
+    <button onclick="location.reload()" style="width:100%; padding:8px; background:#334155; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; font-size: 11px;">RESET MISSION</button>
   </div>
   <div id="cesiumContainer"></div>
 
   <script>
+    // Tokenların geçerliliğinden emin oluyoruz
     Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzMzEyYzc1OS03OTY0LTQ5MGYtODcwMi0zMGNiYmZjNGIxMTkiLCJpZCI6Mzc2MTk2LCJpYXQiOjE3Njc4NjA4NjJ9.aZRZorILCG4gIlzwCnm1L2SCp58z-TCg6yNaDbPLxnU';
     const GOOGLE_API_KEY = 'AIzaSyDDPGFsMFFW8Q8s9Y-2aonzk6LofSBuhps';
 
     const viewer = new Cesium.Viewer('cesiumContainer', {
       terrain: Cesium.Terrain.fromWorldTerrain(),
-      animation: false, timeline: false, baseLayerPicker: false
+      animation: false, timeline: false, baseLayerPicker: false,
+      geocoder: true, sceneModePicker: false, navigationHelpButton: false
     });
 
     let droneEntity, heading = 0, waypoints = [], totalPath = 0;
 
     async function init() {
-      const tileset = await Cesium.createGooglePhotorealistic3DTileset(GOOGLE_API_KEY);
-      viewer.scene.primitives.add(tileset);
-      
-      const startPos = Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 100);
-      droneEntity = viewer.entities.add({
-          position: startPos,
-          orientation: Cesium.Transforms.headingPitchRollQuaternion(startPos, new Cesium.HeadingPitchRoll(0, 0, 0)),
-          model: { uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumDrone/CesiumDrone.glb', minimumPixelSize: 128 }
-      });
-      viewer.trackedEntity = droneEntity;
+      try {
+        const tileset = await Cesium.createGooglePhotorealistic3DTileset(GOOGLE_API_KEY);
+        viewer.scene.primitives.add(tileset);
+        
+        const startPos = Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 100);
+        droneEntity = viewer.entities.add({
+            position: startPos,
+            orientation: Cesium.Transforms.headingPitchRollQuaternion(startPos, new Cesium.HeadingPitchRoll(0, 0, 0)),
+            model: { uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumDrone/CesiumDrone.glb', minimumPixelSize: 90 }
+        });
+        viewer.trackedEntity = droneEntity;
 
-      const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-      handler.setInputAction((click) => {
-          const pos = viewer.scene.pickPosition(click.position);
-          if (Cesium.defined(pos)) {
-              // Rota başlangıç mantığı: Eğer liste boşsa, başlangıç noktası DRONE'un mevcut konumudur.
-              let startPoint;
-              if (waypoints.length === 0) {
-                  startPoint = droneEntity.position.getValue(viewer.clock.currentTime);
-              } else {
-                  startPoint = waypoints[waypoints.length - 1];
-              }
+        const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+        handler.setInputAction((click) => {
+            const pos = viewer.scene.pickPosition(click.position);
+            if (Cesium.defined(pos)) {
+                let startPoint = (waypoints.length === 0) ? droneEntity.position.getValue(viewer.clock.currentTime) : waypoints[waypoints.length - 1];
+                waypoints.push(pos);
+                
+                viewer.entities.add({ position: pos, point: { pixelSize: 8, color: Cesium.Color.YELLOW, disableDepthTestDistance: 1e9 } });
 
-              waypoints.push(pos);
-              
-              // Sarı Nokta Koy
-              viewer.entities.add({ 
-                  position: pos, 
-                  point: { pixelSize: 10, color: Cesium.Color.YELLOW, disableDepthTestDistance: Number.MAX_VALUE } 
-              });
+                const direction = Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(pos, startPoint, new Cesium.Cartesian3()), new Cesium.Cartesian3());
+                const ray = new Cesium.Ray(startPoint, direction);
+                const obstacle = viewer.scene.pickFromRay(ray);
+                const distance = Cesium.Cartesian3.distance(startPoint, pos);
+                const isBlocked = Cesium.defined(obstacle) && Cesium.Cartesian3.distance(startPoint, obstacle.position) < (distance - 1.0);
 
-              // Çizgiyi Çiz (Drone'dan veya önceki noktadan)
-              const direction = Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(pos, startPoint, new Cesium.Cartesian3()), new Cesium.Cartesian3());
-              const ray = new Cesium.Ray(startPoint, direction);
-              const obstacle = viewer.scene.pickFromRay(ray);
-              const distance = Cesium.Cartesian3.distance(startPoint, pos);
+                viewer.entities.add({
+                    polyline: {
+                        positions: [startPoint, pos],
+                        width: 4,
+                        material: isBlocked ? Cesium.Color.RED : Cesium.Color.GREEN,
+                        disableDepthTestDistance: 1e9
+                    }
+                });
 
-              // Engel kontrolü (Başlangıç ve bitişteki ufak sapmaları tolere etmek için mesafe-1 kullanılır)
-              const isBlocked = Cesium.defined(obstacle) && Cesium.Cartesian3.distance(startPoint, obstacle.position) < (distance - 1.0);
+                totalPath += distance;
+                document.getElementById('dist-txt').innerText = Math.round(totalPath) + " m";
+                if (isBlocked) {
+                    document.getElementById('danger-msg').style.display = 'block';
+                    document.getElementById('safe-txt').innerText = "BLOCKED";
+                    document.getElementById('safe-txt').style.color = "#f87171";
+                }
+            }
+        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
-              viewer.entities.add({
-                  polyline: {
-                      positions: [startPoint, pos],
-                      width: 4,
-                      material: isBlocked ? Cesium.Color.RED : Cesium.Color.GREEN,
-                      disableDepthTestDistance: Number.MAX_VALUE
-                  }
-              });
-
-              totalPath += distance;
-              document.getElementById('dist-txt').innerText = Math.round(totalPath) + " m";
-              if (isBlocked) {
-                  document.getElementById('danger-msg').style.display = 'block';
-                  document.getElementById('safe-txt').innerText = "BLOCKED";
-                  document.getElementById('safe-txt').style.color = "#f87171";
-              }
-          }
-      }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-
-      // Klavye Kontrolleri
-      document.addEventListener('keydown', (e) => {
-          const p = droneEntity.position.getValue(viewer.clock.currentTime);
-          const c = Cesium.Ellipsoid.WGS84.cartesianToCartographic(p);
-          let lon = Cesium.Math.toDegrees(
+        document.addEventListener('keydown', (e) => {
+            const p = droneEntity.position.getValue(viewer.clock.currentTime);
+            const c = Cesium.Ellipsoid.WGS84.cartesianToCartographic(p);
+            let lon = Cesium.Math.toDegrees(c.longitude), lat = Cesium.Math.toDegrees(c.latitude), alt = c.height;
+            const s = 0.00005, k = e.key.toLowerCase();
+            if (k === 'a') heading -= 5; if (k === 'd') heading += 5;
+            if (k === 'w') { lat += s * Math.cos(Cesium.Math.toRadians(heading)); lon += s * Math.sin(Cesium.Math.toRadians(heading)); }
+            if (k === 's') { lat -= s * Math.cos(Cesium.Math.toRadians(heading)); lon -= s * Math.sin(Cesium.Math.toRadians(heading)); }
+            if (k === 'q') alt += 3; if (k === 'e') alt -= 3;
+            const newPos = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
+            droneEntity.position = newPos;
+            droneEntity.orientation = Cesium.Transforms.headingPitchRollQuaternion(newPos, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading), 0, 0));
+            document.getElementById('alt-txt').innerText = Math.round(alt) + " m";
+        });
+      } catch (e) { console.log("Init Error:", e); }
+    }
+    init();
+  </script>
+</body>
+</html>
