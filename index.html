@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>NaviVortex V43 - Deployment</title>
+  <title>NaviVortex V44 - Sky Sync</title>
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <style>
     body, html, #cesiumContainer { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #000; }
     #dashboard {
         position: absolute; top: 20px; left: 20px; width: 280px; 
-        background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); z-index: 100; padding: 25px;
+        background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(10px); z-index: 100; padding: 25px;
         border: 1px solid #38bdf8; border-radius: 16px; font-family: 'Inter', sans-serif; color: white;
     }
     .telemetry { background: rgba(30, 41, 59, 0.8); padding: 10px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #38bdf8; }
@@ -20,12 +20,12 @@
     #start-btn { background: #10b981; color: white; display: none; }
     #restart-btn { background: #f59e0b; color: black; display: none; }
     #go-home-btn { background: #6366f1; color: white; display: none; }
-    .guide-text { font-size: 11px; color: #64748b; margin-top: 15px; border-top: 1px solid #334155; padding-top: 10px; line-height: 1.4; }
+    .clear-btn { background: #ef4444 !important; color: white; margin-top: 20px; font-size: 10px; }
   </style>
 </head>
 <body>
   <div id="dashboard">
-    <h2 style="color:#38bdf8; margin:0 0 10px 0;">NAVIVORTEX V43</h2>
+    <h2 style="color:#38bdf8; margin:0 0 10px 0;">NAVIVORTEX V44</h2>
     <div class="telemetry"><div class="label">Drone Altitude</div><div id="alt-txt" class="value">100 m</div></div>
     <div class="telemetry"><div class="label">Status</div><div id="status-txt" class="value">POSITIONING</div></div>
     
@@ -34,11 +34,7 @@
     <button id="restart-btn" class="btn" onclick="executeMission()">🔄 RESTART</button>
     <button id="go-home-btn" class="btn" onclick="goHome()">🏠 GO TO ORIGIN</button>
     
-    <div class="guide-text">
-        • Use <b>WASD</b> to position Home.<br>
-        • Use <b>Q/E</b> to set Home Height.<br>
-        • <b>Click</b> to add flight points.
-    </div>
+    <button class="btn clear-btn" onclick="clearMission()">🗑️ CLEAR & RESET PLAN</button>
   </div>
   <div id="cesiumContainer"></div>
 
@@ -51,15 +47,12 @@
       animation: false, timeline: false, baseLayerPicker: false
     });
 
-    let droneEntity, waypoints = [], activeLines = [], isLocked = false, isFlying = false;
-    let homePoint; 
+    let droneEntity, waypoints = [], isLocked = false, isFlying = false;
+    let homePoint = Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 100);
 
     async function init() {
       const tileset = await Cesium.createGooglePhotorealistic3DTileset(GOOGLE_API_KEY);
       viewer.scene.primitives.add(tileset);
-      
-      // Default starting point (Sultanahmet area)
-      homePoint = Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 100);
       
       droneEntity = viewer.entities.add({
           position: new Cesium.CallbackProperty(() => homePoint, false),
@@ -74,10 +67,12 @@
           if (isLocked || isFlying) return;
           const pickedPos = viewer.scene.pickPosition(click.position);
           if (Cesium.defined(pickedPos)) {
-              if(waypoints.length === 0) document.getElementById('status-txt').innerText = "PLANNING";
+              const carto = Cesium.Cartographic.fromCartesian(pickedPos);
+              const ground = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, carto.height);
               
               const wp = {
                   pos: pickedPos,
+                  ground: ground,
                   entity: viewer.entities.add({
                       position: new Cesium.CallbackProperty(() => wp.pos, false),
                       point: { pixelSize: 10, color: Cesium.Color.YELLOW, disableDepthTestDistance: 1e9 },
@@ -85,10 +80,30 @@
                         text: new Cesium.CallbackProperty(() => Math.round(Cesium.Cartographic.fromCartesian(wp.pos).height) + "m", false),
                         font: 'bold 10pt sans-serif', pixelOffset: new Cesium.Cartesian2(0, -20), disableDepthTestDistance: 1e9 
                       }
-                  })
+                  }),
+                  anchor: viewer.entities.add({
+                      polyline: {
+                          positions: new Cesium.CallbackProperty(() => [wp.ground, wp.pos], false),
+                          width: 1, material: new Cesium.PolylineDashMaterialProperty({color: Cesium.Color.WHITE.withAlpha(0.5)}), disableDepthTestDistance: 1e9
+                      }
+                  }),
+                  line: null
               };
+
+              let prevPos = (waypoints.length === 0) ? homePoint : waypoints[waypoints.length - 1].pos;
+              
+              wp.line = viewer.entities.add({
+                  polyline: {
+                      positions: new Cesium.CallbackProperty(() => {
+                          let start = (waypoints.indexOf(wp) === 0) ? homePoint : waypoints[waypoints.indexOf(wp)-1].pos;
+                          return [start, wp.pos];
+                      }, false),
+                      width: 6, material: Cesium.Color.GREEN, disableDepthTestDistance: 1e9
+                  }
+              });
+
               waypoints.push(wp);
-              updateRoute();
+              updateSafety();
           }
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
@@ -98,7 +113,7 @@
           const lastWP = waypoints[waypoints.length - 1];
           const carto = Cesium.Cartographic.fromCartesian(lastWP.pos);
           lastWP.pos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, Math.max(0.1, carto.height + (e.deltaY < 0 ? 5 : -5)));
-          updateRoute();
+          updateSafety();
           setTimeout(() => { if(!isLocked) viewer.scene.screenSpaceCameraController.enableZoom = true; }, 200);
       }, { passive: false });
 
@@ -107,89 +122,82 @@
           const c = Cesium.Cartographic.fromCartesian(homePoint);
           let lon = Cesium.Math.toDegrees(c.longitude), lat = Cesium.Math.toDegrees(c.latitude), alt = c.height;
           const s = 0.00005, k = e.key.toLowerCase();
-          
           if (k === 'w') lat += s; if (k === 's') lat -= s;
           if (k === 'a') lon -= s; if (k === 'd') lon += s;
           if (k === 'q') alt += 5; if (k === 'e') alt -= 5;
-          
           homePoint = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
           document.getElementById('alt-txt').innerText = Math.round(alt) + " m";
-          updateRoute();
+          updateSafety();
       });
     }
 
-    function updateRoute() {
-        activeLines.forEach(l => viewer.entities.remove(l));
-        activeLines = [];
-        let currentStart = homePoint;
-
-        for (let i = 0; i < waypoints.length; i++) {
-            const currentEnd = waypoints[i].pos;
-            const dist = Cesium.Cartesian3.distance(currentStart, currentEnd);
-            const dir = Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(currentEnd, currentStart, new Cesium.Cartesian3()), new Cesium.Cartesian3());
-            const hit = viewer.scene.pickFromRay(new Cesium.Ray(currentStart, dir));
-            const isBlocked = Cesium.defined(hit) && Cesium.Cartesian3.distance(currentStart, hit.position) < (dist - 0.5);
-
-            activeLines.push(viewer.entities.add({
-                polyline: {
-                    positions: [currentStart, currentEnd],
-                    width: 6,
-                    material: isBlocked ? Cesium.Color.RED : Cesium.Color.GREEN,
-                    disableDepthTestDistance: 1e9
-                }
-            }));
-            currentStart = currentEnd;
-        }
+    function updateSafety() {
+        waypoints.forEach((wp, i) => {
+            let start = (i === 0) ? homePoint : waypoints[i-1].pos;
+            let dist = Cesium.Cartesian3.distance(start, wp.pos);
+            let dir = Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(wp.pos, start, new Cesium.Cartesian3()), new Cesium.Cartesian3());
+            let hit = viewer.scene.pickFromRay(new Cesium.Ray(start, dir));
+            let blocked = Cesium.defined(hit) && Cesium.Cartesian3.distance(start, hit.position) < (dist - 0.5);
+            wp.line.polyline.material = blocked ? Cesium.Color.RED : Cesium.Color.GREEN;
+        });
     }
 
     function toggleLock() {
         if (waypoints.length === 0) return;
         isLocked = !isLocked;
-        document.getElementById('status-txt').innerText = isLocked ? "LOCKED" : "PLANNING";
         document.getElementById('start-btn').style.display = isLocked ? "block" : "none";
-        document.getElementById('lock-btn').innerText = isLocked ? "🔓 UNLOCK" : "🔒 LOCK MISSION";
-        document.getElementById('restart-btn').style.display = "none";
-        document.getElementById('go-home-btn').style.display = "none";
+        document.getElementById('status-txt').innerText = isLocked ? "LOCKED" : "PLANNING";
+        viewer.scene.screenSpaceCameraController.enableZoom = true;
     }
 
     async function executeMission() {
         isFlying = true;
-        document.getElementById('status-txt').innerText = "FLYING...";
+        viewer.trackedEntity = droneEntity; // Camera follows drone
         document.getElementById('start-btn').style.display = "none";
         document.getElementById('restart-btn').style.display = "none";
         document.getElementById('go-home-btn').style.display = "none";
-        
-        let dronePositionRef = homePoint;
+
+        let current = homePoint;
         for (const wp of waypoints) {
-            const start = dronePositionRef;
+            const start = current;
             const end = wp.pos;
             const duration = Cesium.Cartesian3.distance(start, end) / 25;
-            
-            await new Promise(resolve => {
-                const startTime = performance.now();
+            await new Promise(res => {
+                let startTime = performance.now();
                 function frame(now) {
-                    const t = Math.min((now - startTime) / (duration * 1000), 1);
-                    const lerpPos = Cesium.Cartesian3.lerp(start, end, t, new Cesium.Cartesian3());
-                    droneEntity.position = new Cesium.CallbackProperty(() => lerpPos, false);
-                    
-                    const dir = Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(end, start, new Cesium.Cartesian3()), new Cesium.Cartesian3());
-                    droneEntity.orientation = Cesium.Transforms.headingPitchRollQuaternion(lerpPos, new Cesium.HeadingPitchRoll(Math.atan2(dir.x, dir.y), 0, 0));
-                    
-                    if (t < 1) requestAnimationFrame(frame); else resolve();
+                    let t = Math.min((now - startTime) / (duration * 1000), 1);
+                    homePoint = Cesium.Cartesian3.lerp(start, end, t, new Cesium.Cartesian3());
+                    if (t < 1) requestAnimationFrame(frame); else res();
                 }
                 requestAnimationFrame(frame);
             });
-            dronePositionRef = end;
+            current = end;
         }
         isFlying = false;
-        document.getElementById('status-txt').innerText = "FINISHED";
+        viewer.trackedEntity = undefined;
         document.getElementById('restart-btn').style.display = "block";
         document.getElementById('go-home-btn').style.display = "block";
     }
 
     function goHome() {
-        droneEntity.position = new Cesium.CallbackProperty(() => homePoint, false);
+        homePoint = Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 100); // Or your custom home
+        viewer.camera.flyTo({ destination: homePoint, duration: 2 });
         document.getElementById('restart-btn').style.display = "block";
+        document.getElementById('go-home-btn').style.display = "none";
+    }
+
+    function clearMission() {
+        waypoints.forEach(wp => {
+            viewer.entities.remove(wp.entity);
+            viewer.entities.remove(wp.anchor);
+            viewer.entities.remove(wp.line);
+        });
+        waypoints = [];
+        isLocked = false;
+        isFlying = false;
+        document.getElementById('status-txt').innerText = "POSITIONING";
+        document.getElementById('start-btn').style.display = "none";
+        document.getElementById('restart-btn').style.display = "none";
         document.getElementById('go-home-btn').style.display = "none";
     }
 
