@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>NaviVortex V31 - Infinite Chain</title>
+  <title>NaviVortex V33 - Nexus Path</title>
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <style>
@@ -15,9 +15,9 @@
     .telemetry { background: #1e293b; padding: 10px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #38bdf8; }
     .label { font-size: 10px; color: #94a3b8; text-transform: uppercase; }
     .value { font-size: 16px; font-weight: bold; color: #f1f5f9; }
-    .btn { width: 100%; padding: 10px; margin-top: 8px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; transition: 0.2s; }
+    .btn { width: 100%; padding: 12px; margin-top: 8px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; transition: 0.2s; }
     #lock-btn { background: #0ea5e9; color: white; }
-    #lock-btn.active { background: #ef4444; }
+    #lock-btn.locked { background: #ef4444; }
     #guide { font-size: 11px; color: #64748b; margin-top: 15px; border-top: 1px solid #334155; padding-top: 10px; line-height: 1.4; }
   </style>
 </head>
@@ -25,15 +25,15 @@
   <div id="dashboard">
     <h2 style="color:#38bdf8; margin:0; font-size: 20px; font-weight: 900;">NAVIVORTEX</h2>
     <div class="telemetry"><div class="label">Drone Alt</div><div id="alt-txt" class="value">100 m</div></div>
-    <div class="telemetry"><div class="label">Status</div><div id="status-txt" class="value" style="color:#38bdf8;">PLANNING</div></div>
+    <div class="telemetry"><div class="label">Path Status</div><div id="status-txt" class="value" style="color:#38bdf8;">PLANNING</div></div>
     
-    <button id="lock-btn" class="btn" onclick="toggleLock()">LOCK MISSION</button>
+    <button id="lock-btn" class="btn" onclick="toggleMissionLock()">LOCK MISSION</button>
     <button class="btn" style="background:#334155; color:white;" onclick="location.reload()">RESET ALL</button>
     
     <div id="guide">
-        • <b>Left Click:</b> Add Point<br>
-        • <b>Mouse Wheel:</b> Height Adjust<br>
-        • <b>WASD:</b> Manual Flight
+        • <b>Planning:</b> Left Click to add points.<br>
+        • <b>Edit:</b> Mouse wheel to change last point height.<br>
+        • <b>Flight:</b> Lock Mission to enable full zoom & fly.
     </div>
   </div>
   <div id="cesiumContainer"></div>
@@ -83,8 +83,15 @@
           }
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
+      // --- SMART ZOOM & HEIGHT CONTROL ---
       viewer.canvas.addEventListener('wheel', (e) => {
-          if (waypoints.length === 0 || isLocked) return;
+          if (isLocked || waypoints.length === 0) {
+              // Görev kilitliyse veya hiç nokta yoksa zoom her zaman açık
+              viewer.scene.screenSpaceCameraController.enableZoom = true;
+              return;
+          }
+
+          // Eğer planning modundaysak ve tekerlek dönerse zoom'u kapatıp yüksekliği değiştir
           viewer.scene.screenSpaceCameraController.enableZoom = false;
           
           const lastWP = waypoints[waypoints.length - 1];
@@ -97,33 +104,41 @@
           lastWP.entity.label.text = Math.round(newAlt) + "m";
           
           updateRoute();
-          setTimeout(() => { viewer.scene.screenSpaceCameraController.enableZoom = true; }, 150);
-      });
+          
+          // Tekerlek durunca zoom'u geri açmak için kısa gecikme
+          setTimeout(() => { 
+             if (!isLocked) viewer.scene.screenSpaceCameraController.enableZoom = true; 
+          }, 200);
+      }, { passive: false });
 
       function updateRoute() {
           activeLines.forEach(l => viewer.entities.remove(l));
           activeLines = [];
           
-          let prev = droneEntity.position.getValue(viewer.clock.currentTime);
+          // Zinciri oluştur (Drone -> WP0 -> WP1 -> ...)
+          let currentStart = droneEntity.position.getValue(viewer.clock.currentTime);
 
-          waypoints.forEach((wp) => {
-              const end = wp.position;
-              const dist = Cesium.Cartesian3.distance(prev, end);
-              const dir = Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(end, prev, new Cesium.Cartesian3()), new Cesium.Cartesian3());
-              const hit = viewer.scene.pickFromRay(new Cesium.Ray(prev, dir));
-              const blocked = Cesium.defined(hit) && Cesium.Cartesian3.distance(prev, hit.position) < (dist - 1.0);
+          for (let i = 0; i < waypoints.length; i++) {
+              let currentEnd = waypoints[i].position;
+              
+              const dist = Cesium.Cartesian3.distance(currentStart, currentEnd);
+              const dir = Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(currentEnd, currentStart, new Cesium.Cartesian3()), new Cesium.Cartesian3());
+              const hit = viewer.scene.pickFromRay(new Cesium.Ray(currentStart, dir));
+              const blocked = Cesium.defined(hit) && Cesium.Cartesian3.distance(currentStart, hit.position) < (dist - 1.0);
 
               const line = viewer.entities.add({
                   polyline: {
-                      positions: [prev, end],
+                      positions: [currentStart, currentEnd],
                       width: 5,
                       material: blocked ? Cesium.Color.RED : Cesium.Color.GREEN,
                       disableDepthTestDistance: 1e9
                   }
               });
               activeLines.push(line);
-              prev = end;
-          });
+              
+              // Bir sonraki çizginin başlangıcı, bu çizginin bitişidir
+              currentStart = currentEnd;
+          }
       }
 
       document.addEventListener('keydown', (e) => {
@@ -131,10 +146,12 @@
           const c = Cesium.Ellipsoid.WGS84.cartesianToCartographic(p);
           let lon = Cesium.Math.toDegrees(c.longitude), lat = Cesium.Math.toDegrees(c.latitude), alt = c.height;
           const s = 0.00005, k = e.key.toLowerCase();
+          
           if (k === 'a') heading -= 5; if (k === 'd') heading += 5;
           if (k === 'w') { lat += s * Math.cos(Cesium.Math.toRadians(heading)); lon += s * Math.sin(Cesium.Math.toRadians(heading)); }
           if (k === 's') { lat -= s * Math.cos(Cesium.Math.toRadians(heading)); lon -= s * Math.sin(Cesium.Math.toRadians(heading)); }
           if (k === 'q') alt += 3; if (k === 'e') alt -= 3;
+          
           const newPos = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
           droneEntity.position = newPos;
           droneEntity.orientation = Cesium.Transforms.headingPitchRollQuaternion(newPos, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading), 0, 0));
@@ -143,18 +160,22 @@
       });
     }
 
-    function toggleLock() {
+    function toggleMissionLock() {
         isLocked = !isLocked;
         const btn = document.getElementById('lock-btn');
         const status = document.getElementById('status-txt');
+        
+        // Kilitlendiğinde zoom'u kesin olarak aç
+        viewer.scene.screenSpaceCameraController.enableZoom = true;
+
         if (isLocked) {
             btn.innerText = "UNLOCK MISSION";
-            btn.classList.add('active');
-            status.innerText = "MISSION LOCKED";
-            status.style.color = "#ef4444";
+            btn.classList.add('locked');
+            status.innerText = "MISSION READY";
+            status.style.color = "#4ade80";
         } else {
             btn.innerText = "LOCK MISSION";
-            btn.classList.remove('active');
+            btn.classList.remove('locked');
             status.innerText = "PLANNING";
             status.style.color = "#38bdf8";
         }
