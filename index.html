@@ -2,61 +2,45 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>NaviVortex - Mission Workspace</title>
+  <title>NaviVortex V19 - Precision Mission</title>
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <style>
     body, html, #cesiumContainer { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #0b0f19; }
-    
-    /* SaaS Dashboard Side Panel */
     #dashboard {
-        position: absolute; top: 0; left: 0; width: 320px; height: 100%;
-        background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(10px);
-        border-right: 1px solid #1e293b; z-index: 100; padding: 25px;
-        color: white; font-family: 'Inter', sans-serif;
+        position: absolute; top: 0; left: 0; width: 300px; height: 100%;
+        background: rgba(15, 23, 42, 0.95); z-index: 100; padding: 20px;
+        border-right: 1px solid #0ea5e9; font-family: 'Inter', sans-serif; color: white;
     }
-    h1 { color: #38bdf8; font-size: 22px; letter-spacing: 2px; margin-bottom: 5px; font-weight: 900; }
-    .status-badge { font-size: 10px; background: #064e3b; color: #34d399; padding: 3px 8px; border-radius: 4px; font-weight: bold; }
-    
-    .card { background: #1e293b; border-radius: 12px; padding: 15px; margin-top: 20px; border: 1px solid #334155; }
-    .label { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
-    .value { font-size: 18px; font-weight: bold; color: #f1f5f9; margin-top: 5px; }
-
-    .btn { 
-        width: 100%; padding: 12px; border-radius: 8px; border: none; 
-        font-weight: bold; cursor: pointer; margin-top: 10px; transition: 0.3s;
-    }
-    .btn-primary { background: #38bdf8; color: #0f172a; }
-    .btn-outline { background: transparent; border: 1px solid #38bdf8; color: #38bdf8; }
-    .btn:hover { opacity: 0.8; transform: translateY(-2px); }
+    .telemetry-card { background: #1e293b; padding: 12px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #38bdf8; }
+    .label { font-size: 10px; color: #94a3b8; text-transform: uppercase; }
+    .value { font-size: 18px; font-weight: bold; color: #f1f5f9; }
+    #danger-alert { background: #7f1d1d; color: #fecaca; padding: 10px; border-radius: 6px; display: none; font-weight: bold; text-align: center; }
   </style>
 </head>
 <body>
   <div id="dashboard">
-    <h1>NAVIVORTEX</h1>
-    <span class="status-badge">MISSION WORKSPACE ACTIVE</span>
+    <h2 style="color:#38bdf8; margin:0;">NAVIVORTEX</h2>
+    <p style="font-size:10px; color:#64748b;">FLIGHT TELEMETRY SYSTEM</p>
+    
+    <div id="danger-alert">⚠️ COLLISION DETECTED</div>
 
-    <div class="card">
-        <div class="label">Total Route Distance</div>
+    <div class="telemetry-card">
+        <div class="label">Current Altitude (AMSL)</div>
+        <div id="alt-val" class="value">100 m</div>
+    </div>
+
+    <div class="telemetry-card">
+        <div class="label">Planned Path Distance</div>
         <div id="dist-val" class="value">0 m</div>
     </div>
 
-    <div class="card">
-        <div class="label">Safety Analysis</div>
-        <div id="safety-status" class="value" style="color: #4ade80;">SAFE</div>
+    <div class="telemetry-card">
+        <div class="label">Safety Status</div>
+        <div id="status-val" class="value" style="color:#22c55e;">CLEAR</div>
     </div>
 
-    <div style="margin-top: 30px;">
-        <button class="btn btn-primary" onclick="startAutoFlight()">START AUTO-FLIGHT</button>
-        <button class="btn btn-outline" onclick="location.reload()">CLEAR MISSION</button>
-    </div>
-
-    <div style="margin-top: 40px; font-size: 11px; color: #64748b; line-height: 1.6;">
-        <b>Operational Guide:</b><br>
-        1. Click 3D structures to plan route.<br>
-        2. System validates line safety (Red/Green).<br>
-        3. Use WASD for manual override.
-    </div>
+    <button onclick="location.reload()" style="width:100%; padding:10px; background:#334155; color:white; border:none; border-radius:6px; cursor:pointer;">RESET MISSION</button>
   </div>
 
   <div id="cesiumContainer"></div>
@@ -67,10 +51,10 @@
 
     const viewer = new Cesium.Viewer('cesiumContainer', {
       terrain: Cesium.Terrain.fromWorldTerrain(),
-      animation: false, timeline: false, baseLayerPicker: false, geocoder: true
+      animation: false, timeline: false, baseLayerPicker: false
     });
 
-    let droneEntity, heading = 0, waypoints = [], totalDist = 0;
+    let droneEntity, waypoints = [];
 
     async function init() {
       const tileset = await Cesium.createGooglePhotorealistic3DTileset(GOOGLE_API_KEY);
@@ -79,86 +63,57 @@
       const startPos = Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 100);
       droneEntity = viewer.entities.add({
           position: startPos,
-          orientation: Cesium.Transforms.headingPitchRollQuaternion(startPos, new Cesium.HeadingPitchRoll(0, 0, 0)),
           model: { uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumDrone/CesiumDrone.glb', minimumPixelSize: 128 }
       });
-
-      viewer.camera.flyTo({ 
-          destination: Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 350),
-          complete: () => { viewer.trackedEntity = droneEntity; } 
-      });
+      viewer.trackedEntity = droneEntity;
 
       const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
       handler.setInputAction((click) => {
-          let pos = viewer.scene.pickPosition(click.position);
-          if (!Cesium.defined(pos)) {
-              const ray = viewer.camera.getPickRay(click.position);
-              pos = viewer.scene.globe.pick(ray, viewer.scene);
-          }
-
+          // Binaları algılamak için daha güçlü 'pick' metodu
+          const pos = viewer.scene.pickPosition(click.position);
           if (Cesium.defined(pos)) {
-              const raisedPos = Cesium.Cartesian3.fromRadians(
-                  Cesium.Cartographic.fromCartesian(pos).longitude,
-                  Cesium.Cartographic.fromCartesian(pos).latitude,
-                  Cesium.Cartographic.fromCartesian(pos).height + 15
-              );
-              
-              waypoints.push(raisedPos);
-              viewer.entities.add({ position: raisedPos, point: { pixelSize: 10, color: Cesium.Color.YELLOW, disableDepthTestDistance: 1e9 } });
+              waypoints.push(pos);
+              viewer.entities.add({ 
+                position: pos, 
+                point: { pixelSize: 10, color: Cesium.Color.YELLOW, disableDepthTestDistance: Number.MAX_VALUE } 
+              });
 
               if (waypoints.length > 1) {
                   const start = waypoints[waypoints.length-2];
                   const end = waypoints[waypoints.length-1];
                   
-                  // --- SMART COLLISION DETECTION ---
+                  // Çarpışma Analizi (Raycast)
                   const direction = Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(end, start, new Cesium.Cartesian3()), new Cesium.Cartesian3());
                   const ray = new Cesium.Ray(start, direction);
                   const obstacle = viewer.scene.pickFromRay(ray);
-                  const distance = Cesium.Cartesian3.distance(start, end);
+                  const dist = Cesium.Cartesian3.distance(start, end);
                   
-                  // Eğer ışın (ray) yol üzerinde bir binaya çarpıyorsa:
-                  const isBlocked = Cesium.defined(obstacle) && Cesium.Cartesian3.distance(start, obstacle.position) < distance;
+                  const isBlocked = Cesium.defined(obstacle) && Cesium.Cartesian3.distance(start, obstacle.position) < dist;
 
                   viewer.entities.add({
                       polyline: {
                           positions: [start, end],
-                          width: 5,
+                          width: 4,
                           material: isBlocked ? Cesium.Color.RED : Cesium.Color.GREEN,
-                          disableDepthTestDistance: 1e9
+                          disableDepthTestDistance: Number.MAX_VALUE
                       }
                   });
-
-                  totalDist += distance;
-                  document.getElementById('dist-val').innerText = Math.round(totalDist) + " m";
+                  
                   if(isBlocked) {
-                      document.getElementById('safety-status').innerText = "DANGER";
-                      document.getElementById('safety-status').style.color = "#f87171";
+                      document.getElementById('danger-alert').style.display = 'block';
+                      document.getElementById('status-val').innerText = "BLOCKED";
+                      document.getElementById('status-val').style.color = "#ef4444";
                   }
               }
           }
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-    }
 
-    // --- AUTOMATIC FLIGHT SIMULATION ---
-    function startAutoFlight() {
-        if (waypoints.length < 2) return;
-        let currentWaypoint = 0;
-        
-        viewer.clock.onTick.addEventListener(function onTick() {
-            if (currentWaypoint >= waypoints.length) return;
-            
-            const target = waypoints[currentWaypoint];
-            const currentPos = droneEntity.position.getValue(viewer.clock.currentTime);
-            const dist = Cesium.Cartesian3.distance(currentPos, target);
-
-            if (dist < 2) {
-                currentWaypoint++;
-            } else {
-                const moveDir = Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(target, currentPos, new Cesium.Cartesian3()), new Cesium.Cartesian3());
-                const nextPos = Cesium.Cartesian3.add(currentPos, Cesium.Cartesian3.multiplyByScalar(moveDir, 0.5, new Cesium.Cartesian3()), new Cesium.Cartesian3());
-                droneEntity.position = nextPos;
-            }
-        });
+      // Telemetri Güncelleme (Altitude)
+      viewer.clock.onTick.addEventListener(() => {
+          const p = droneEntity.position.getValue(viewer.clock.currentTime);
+          const c = Cesium.Ellipsoid.WGS84.cartesianToCartographic(p);
+          document.getElementById('alt-val').innerText = Math.round(c.height) + " m";
+      });
     }
 
     init();
