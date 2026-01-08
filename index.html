@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>NaviVortex V37 - Auto-Pilot</title>
+  <title>NaviVortex V38 - Mission Control</title>
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <style>
@@ -16,20 +16,21 @@
     .label { font-size: 10px; color: #94a3b8; text-transform: uppercase; }
     .value { font-size: 16px; font-weight: bold; color: #f1f5f9; }
     .btn { width: 100%; padding: 12px; margin-top: 8px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; transition: 0.3s; }
-    #start-btn { background: #22c55e; color: white; display: none; }
     #lock-btn { background: #0ea5e9; color: white; }
-    #lock-btn.locked { background: #64748b; }
+    #lock-btn.locked { background: #475569; }
+    #start-mission-btn { background: #f59e0b; color: #000; display: none; } /* Gold color for visibility */
+    #start-mission-btn:hover { background: #fbbf24; }
   </style>
 </head>
 <body>
   <div id="dashboard">
-    <h2 style="color:#38bdf8; margin:0; font-size: 20px;">NAVIVORTEX</h2>
+    <h2 style="color:#38bdf8; margin:0; font-size: 20px; font-weight: 900;">NAVIVORTEX</h2>
     <div class="telemetry"><div class="label">Drone Alt</div><div id="alt-txt" class="value">100 m</div></div>
-    <div class="telemetry"><div class="label">Mode</div><div id="status-txt" class="value">PLANNING</div></div>
+    <div class="telemetry"><div class="label">Status</div><div id="status-txt" class="value">PLANNING</div></div>
     
     <button id="lock-btn" class="btn" onclick="toggleLock()">LOCK MISSION</button>
-    <button id="start-btn" class="btn" onclick="startMission()">START MISSION</button>
-    <button class="btn" style="background:#334155; color:white;" onclick="location.reload()">RESET</button>
+    <button id="start-mission-btn" class="btn" onclick="startAutoFlight()">START AUTO-FLIGHT</button>
+    <button class="btn" style="background:#334155; color:white;" onclick="location.reload()">RESET SYSTEM</button>
   </div>
   <div id="cesiumContainer"></div>
 
@@ -107,6 +108,7 @@
           setTimeout(() => { if(!isLocked) viewer.scene.screenSpaceCameraController.enableZoom = true; }, 200);
       }, { passive: false });
 
+      // Keyboard movement listener
       document.addEventListener('keydown', (e) => {
           if (isFlying) return;
           const p = droneEntity.position.getValue(viewer.clock.currentTime);
@@ -124,58 +126,73 @@
     }
 
     function toggleLock() {
-        if (waypoints.length === 0) return;
+        if (waypoints.length === 0) {
+            alert("Please add at least one waypoint first!");
+            return;
+        }
         isLocked = !isLocked;
-        document.getElementById('status-txt').innerText = isLocked ? "MISSION LOCKED" : "PLANNING";
-        document.getElementById('start-btn').style.display = isLocked ? "block" : "none";
-        document.getElementById('lock-btn').classList.toggle('locked');
+        const lockBtn = document.getElementById('lock-btn');
+        const startBtn = document.getElementById('start-mission-btn');
+        const statusTxt = document.getElementById('status-txt');
+
+        if (isLocked) {
+            lockBtn.innerText = "UNLOCK TO EDIT";
+            lockBtn.classList.add('locked');
+            startBtn.style.display = "block";
+            statusTxt.innerText = "READY FOR FLIGHT";
+            statusTxt.style.color = "#4ade80";
+        } else {
+            lockBtn.innerText = "LOCK MISSION";
+            lockBtn.classList.remove('locked');
+            startBtn.style.display = "none";
+            statusTxt.innerText = "PLANNING";
+            statusTxt.style.color = "#38bdf8";
+        }
         viewer.scene.screenSpaceCameraController.enableZoom = true;
     }
 
-    async function startMission() {
+    async function startAutoFlight() {
         if (waypoints.length === 0 || isFlying) return;
         isFlying = true;
         isLocked = true;
-        document.getElementById('status-txt').innerText = "AUTO-FLYING...";
-        document.getElementById('start-btn').style.display = "none";
+        document.getElementById('status-txt').innerText = "AUTO-PILOT ACTIVE";
+        document.getElementById('start-mission-btn').style.display = "none";
+        document.getElementById('lock-btn').style.display = "none";
 
         for (const wp of waypoints) {
-            const startPos = droneEntity.position.getValue(viewer.clock.currentTime);
-            const endPos = wp.currentPos;
-            const duration = Cesium.Cartesian3.distance(startPos, endPos) / 15; // Hız ayarı (15m/s)
+            const start = droneEntity.position.getValue(viewer.clock.currentTime);
+            const end = wp.currentPos;
+            const distance = Cesium.Cartesian3.distance(start, end);
+            const duration = distance / 20; // Speed: 20 meters per second
 
-            await flyToPoint(startPos, endPos, duration);
+            await lerpDrone(start, end, duration);
         }
 
         isFlying = false;
-        document.getElementById('status-txt').innerText = "MISSION COMPLETED";
-        document.getElementById('lock-btn').classList.remove('locked');
         isLocked = false;
+        document.getElementById('status-txt').innerText = "MISSION COMPLETE";
+        document.getElementById('lock-btn').style.display = "block";
+        document.getElementById('lock-btn').innerText = "LOCK MISSION";
+        document.getElementById('lock-btn').classList.remove('locked');
     }
 
-    function flyToPoint(start, end, duration) {
+    function lerpDrone(start, end, duration) {
         return new Promise((resolve) => {
             const startTime = performance.now();
-            
-            function update(time) {
-                const elapsed = (time - startTime) / 1000;
-                const t = Math.min(elapsed / duration, 1);
+            function frame(now) {
+                const t = Math.min((now - startTime) / (duration * 1000), 1);
+                const pos = Cesium.Cartesian3.lerp(start, end, t, new Cesium.Cartesian3());
+                droneEntity.position = pos;
 
-                const currentPos = Cesium.Cartesian3.lerp(start, end, t, new Cesium.Cartesian3());
-                droneEntity.position = currentPos;
+                // Simple Heading calculation
+                const dir = Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(end, start, new Cesium.Cartesian3()), new Cesium.Cartesian3());
+                const hpr = new Cesium.HeadingPitchRoll(Math.atan2(dir.x, dir.y), 0, 0);
+                droneEntity.orientation = Cesium.Transforms.headingPitchRollQuaternion(pos, hpr);
 
-                // Look at target
-                const direction = Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(end, start, new Cesium.Cartesian3()), new Cesium.Cartesian3());
-                const hpr = Cesium.Transforms.headingPitchRollQuaternion(currentPos, new Cesium.HeadingPitchRoll(Math.atan2(direction.x, direction.y), 0, 0));
-                droneEntity.orientation = hpr;
-
-                if (t < 1) {
-                    requestAnimationFrame(update);
-                } else {
-                    resolve();
-                }
+                if (t < 1) requestAnimationFrame(frame);
+                else resolve();
             }
-            requestAnimationFrame(update);
+            requestAnimationFrame(frame);
         });
     }
 
