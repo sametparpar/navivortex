@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
 <head>
   <meta charset="utf-8">
-  <title>NaviVortex V26 - Control Lock</title>
+  <title>NaviVortex V27 - Görev Kontrol</title>
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <style>
@@ -11,24 +11,28 @@
         position: absolute; top: 20px; left: 20px; width: 280px; 
         background: rgba(15, 23, 42, 0.95); z-index: 100; padding: 20px;
         border: 1px solid #38bdf8; border-radius: 12px; font-family: 'Inter', sans-serif; color: white;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.5);
     }
+    h2 { color: #38bdf8; margin: 0; font-size: 18px; letter-spacing: 1.5px; }
     .telemetry { background: #1e293b; padding: 10px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #38bdf8; }
     .label { font-size: 10px; color: #94a3b8; text-transform: uppercase; }
     .value { font-size: 16px; font-weight: bold; color: #f1f5f9; }
-    #guide { font-size: 11px; color: #64748b; margin-top: 15px; border-top: 1px solid #334155; padding-top: 10px; line-height: 1.4; }
+    .btn-reset { width: 100%; padding: 10px; background: #334155; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; transition: 0.3s; }
+    .btn-reset:hover { background: #475569; }
+    #guide { font-size: 11px; color: #64748b; margin-top: 15px; border-top: 1px solid #334155; padding-top: 10px; line-height: 1.5; }
   </style>
 </head>
 <body>
   <div id="dashboard">
-    <h2 style="color:#38bdf8; margin:0; font-size: 18px;">NAVIVORTEX V26</h2>
-    <div class="telemetry"><div class="label">Drone Alt (AMSL)</div><div id="alt-txt" class="value">100 m</div></div>
-    <div class="telemetry"><div class="label">Adjusting Point Alt</div><div id="wp-alt-txt" class="value">---</div></div>
+    <h2>NAVIVORTEX V27</h2>
+    <div class="telemetry"><div class="label">DRONE YÜKSEKLİĞİ</div><div id="alt-txt" class="value">100 m</div></div>
+    <div class="telemetry"><div class="label">NOKTA YÜKSEKLİĞİ</div><div id="wp-alt-txt" class="value">---</div></div>
     <div id="guide">
-        • <b>Sol Tık:</b> Nokta Ekle<br>
-        • <b>Mouse Tekerleği:</b> Yüksekliği Değiştir (Zoom Devre Dışı Kalır)<br>
-        • <b>Sağ Tık / Sürükle:</b> Haritayı Hareket Ettir
+        • <b>Sol Tık:</b> Yeni Rota Noktası<br>
+        • <b>Tekerlek:</b> Nokta Yüksekliğini Ayarla<br>
+        • <b>Sağ Tık + Sürükle:</b> Haritayı Döndür
     </div>
-    <button onclick="location.reload()" style="width:100%; padding:8px; background:#334155; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; margin-top:10px;">GÖREVİ SIFIRLA</button>
+    <button class="btn-reset" onclick="location.reload()">SİSTEMİ SIFIRLA</button>
   </div>
   <div id="cesiumContainer"></div>
 
@@ -38,77 +42,119 @@
 
     const viewer = new Cesium.Viewer('cesiumContainer', {
       terrain: Cesium.Terrain.fromWorldTerrain(),
-      animation: false, timeline: false, baseLayerPicker: false
+      animation: false, timeline: false, baseLayerPicker: false,
+      geocoder: true, sceneModePicker: false
     });
 
-    let droneEntity, heading = 0, waypoints = [], activeEntities = [];
+    let droneEntity, heading = 0, waypoints = [], activeLines = [];
 
     async function init() {
-      const tileset = await Cesium.createGooglePhotorealistic3DTileset(GOOGLE_API_KEY);
-      viewer.scene.primitives.add(tileset);
-      
-      const startPos = Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 100);
-      droneEntity = viewer.entities.add({
-          position: startPos,
-          model: { uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumDrone/CesiumDrone.glb', minimumPixelSize: 90 }
-      });
-      viewer.trackedEntity = droneEntity;
+      try {
+        const tileset = await Cesium.createGooglePhotorealistic3DTileset(GOOGLE_API_KEY);
+        viewer.scene.primitives.add(tileset);
+        
+        const startPos = Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 100);
+        droneEntity = viewer.entities.add({
+            position: startPos,
+            orientation: Cesium.Transforms.headingPitchRollQuaternion(startPos, new Cesium.HeadingPitchRoll(0, 0, 0)),
+            model: { uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumDrone/CesiumDrone.glb', minimumPixelSize: 90 }
+        });
+        viewer.trackedEntity = droneEntity;
 
-      const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+        const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 
-      // --- NOKTA EKLEME ---
-      handler.setInputAction((click) => {
-          const pickedPos = viewer.scene.pickPosition(click.position);
-          if (Cesium.defined(pickedPos)) {
-              const dronePos = droneEntity.position.getValue(viewer.clock.currentTime);
-              const dCarto = Cesium.Cartographic.fromCartesian(dronePos);
-              const pCarto = Cesium.Cartographic.fromCartesian(pickedPos);
-              
-              const finalPos = Cesium.Cartesian3.fromRadians(pCarto.longitude, pCarto.latitude, dCarto.height);
-              
-              const wp = {
-                  position: finalPos,
-                  entity: viewer.entities.add({
-                      position: finalPos,
-                      point: { pixelSize: 12, color: Cesium.Color.YELLOW, disableDepthTestDistance: 1e9 },
-                      label: { text: Math.round(dCarto.height) + "m", font: '10pt sans-serif', pixelOffset: new Cesium.Cartesian2(0, -20), disableDepthTestDistance: 1e9 }
-                  })
-              };
-              
-              waypoints.push(wp);
-              document.getElementById('wp-alt-txt').innerText = Math.round(dCarto.height) + " m";
-              updateLines();
-          }
-      }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+        // --- NOKTA EKLEME ---
+        handler.setInputAction((click) => {
+            const pickedPos = viewer.scene.pickPosition(click.position);
+            if (Cesium.defined(pickedPos)) {
+                const dPos = droneEntity.position.getValue(viewer.clock.currentTime);
+                const dCarto = Cesium.Cartographic.fromCartesian(dPos);
+                const pCarto = Cesium.Cartographic.fromCartesian(pickedPos);
+                
+                const finalPos = Cesium.Cartesian3.fromRadians(pCarto.longitude, pCarto.latitude, dCarto.height);
+                
+                const wp = {
+                    position: finalPos,
+                    entity: viewer.entities.add({
+                        position: finalPos,
+                        point: { pixelSize: 12, color: Cesium.Color.YELLOW, disableDepthTestDistance: 1e9 },
+                        label: { text: Math.round(dCarto.height) + "m", font: '10pt sans-serif', pixelOffset: new Cesium.Cartesian2(0, -20), disableDepthTestDistance: 1e9 }
+                    })
+                };
+                
+                waypoints.push(wp);
+                document.getElementById('wp-alt-txt').innerText = Math.round(dCarto.height) + " m";
+                updateRoute();
+            }
+        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
-      // --- ZOOM ENGELLEME VE YÜKSEKLİK AYARI ---
-      // Tekerlek hareketini yakalıyoruz
-      viewer.canvas.addEventListener('wheel', function(e) {
-          if (waypoints.length > 0) {
-              // Haritanın kendi zoom özelliğini geçici olarak devre dışı bırakıyoruz
-              viewer.scene.screenSpaceCameraController.enableInputs = false;
-              
-              const lastWP = waypoints[waypoints.length - 1];
-              const carto = Cesium.Cartographic.fromCartesian(lastWP.position);
-              
-              // Tekerlek yukarı -> Yükseklik artar, Tekerlek aşağı -> Yükseklik azalır
-              const delta = e.deltaY < 0 ? 5 : -5;
-              const newAlt = carto.height + delta;
-              const newPos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, newAlt);
-              
-              lastWP.position = newPos;
-              lastWP.entity.position = newPos;
-              lastWP.entity.label.text = Math.round(newAlt) + "m";
-              document.getElementById('wp-alt-txt').innerText = Math.round(newAlt) + " m";
-              
-              updateLines();
+        // --- GELİŞMİŞ YÜKSEKLİK KONTROLÜ (MOUSE WHEEL) ---
+        viewer.canvas.addEventListener('wheel', (e) => {
+            if (waypoints.length > 0) {
+                // Zoom'u kapat
+                viewer.scene.screenSpaceCameraController.enableZoom = false;
+                
+                const lastWP = waypoints[waypoints.length - 1];
+                const carto = Cesium.Cartographic.fromCartesian(lastWP.position);
+                const change = e.deltaY < 0 ? 5 : -5;
+                const newAlt = carto.height + change;
+                const newPos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, newAlt);
+                
+                lastWP.position = newPos;
+                lastWP.entity.position = newPos;
+                lastWP.entity.label.text = Math.round(newAlt) + "m";
+                document.getElementById('wp-alt-txt').innerText = Math.round(newAlt) + " m";
+                
+                updateRoute();
 
-              // Kısa bir süre sonra kamera kontrolünü geri açıyoruz (serbest hareket için)
-              setTimeout(() => {
-                  viewer.scene.screenSpaceCameraController.enableInputs = true;
-              }, 100);
-          }
-      }, false);
+                // Zoom'u kısa süre sonra tekrar aç
+                setTimeout(() => { viewer.scene.screenSpaceCameraController.enableZoom = true; }, 150);
+            }
+        }, { passive: false });
 
-      function updateLines() {
-          activeEntities.forEach(e => viewer.entities.remove(e
+        function updateRoute() {
+            activeLines.forEach(l => viewer.entities.remove(l));
+            activeLines = [];
+
+            let prev = droneEntity.position.getValue(viewer.clock.currentTime);
+            waypoints.forEach((wp) => {
+                const end = wp.position;
+                const dist = Cesium.Cartesian3.distance(prev, end);
+                const dir = Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(end, prev, new Cesium.Cartesian3()), new Cesium.Cartesian3());
+                const hit = viewer.scene.pickFromRay(new Cesium.Ray(prev, dir));
+                const blocked = Cesium.defined(hit) && Cesium.Cartesian3.distance(prev, hit.position) < (dist - 1.0);
+
+                const line = viewer.entities.add({
+                    polyline: {
+                        positions: [prev, end],
+                        width: 5,
+                        material: blocked ? Cesium.Color.RED : Cesium.Color.GREEN,
+                        disableDepthTestDistance: 1e9
+                    }
+                });
+                activeLines.push(line);
+                prev = end;
+            });
+        }
+
+        document.addEventListener('keydown', (e) => {
+            const p = droneEntity.position.getValue(viewer.clock.currentTime);
+            const c = Cesium.Cartographic.fromCartesian(p);
+            let lon = Cesium.Math.toDegrees(c.longitude), lat = Cesium.Math.toDegrees(c.latitude), alt = c.height;
+            const s = 0.00005, k = e.key.toLowerCase();
+            if (k === 'a') heading -= 5; if (k === 'd') heading += 5;
+            if (k === 'w') { lat += s * Math.cos(Cesium.Math.toRadians(heading)); lon += s * Math.sin(Cesium.Math.toRadians(heading)); }
+            if (k === 's') { lat -= s * Math.cos(Cesium.Math.toRadians(heading)); lon -= s * Math.sin(Cesium.Math.toRadians(heading)); }
+            if (k === 'q') alt += 3; if (k === 'e') alt -= 3;
+            const newPos = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
+            droneEntity.position = newPos;
+            droneEntity.orientation = Cesium.Transforms.headingPitchRollQuaternion(newPos, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading), 0, 0));
+            document.getElementById('alt-txt').innerText = Math.round(alt) + " m";
+            updateRoute();
+        });
+      } catch (err) { console.error("Harita Yükleme Hatası:", err); }
+    }
+    init();
+  </script>
+</body>
+</html>
