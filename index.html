@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>NaviVortex V35 - Visual Anchor</title>
+  <title>NaviVortex V36 - Free Cam</title>
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <style>
@@ -22,7 +22,7 @@
   <div id="dashboard">
     <h2 style="color:#38bdf8; margin:0; font-size: 20px;">NAVIVORTEX</h2>
     <div class="telemetry"><div class="label">Drone Alt</div><div id="alt-txt" class="value">100 m</div></div>
-    <div class="telemetry"><div class="label">Status</div><div id="status-txt" class="value">PLANNING</div></div>
+    <div class="telemetry"><div class="label">Mode</div><div id="status-txt" class="value">PLANNING</div></div>
     <button id="lock-btn" class="btn" style="background:#0ea5e9; color:white;" onclick="toggleLock()">LOCK MISSION</button>
     <button class="btn" style="background:#334155; color:white;" onclick="location.reload()">RESET</button>
   </div>
@@ -48,7 +48,11 @@
           position: startPos,
           model: { uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumDrone/CesiumDrone.glb', minimumPixelSize: 90 }
       });
-      viewer.trackedEntity = droneEntity;
+      
+      // KAMERA SERBEST BIRAKILDI (trackedEntity kaldırıldı)
+      viewer.camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 400)
+      });
 
       const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 
@@ -65,24 +69,26 @@
                   groundPos: groundPos,
                   pointEntity: viewer.entities.add({
                       position: new Cesium.CallbackProperty(() => wp.currentPos, false),
-                      point: { pixelSize: 10, color: Cesium.Color.YELLOW, disableDepthTestDistance: 1e9 }
+                      point: { pixelSize: 10, color: Cesium.Color.YELLOW, disableDepthTestDistance: 1e9 },
+                      label: { 
+                        text: new Cesium.CallbackProperty(() => Math.round(Cesium.Cartographic.fromCartesian(wp.currentPos).height) + "m", false),
+                        font: '10pt sans-serif',
+                        pixelOffset: new Cesium.Cartesian2(0, -20),
+                        disableDepthTestDistance: 1e9
+                      }
                   }),
-                  // Vertical guide line to avoid perspective confusion
                   anchorLine: viewer.entities.add({
                       polyline: {
                           positions: new Cesium.CallbackProperty(() => [wp.groundPos, wp.currentPos], false),
                           width: 1,
-                          material: Cesium.Color.WHITE.withAlpha(0.5),
+                          material: Cesium.Color.WHITE.withAlpha(0.4),
                           disableDepthTestDistance: 1e9
                       }
                   }),
                   pathLine: null
               };
 
-              // Linking Logic
-              let prev = (waypoints.length === 0) ? 
-                         droneEntity : 
-                         waypoints[waypoints.length - 1];
+              let prev = (waypoints.length === 0) ? droneEntity : waypoints[waypoints.length - 1];
 
               wp.pathLine = viewer.entities.add({
                   polyline: {
@@ -111,7 +117,7 @@
           const newAlt = carto.height + (e.deltaY < 0 ? 5 : -5);
           lastWP.currentPos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, newAlt);
 
-          // Real-time Red/Green safety check
+          // Safety Re-check
           checkSafety(lastWP);
 
           setTimeout(() => { if(!isLocked) viewer.scene.screenSpaceCameraController.enableZoom = true; }, 200);
@@ -119,12 +125,9 @@
 
       function checkSafety(wp) {
           const index = waypoints.indexOf(wp);
-          const start = (index === 0) ? 
-                        droneEntity.position.getValue(viewer.clock.currentTime) : 
-                        waypoints[index-1].currentPos;
-          const end = wp.currentPos;
-          const dist = Cesium.Cartesian3.distance(start, end);
-          const dir = Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(end, start, new Cesium.Cartesian3()), new Cesium.Cartesian3());
+          const start = (index === 0) ? droneEntity.position.getValue(viewer.clock.currentTime) : waypoints[index-1].currentPos;
+          const dist = Cesium.Cartesian3.distance(start, wp.currentPos);
+          const dir = Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(wp.currentPos, start, new Cesium.Cartesian3()), new Cesium.Cartesian3());
           const hit = viewer.scene.pickFromRay(new Cesium.Ray(start, dir));
           const blocked = Cesium.defined(hit) && Cesium.Cartesian3.distance(start, hit.position) < (dist - 1.0);
           wp.pathLine.polyline.material = blocked ? Cesium.Color.RED : Cesium.Color.GREEN;
