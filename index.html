@@ -2,35 +2,43 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>NaviVortex V38 - Mission Control</title>
+  <title>NaviVortex V39 - Mission Mastery</title>
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <style>
-    body, html, #cesiumContainer { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #000; }
+    body, html, #cesiumContainer { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #0f172a; }
     #dashboard {
-        position: absolute; top: 20px; left: 20px; width: 260px; 
-        background: rgba(15, 23, 42, 0.95); z-index: 100; padding: 20px;
-        border: 1px solid #38bdf8; border-radius: 12px; font-family: 'Inter', sans-serif; color: white;
+        position: absolute; top: 20px; left: 20px; width: 280px; 
+        background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(10px); z-index: 100; padding: 25px;
+        border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 16px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: white;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.5);
     }
-    .telemetry { background: #1e293b; padding: 10px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #38bdf8; }
-    .label { font-size: 10px; color: #94a3b8; text-transform: uppercase; }
-    .value { font-size: 16px; font-weight: bold; color: #f1f5f9; }
-    .btn { width: 100%; padding: 12px; margin-top: 8px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; transition: 0.3s; }
+    .telemetry { background: rgba(30, 41, 59, 0.7); padding: 12px; border-radius: 10px; margin: 12px 0; border-left: 4px solid #38bdf8; }
+    .label { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+    .value { font-size: 18px; font-weight: bold; color: #f1f5f9; }
+    .btn { 
+        width: 100%; padding: 14px; margin-top: 10px; border-radius: 8px; border: none; 
+        cursor: pointer; font-weight: bold; transition: all 0.3s ease; text-transform: uppercase;
+        letter-spacing: 1px; display: flex; align-items: center; justify-content: center;
+    }
     #lock-btn { background: #0ea5e9; color: white; }
+    #lock-btn:hover { background: #0284c7; }
     #lock-btn.locked { background: #475569; }
-    #start-mission-btn { background: #f59e0b; color: #000; display: none; } /* Gold color for visibility */
-    #start-mission-btn:hover { background: #fbbf24; }
+    #start-btn { background: #10b981; color: white; display: none; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4); }
+    #start-btn:hover { background: #059669; transform: translateY(-2px); }
+    .reset-btn { background: transparent; color: #94a3b8; border: 1px solid #334155; margin-top: 20px; font-size: 11px; }
+    .reset-btn:hover { color: #ef4444; border-color: #ef4444; }
   </style>
 </head>
 <body>
   <div id="dashboard">
-    <h2 style="color:#38bdf8; margin:0; font-size: 20px; font-weight: 900;">NAVIVORTEX</h2>
-    <div class="telemetry"><div class="label">Drone Alt</div><div id="alt-txt" class="value">100 m</div></div>
-    <div class="telemetry"><div class="label">Status</div><div id="status-txt" class="value">PLANNING</div></div>
+    <h2 style="color:#38bdf8; margin:0 0 15px 0; font-size: 22px; font-weight: 900;">NAVI<span style="color:#fff">VORTEX</span></h2>
+    <div class="telemetry"><div class="label">Altitude</div><div id="alt-txt" class="value">100 m</div></div>
+    <div class="telemetry"><div class="label">Status</div><div id="status-txt" class="value" style="color:#38bdf8;">PLANNING</div></div>
     
-    <button id="lock-btn" class="btn" onclick="toggleLock()">LOCK MISSION</button>
-    <button id="start-mission-btn" class="btn" onclick="startAutoFlight()">START AUTO-FLIGHT</button>
-    <button class="btn" style="background:#334155; color:white;" onclick="location.reload()">RESET SYSTEM</button>
+    <button id="lock-btn" class="btn" onclick="toggleLock()">🔒 LOCK MISSION</button>
+    <button id="start-btn" class="btn" onclick="startAutonomousFlight()">🚀 START MISSION</button>
+    <button class="btn reset-btn" onclick="location.reload()">RESET SYSTEM</button>
   </div>
   <div id="cesiumContainer"></div>
 
@@ -40,7 +48,7 @@
 
     const viewer = new Cesium.Viewer('cesiumContainer', {
       terrain: Cesium.Terrain.fromWorldTerrain(),
-      animation: false, timeline: false, baseLayerPicker: false
+      animation: false, timeline: false, baseLayerPicker: false, selectionIndicator: false, infoBox: false
     });
 
     let droneEntity, heading = 0, waypoints = [], isLocked = false, isFlying = false;
@@ -70,16 +78,16 @@
                   groundPos: groundPos,
                   pointEntity: viewer.entities.add({
                       position: new Cesium.CallbackProperty(() => wp.currentPos, false),
-                      point: { pixelSize: 10, color: Cesium.Color.YELLOW, disableDepthTestDistance: 1e9 },
+                      point: { pixelSize: 10, color: Cesium.Color.YELLOW, outlineColor: Cesium.Color.BLACK, outlineWidth: 2, disableDepthTestDistance: 1e9 },
                       label: { 
                         text: new Cesium.CallbackProperty(() => Math.round(Cesium.Cartographic.fromCartesian(wp.currentPos).height) + "m", false),
-                        font: '10pt sans-serif', pixelOffset: new Cesium.Cartesian2(0, -20), disableDepthTestDistance: 1e9 
+                        font: 'bold 10pt Inter, sans-serif', fillColor: Cesium.Color.SKYBLUE, pixelOffset: new Cesium.Cartesian2(0, -25), disableDepthTestDistance: 1e9 
                       }
                   }),
                   anchorLine: viewer.entities.add({
                       polyline: {
                           positions: new Cesium.CallbackProperty(() => [wp.groundPos, wp.currentPos], false),
-                          width: 1, material: Cesium.Color.WHITE.withAlpha(0.4), disableDepthTestDistance: 1e9
+                          width: 1, material: new Cesium.PolylineDashMaterialProperty({color: Cesium.Color.WHITE.withAlpha(0.5)}), disableDepthTestDistance: 1e9
                       }
                   }),
                   pathLine: null
@@ -91,7 +99,7 @@
                           const start = (prev === droneEntity) ? droneEntity.position.getValue(viewer.clock.currentTime) : prev.currentPos;
                           return [start, wp.currentPos];
                       }, false),
-                      width: 4, material: Cesium.Color.GREEN, disableDepthTestDistance: 1e9
+                      width: 5, material: Cesium.Color.GREEN, disableDepthTestDistance: 1e9
                   }
               });
               waypoints.push(wp);
@@ -104,11 +112,10 @@
           const lastWP = waypoints[waypoints.length - 1];
           const carto = Cesium.Cartographic.fromCartesian(lastWP.currentPos);
           const newAlt = carto.height + (e.deltaY < 0 ? 5 : -5);
-          lastWP.currentPos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, newAlt);
+          lastWP.currentPos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, Math.max(0, newAlt));
           setTimeout(() => { if(!isLocked) viewer.scene.screenSpaceCameraController.enableZoom = true; }, 200);
       }, { passive: false });
 
-      // Keyboard movement listener
       document.addEventListener('keydown', (e) => {
           if (isFlying) return;
           const p = droneEntity.position.getValue(viewer.clock.currentTime);
@@ -126,23 +133,20 @@
     }
 
     function toggleLock() {
-        if (waypoints.length === 0) {
-            alert("Please add at least one waypoint first!");
-            return;
-        }
+        if (waypoints.length === 0) return;
         isLocked = !isLocked;
         const lockBtn = document.getElementById('lock-btn');
-        const startBtn = document.getElementById('start-mission-btn');
+        const startBtn = document.getElementById('start-btn');
         const statusTxt = document.getElementById('status-txt');
 
         if (isLocked) {
-            lockBtn.innerText = "UNLOCK TO EDIT";
+            lockBtn.innerText = "🔓 UNLOCK TO EDIT";
             lockBtn.classList.add('locked');
-            startBtn.style.display = "block";
-            statusTxt.innerText = "READY FOR FLIGHT";
-            statusTxt.style.color = "#4ade80";
+            startBtn.style.display = "flex";
+            statusTxt.innerText = "MISSION READY";
+            statusTxt.style.color = "#10b981";
         } else {
-            lockBtn.innerText = "LOCK MISSION";
+            lockBtn.innerText = "🔒 LOCK MISSION";
             lockBtn.classList.remove('locked');
             startBtn.style.display = "none";
             statusTxt.innerText = "PLANNING";
@@ -151,32 +155,44 @@
         viewer.scene.screenSpaceCameraController.enableZoom = true;
     }
 
-    async function startAutoFlight() {
+    async function startAutonomousFlight() {
         if (waypoints.length === 0 || isFlying) return;
         isFlying = true;
-        isLocked = true;
-        document.getElementById('status-txt').innerText = "AUTO-PILOT ACTIVE";
-        document.getElementById('start-mission-btn').style.display = "none";
+        document.getElementById('status-txt').innerText = "AUTOPILOT: ON";
+        document.getElementById('start-btn').style.display = "none";
         document.getElementById('lock-btn').style.display = "none";
 
-        for (const wp of waypoints) {
-            const start = droneEntity.position.getValue(viewer.clock.currentTime);
-            const end = wp.currentPos;
-            const distance = Cesium.Cartesian3.distance(start, end);
-            const duration = distance / 20; // Speed: 20 meters per second
+        // Start following drone
+        viewer.trackedEntity = droneEntity;
 
-            await lerpDrone(start, end, duration);
+        for (let i = 0; i < waypoints.length; i++) {
+            const startPos = droneEntity.position.getValue(viewer.clock.currentTime);
+            const endPos = waypoints[i].currentPos;
+            const distance = Cesium.Cartesian3.distance(startPos, endPos);
+            const duration = distance / 25; // 25 m/s hızı
+
+            await flyToPoint(startPos, endPos, duration);
+        }
+
+        // --- Mission Finish Ceremony ---
+        document.getElementById('status-txt').innerText = "GÖREV TAMAMLANDI";
+        viewer.trackedEntity = undefined; // Stop forced tracking
+        
+        // 360-degree victory spin
+        const finalPos = droneEntity.position.getValue(viewer.clock.currentTime);
+        for(let r=0; r<360; r+=5) {
+            droneEntity.orientation = Cesium.Transforms.headingPitchRollQuaternion(finalPos, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(r), 0, 0));
+            await new Promise(res => setTimeout(res, 20));
         }
 
         isFlying = false;
         isLocked = false;
-        document.getElementById('status-txt').innerText = "MISSION COMPLETE";
-        document.getElementById('lock-btn').style.display = "block";
-        document.getElementById('lock-btn').innerText = "LOCK MISSION";
+        document.getElementById('lock-btn').style.display = "flex";
+        document.getElementById('lock-btn').innerText = "🔒 NEW MISSION";
         document.getElementById('lock-btn').classList.remove('locked');
     }
 
-    function lerpDrone(start, end, duration) {
+    function flyToPoint(start, end, duration) {
         return new Promise((resolve) => {
             const startTime = performance.now();
             function frame(now) {
@@ -184,7 +200,6 @@
                 const pos = Cesium.Cartesian3.lerp(start, end, t, new Cesium.Cartesian3());
                 droneEntity.position = pos;
 
-                // Simple Heading calculation
                 const dir = Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(end, start, new Cesium.Cartesian3()), new Cesium.Cartesian3());
                 const hpr = new Cesium.HeadingPitchRoll(Math.atan2(dir.x, dir.y), 0, 0);
                 droneEntity.orientation = Cesium.Transforms.headingPitchRollQuaternion(pos, hpr);
