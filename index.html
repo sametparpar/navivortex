@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>NaviVortex V36 - Free Cam</title>
+  <title>NaviVortex V37 - Auto-Pilot</title>
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <style>
@@ -15,7 +15,10 @@
     .telemetry { background: #1e293b; padding: 10px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #38bdf8; }
     .label { font-size: 10px; color: #94a3b8; text-transform: uppercase; }
     .value { font-size: 16px; font-weight: bold; color: #f1f5f9; }
-    .btn { width: 100%; padding: 12px; margin-top: 8px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; }
+    .btn { width: 100%; padding: 12px; margin-top: 8px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; transition: 0.3s; }
+    #start-btn { background: #22c55e; color: white; display: none; }
+    #lock-btn { background: #0ea5e9; color: white; }
+    #lock-btn.locked { background: #64748b; }
   </style>
 </head>
 <body>
@@ -23,7 +26,9 @@
     <h2 style="color:#38bdf8; margin:0; font-size: 20px;">NAVIVORTEX</h2>
     <div class="telemetry"><div class="label">Drone Alt</div><div id="alt-txt" class="value">100 m</div></div>
     <div class="telemetry"><div class="label">Mode</div><div id="status-txt" class="value">PLANNING</div></div>
-    <button id="lock-btn" class="btn" style="background:#0ea5e9; color:white;" onclick="toggleLock()">LOCK MISSION</button>
+    
+    <button id="lock-btn" class="btn" onclick="toggleLock()">LOCK MISSION</button>
+    <button id="start-btn" class="btn" onclick="startMission()">START MISSION</button>
     <button class="btn" style="background:#334155; color:white;" onclick="location.reload()">RESET</button>
   </div>
   <div id="cesiumContainer"></div>
@@ -37,7 +42,7 @@
       animation: false, timeline: false, baseLayerPicker: false
     });
 
-    let droneEntity, heading = 0, waypoints = [], isLocked = false;
+    let droneEntity, heading = 0, waypoints = [], isLocked = false, isFlying = false;
 
     async function init() {
       const tileset = await Cesium.createGooglePhotorealistic3DTileset(GOOGLE_API_KEY);
@@ -49,21 +54,16 @@
           model: { uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumDrone/CesiumDrone.glb', minimumPixelSize: 90 }
       });
       
-      // KAMERA SERBEST BIRAKILDI (trackedEntity kaldırıldı)
-      viewer.camera.flyTo({
-          destination: Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 400)
-      });
+      viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 500) });
 
       const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 
       handler.setInputAction((click) => {
-          if (isLocked) return;
+          if (isLocked || isFlying) return;
           const pickedPos = viewer.scene.pickPosition(click.position);
-          
           if (Cesium.defined(pickedPos)) {
               const carto = Cesium.Cartographic.fromCartesian(pickedPos);
               const groundPos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, carto.height);
-              
               const wp = {
                   currentPos: pickedPos,
                   groundPos: groundPos,
@@ -72,68 +72,43 @@
                       point: { pixelSize: 10, color: Cesium.Color.YELLOW, disableDepthTestDistance: 1e9 },
                       label: { 
                         text: new Cesium.CallbackProperty(() => Math.round(Cesium.Cartographic.fromCartesian(wp.currentPos).height) + "m", false),
-                        font: '10pt sans-serif',
-                        pixelOffset: new Cesium.Cartesian2(0, -20),
-                        disableDepthTestDistance: 1e9
+                        font: '10pt sans-serif', pixelOffset: new Cesium.Cartesian2(0, -20), disableDepthTestDistance: 1e9 
                       }
                   }),
                   anchorLine: viewer.entities.add({
                       polyline: {
                           positions: new Cesium.CallbackProperty(() => [wp.groundPos, wp.currentPos], false),
-                          width: 1,
-                          material: Cesium.Color.WHITE.withAlpha(0.4),
-                          disableDepthTestDistance: 1e9
+                          width: 1, material: Cesium.Color.WHITE.withAlpha(0.4), disableDepthTestDistance: 1e9
                       }
                   }),
                   pathLine: null
               };
-
               let prev = (waypoints.length === 0) ? droneEntity : waypoints[waypoints.length - 1];
-
               wp.pathLine = viewer.entities.add({
                   polyline: {
                       positions: new Cesium.CallbackProperty(() => {
-                          const start = (prev === droneEntity) ? 
-                                        droneEntity.position.getValue(viewer.clock.currentTime) : 
-                                        prev.currentPos;
+                          const start = (prev === droneEntity) ? droneEntity.position.getValue(viewer.clock.currentTime) : prev.currentPos;
                           return [start, wp.currentPos];
                       }, false),
-                      width: 4,
-                      material: Cesium.Color.GREEN,
-                      disableDepthTestDistance: 1e9
+                      width: 4, material: Cesium.Color.GREEN, disableDepthTestDistance: 1e9
                   }
               });
-
               waypoints.push(wp);
           }
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
       viewer.canvas.addEventListener('wheel', (e) => {
-          if (isLocked || waypoints.length === 0) return;
+          if (isLocked || waypoints.length === 0 || isFlying) return;
           viewer.scene.screenSpaceCameraController.enableZoom = false;
-          
           const lastWP = waypoints[waypoints.length - 1];
           const carto = Cesium.Cartographic.fromCartesian(lastWP.currentPos);
           const newAlt = carto.height + (e.deltaY < 0 ? 5 : -5);
           lastWP.currentPos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, newAlt);
-
-          // Safety Re-check
-          checkSafety(lastWP);
-
           setTimeout(() => { if(!isLocked) viewer.scene.screenSpaceCameraController.enableZoom = true; }, 200);
       }, { passive: false });
 
-      function checkSafety(wp) {
-          const index = waypoints.indexOf(wp);
-          const start = (index === 0) ? droneEntity.position.getValue(viewer.clock.currentTime) : waypoints[index-1].currentPos;
-          const dist = Cesium.Cartesian3.distance(start, wp.currentPos);
-          const dir = Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(wp.currentPos, start, new Cesium.Cartesian3()), new Cesium.Cartesian3());
-          const hit = viewer.scene.pickFromRay(new Cesium.Ray(start, dir));
-          const blocked = Cesium.defined(hit) && Cesium.Cartesian3.distance(start, hit.position) < (dist - 1.0);
-          wp.pathLine.polyline.material = blocked ? Cesium.Color.RED : Cesium.Color.GREEN;
-      }
-
       document.addEventListener('keydown', (e) => {
+          if (isFlying) return;
           const p = droneEntity.position.getValue(viewer.clock.currentTime);
           const c = Cesium.Cartographic.fromCartesian(p);
           let lon = Cesium.Math.toDegrees(c.longitude), lat = Cesium.Math.toDegrees(c.latitude), alt = c.height;
@@ -149,10 +124,59 @@
     }
 
     function toggleLock() {
+        if (waypoints.length === 0) return;
         isLocked = !isLocked;
-        document.getElementById('status-txt').innerText = isLocked ? "LOCKED" : "PLANNING";
-        document.getElementById('lock-btn').style.background = isLocked ? "#ef4444" : "#0ea5e9";
+        document.getElementById('status-txt').innerText = isLocked ? "MISSION LOCKED" : "PLANNING";
+        document.getElementById('start-btn').style.display = isLocked ? "block" : "none";
+        document.getElementById('lock-btn').classList.toggle('locked');
         viewer.scene.screenSpaceCameraController.enableZoom = true;
+    }
+
+    async function startMission() {
+        if (waypoints.length === 0 || isFlying) return;
+        isFlying = true;
+        isLocked = true;
+        document.getElementById('status-txt').innerText = "AUTO-FLYING...";
+        document.getElementById('start-btn').style.display = "none";
+
+        for (const wp of waypoints) {
+            const startPos = droneEntity.position.getValue(viewer.clock.currentTime);
+            const endPos = wp.currentPos;
+            const duration = Cesium.Cartesian3.distance(startPos, endPos) / 15; // Hız ayarı (15m/s)
+
+            await flyToPoint(startPos, endPos, duration);
+        }
+
+        isFlying = false;
+        document.getElementById('status-txt').innerText = "MISSION COMPLETED";
+        document.getElementById('lock-btn').classList.remove('locked');
+        isLocked = false;
+    }
+
+    function flyToPoint(start, end, duration) {
+        return new Promise((resolve) => {
+            const startTime = performance.now();
+            
+            function update(time) {
+                const elapsed = (time - startTime) / 1000;
+                const t = Math.min(elapsed / duration, 1);
+
+                const currentPos = Cesium.Cartesian3.lerp(start, end, t, new Cesium.Cartesian3());
+                droneEntity.position = currentPos;
+
+                // Look at target
+                const direction = Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(end, start, new Cesium.Cartesian3()), new Cesium.Cartesian3());
+                const hpr = Cesium.Transforms.headingPitchRollQuaternion(currentPos, new Cesium.HeadingPitchRoll(Math.atan2(direction.x, direction.y), 0, 0));
+                droneEntity.orientation = hpr;
+
+                if (t < 1) {
+                    requestAnimationFrame(update);
+                } else {
+                    resolve();
+                }
+            }
+            requestAnimationFrame(update);
+        });
     }
 
     init();
