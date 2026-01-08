@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>NaviVortex V30 - Precision Reclaimed</title>
+  <title>NaviVortex V31 - Infinite Chain</title>
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <style>
@@ -15,19 +15,24 @@
     .telemetry { background: #1e293b; padding: 10px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #38bdf8; }
     .label { font-size: 10px; color: #94a3b8; text-transform: uppercase; }
     .value { font-size: 16px; font-weight: bold; color: #f1f5f9; }
-    .btn { width: 100%; padding: 10px; margin-top: 5px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; background: #0ea5e9; color: white; }
-    #guide { font-size: 11px; color: #64748b; margin-top: 15px; border-top: 1px solid #334155; padding-top: 10px; }
+    .btn { width: 100%; padding: 10px; margin-top: 8px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; transition: 0.2s; }
+    #lock-btn { background: #0ea5e9; color: white; }
+    #lock-btn.active { background: #ef4444; }
+    #guide { font-size: 11px; color: #64748b; margin-top: 15px; border-top: 1px solid #334155; padding-top: 10px; line-height: 1.4; }
   </style>
 </head>
 <body>
   <div id="dashboard">
-    <h2 style="color:#38bdf8; margin:0; font-size: 20px;">NAVIVORTEX</h2>
+    <h2 style="color:#38bdf8; margin:0; font-size: 20px; font-weight: 900;">NAVIVORTEX</h2>
     <div class="telemetry"><div class="label">Drone Alt</div><div id="alt-txt" class="value">100 m</div></div>
-    <div class="telemetry"><div class="label">Last WP Alt</div><div id="wp-alt-txt" class="value">---</div></div>
-    <button class="btn" onclick="location.reload()" style="background:#334155;">RESET MISSION</button>
+    <div class="telemetry"><div class="label">Status</div><div id="status-txt" class="value" style="color:#38bdf8;">PLANNING</div></div>
+    
+    <button id="lock-btn" class="btn" onclick="toggleLock()">LOCK MISSION</button>
+    <button class="btn" style="background:#334155; color:white;" onclick="location.reload()">RESET ALL</button>
+    
     <div id="guide">
-        • <b>Left Click:</b> Precise Waypoint<br>
-        • <b>Mouse Wheel:</b> Change Altitude<br>
+        • <b>Left Click:</b> Add Point<br>
+        • <b>Mouse Wheel:</b> Height Adjust<br>
         • <b>WASD:</b> Manual Flight
     </div>
   </div>
@@ -42,7 +47,7 @@
       animation: false, timeline: false, baseLayerPicker: false
     });
 
-    let droneEntity, heading = 0, waypoints = [], activeLines = [];
+    let droneEntity, heading = 0, waypoints = [], activeLines = [], isLocked = false;
 
     async function init() {
       const tileset = await Cesium.createGooglePhotorealistic3DTileset(GOOGLE_API_KEY);
@@ -58,11 +63,10 @@
       const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 
       handler.setInputAction((click) => {
-          // STEP 1: Capture the exact coordinate under the mouse
+          if (isLocked) return;
           const pickedPos = viewer.scene.pickPosition(click.position);
           
           if (Cesium.defined(pickedPos)) {
-              // Create WP object
               const wp = {
                   position: pickedPos,
                   entity: viewer.entities.add({
@@ -70,20 +74,17 @@
                       point: { pixelSize: 10, color: Cesium.Color.YELLOW, disableDepthTestDistance: 1e9 },
                       label: { 
                         text: Math.round(Cesium.Cartographic.fromCartesian(pickedPos).height) + "m", 
-                        font: '10pt sans-serif', 
-                        pixelOffset: new Cesium.Cartesian2(0, -20), 
-                        disableDepthTestDistance: 1e9 
+                        font: '10pt sans-serif', pixelOffset: new Cesium.Cartesian2(0, -20), disableDepthTestDistance: 1e9 
                       }
                   })
               };
-              
               waypoints.push(wp);
               updateRoute();
           }
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
       viewer.canvas.addEventListener('wheel', (e) => {
-          if (waypoints.length === 0) return;
+          if (waypoints.length === 0 || isLocked) return;
           viewer.scene.screenSpaceCameraController.enableZoom = false;
           
           const lastWP = waypoints[waypoints.length - 1];
@@ -94,7 +95,6 @@
           lastWP.position = newPos;
           lastWP.entity.position = newPos;
           lastWP.entity.label.text = Math.round(newAlt) + "m";
-          document.getElementById('wp-alt-txt').innerText = Math.round(newAlt) + " m";
           
           updateRoute();
           setTimeout(() => { viewer.scene.screenSpaceCameraController.enableZoom = true; }, 150);
@@ -103,6 +103,7 @@
       function updateRoute() {
           activeLines.forEach(l => viewer.entities.remove(l));
           activeLines = [];
+          
           let prev = droneEntity.position.getValue(viewer.clock.currentTime);
 
           waypoints.forEach((wp) => {
@@ -110,7 +111,6 @@
               const dist = Cesium.Cartesian3.distance(prev, end);
               const dir = Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(end, prev, new Cesium.Cartesian3()), new Cesium.Cartesian3());
               const hit = viewer.scene.pickFromRay(new Cesium.Ray(prev, dir));
-              
               const blocked = Cesium.defined(hit) && Cesium.Cartesian3.distance(prev, hit.position) < (dist - 1.0);
 
               const line = viewer.entities.add({
@@ -128,7 +128,7 @@
 
       document.addEventListener('keydown', (e) => {
           const p = droneEntity.position.getValue(viewer.clock.currentTime);
-          const c = Cesium.Cartographic.fromCartesian(p);
+          const c = Cesium.Ellipsoid.WGS84.cartesianToCartographic(p);
           let lon = Cesium.Math.toDegrees(c.longitude), lat = Cesium.Math.toDegrees(c.latitude), alt = c.height;
           const s = 0.00005, k = e.key.toLowerCase();
           if (k === 'a') heading -= 5; if (k === 'd') heading += 5;
@@ -142,6 +142,24 @@
           updateRoute();
       });
     }
+
+    function toggleLock() {
+        isLocked = !isLocked;
+        const btn = document.getElementById('lock-btn');
+        const status = document.getElementById('status-txt');
+        if (isLocked) {
+            btn.innerText = "UNLOCK MISSION";
+            btn.classList.add('active');
+            status.innerText = "MISSION LOCKED";
+            status.style.color = "#ef4444";
+        } else {
+            btn.innerText = "LOCK MISSION";
+            btn.classList.remove('active');
+            status.innerText = "PLANNING";
+            status.style.color = "#38bdf8";
+        }
+    }
+
     init();
   </script>
 </body>
