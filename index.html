@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V51 - Core Base</title>
+    <title>NaviVortex V15.00 - Core Base</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -44,25 +44,35 @@
 
         let drone, waypoints = [], isLocked = false, isFlying = false, heading = 0;
         let dronePos = Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 100);
+        let initialHomePos;
 
         async function init() {
             const tileset = await Cesium.createGooglePhotorealistic3DTileset(GOOGLE_API_KEY);
             viewer.scene.primitives.add(tileset);
 
-            drone = viewer.entities.add({
-                position: new Cesium.CallbackProperty(() => dronePos, false),
-                orientation: new Cesium.CallbackProperty(() => {
-                    return Cesium.Transforms.headingPitchRollQuaternion(dronePos, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading), 0, 0));
-                }, false),
-                model: { uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumDrone/CesiumDrone.glb', minimumPixelSize: 80 }
-            });
+drone = viewer.entities.add({
+    position: new Cesium.CallbackProperty(() => dronePos, false),
+    orientation: new Cesium.CallbackProperty(() => {
+        return Cesium.Transforms.headingPitchRollQuaternion(dronePos, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading), 0, 0));
+    }, false),
+    model: { 
+        uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumDrone/CesiumDrone.glb', 
+        minimumPixelSize: 80,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY 
+    }
+});
 
             viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 400) });
 
             const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-            handler.setInputAction((click) => {
-                if (isLocked || isFlying) return;
-                const picked = viewer.scene.pickPosition(click.position);
+handler.setInputAction((click) => {
+    if (isLocked || isFlying) return;
+
+    if (waypoints.length === 0) {
+        initialHomePos = dronePos; 
+    }
+
+    const picked = viewer.scene.pickPosition(click.position);
                 if (Cesium.defined(picked)) {
                     const wp = {
                         pos: picked,
@@ -70,16 +80,18 @@
                             position: picked,
                             point: { pixelSize: 8, color: Cesium.Color.YELLOW }
                         }),
-                        line: viewer.entities.add({
-                            polyline: {
-                                positions: new Cesium.CallbackProperty(() => {
-                                    let idx = waypoints.indexOf(wp);
-                                    let start = (idx === 0) ? dronePos : waypoints[idx-1].pos;
-                                    return [start, wp.pos];
-                                }, false),
-                                width: 4, material: Cesium.Color.GREEN
-                            }
-                        })
+line: viewer.entities.add({
+    polyline: {
+        positions: new Cesium.CallbackProperty(() => {
+            let idx = waypoints.indexOf(wp);
+            let start = (idx === 0) ? initialHomePos : waypoints[idx-1].pos;
+            return [start, wp.pos];
+        }, false),
+        width: 4, 
+        material: Cesium.Color.GREEN,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY 
+    }
+})
                     };
                     waypoints.push(wp);
                 }
@@ -146,3 +158,4 @@
     </script>
 </body>
 </html>
+
