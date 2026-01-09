@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>NaviVortex 13.50 </title>
+  <title>NaviVortex 13.54 </title>
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <style>
@@ -79,6 +79,7 @@ viewer.scene.globe.depthTestAgainstTerrain = false;
               const carto = Cesium.Cartographic.fromCartesian(pickedPos);
               const groundPos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, carto.height);
               const wp = {
+                isBlocked: false,
                   currentPos: pickedPos,
                   groundPos: groundPos,
                   pointEntity: viewer.entities.add({
@@ -90,7 +91,7 @@ viewer.scene.globe.depthTestAgainstTerrain = false;
 
 
 
-isBlocked: false,
+
 
 
                         
@@ -267,6 +268,14 @@ material: new Cesium.ColorMaterialProperty(
 
 
 
+
+      // checkPathSafety içindeki satırları buna çevir:
+if (blocked) {
+    wp.isBlocked = true;
+} else {
+    wp.isBlocked = false;
+}
+
       
     }
 }
@@ -275,6 +284,7 @@ material: new Cesium.ColorMaterialProperty(
   </script>
 </body>
 </html>
+
 
 
 
