@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>NaviVortex 13.54 </title>
+  <title>NaviVortex 14.21 </title>
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <style>
@@ -61,6 +61,13 @@ viewer.scene.globe.depthTestAgainstTerrain = false;
     async function init() {
       const tileset = await Cesium.createGooglePhotorealistic3DTileset(GOOGLE_API_KEY);
       viewer.scene.primitives.add(tileset);
+
+
+// Tileset yüklendikten hemen sonra ekle
+tileset.backFaceCulling = false; // Binaların iç yüzeylerini de algılar
+viewer.scene.globe.depthTestAgainstTerrain = false; // Çizgi çakışmalarını azaltır
+
+      
       
       const startPos = Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 100);
       droneEntity = viewer.entities.add({
@@ -108,12 +115,18 @@ viewer.scene.globe.depthTestAgainstTerrain = false;
               let prev = (waypoints.length === 0) ? droneEntity : waypoints[waypoints.length - 1];
 wp.pathLine = viewer.entities.add({
     polyline: {
-positions: new Cesium.CallbackProperty(() => {
-    const start = (prev === droneEntity) ? droneEntity.position.getValue(viewer.clock.currentTime) : prev.currentPos;
-    // Binalarla çakışmayı önlemek için çok küçük bir yükseklik payı ekliyoruz
-    return [start, wp.currentPos];
-}, false),
-        width: 5,
+        positions: new Cesium.CallbackProperty(() => {
+            const start = (prev === droneEntity) ? droneEntity.position.getValue(viewer.clock.currentTime) : prev.currentPos;
+            return [start, wp.currentPos];
+        }, false),
+        width: 6, // Biraz kalınlaştırdık
+        material: Cesium.Color.GREEN,
+        // BURASI ÖNEMLİ: Çizgi binanın ARKASINDA kalsa bile kırmızı görünmesini sağlar
+        depthFailMaterial: Cesium.Color.RED, 
+        disableDepthTestDistance: 1e9, // Bazı tarayıcılarda bu yardımcı olur
+        arcType: Cesium.ArcType.NONE
+    }
+});
 
 // wp.pathLine içindeki material kısmını bu şekilde güncelle:
 material: new Cesium.ColorMaterialProperty(
@@ -259,12 +272,12 @@ material: new Cesium.ColorMaterialProperty(
     // Işın göndererek bir engele çarpıp çarpmadığını bak
     let result = viewer.scene.pickFromRay(ray);
 
-    if (Cesium.defined(result) && Cesium.Cartesian3.distance(start, result.position) < distance - 1.0) {
-        // Eğer çarpılan nesne hedeften daha yakınsa yol kapalıdır
-        wp.pathLine.polyline.material = Cesium.Color.RED;
-    } else {
-        // Yol temizse yeşil kalır
-        wp.pathLine.polyline.material = Cesium.Color.GREEN;
+if (Cesium.defined(hit) && Cesium.Cartesian3.distance(start, hit.position) < (distance - 5.0)) {
+    // 5 metreden daha yakın çarpmaları (self-collision) görmezden gel
+    wp.pathLine.polyline.material = Cesium.Color.RED;
+} else {
+    wp.pathLine.polyline.material = Cesium.Color.GREEN;
+}
 
 
 
@@ -284,6 +297,7 @@ if (blocked) {
   </script>
 </body>
 </html>
+
 
 
 
