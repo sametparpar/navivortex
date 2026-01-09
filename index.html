@@ -1,304 +1,242 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>NaviVortex 14.22 </title>
-  <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
-  <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
-  <style>
-    body, html, #cesiumContainer { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #0f172a; }
-    #dashboard {
-        position: absolute; top: 20px; left: 20px; width: 280px; 
-        background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(10px); z-index: 100; padding: 25px;
-        border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 16px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: white;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-    }
-    .telemetry { background: rgba(30, 41, 59, 0.7); padding: 12px; border-radius: 10px; margin: 12px 0; border-left: 4px solid #38bdf8; }
-    .label { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
-    .value { font-size: 18px; font-weight: bold; color: #f1f5f9; }
-    .btn { 
-        width: 100%; padding: 14px; margin-top: 10px; border-radius: 8px; border: none; 
-        cursor: pointer; font-weight: bold; transition: all 0.3s ease; text-transform: uppercase;
-        letter-spacing: 1px; display: flex; align-items: center; justify-content: center;
-    }
-    #lock-btn { background: #0ea5e9; color: white; }
-    #lock-btn:hover { background: #0284c7; }
-    #lock-btn.locked { background: #475569; }
-    #start-btn { background: #10b981; color: white; display: none; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4); }
-    #start-btn:hover { background: #059669; transform: translateY(-2px); }
-    .reset-btn { background: transparent; color: #94a3b8; border: 1px solid #334155; margin-top: 20px; font-size: 11px; }
-    .reset-btn:hover { color: #ef4444; border-color: #ef4444; }
-  </style>
+    <meta charset="utf-8">
+    <title>NaviVortex 14.25 - Stable</title>
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+    <style>
+        body, html, #cesiumContainer { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #0f172a; }
+        #dashboard {
+            position: absolute; top: 20px; left: 20px; width: 280px; 
+            background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(10px); z-index: 100; padding: 25px;
+            border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 16px; font-family: 'Segoe UI', sans-serif; color: white;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        .telemetry { background: rgba(30, 41, 59, 0.7); padding: 12px; border-radius: 10px; margin: 12px 0; border-left: 4px solid #38bdf8; }
+        .label { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+        .value { font-size: 18px; font-weight: bold; color: #f1f5f9; }
+        .btn { width: 100%; padding: 14px; margin-top: 10px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; transition: all 0.3s ease; text-transform: uppercase; display: flex; align-items: center; justify-content: center; }
+        #lock-btn { background: #0ea5e9; color: white; }
+        #start-btn { background: #10b981; color: white; display: none; }
+        .reset-btn { background: transparent; color: #94a3b8; border: 1px solid #334155; margin-top: 20px; font-size: 11px; }
+    </style>
 </head>
 <body>
-  <div id="dashboard">
-    <h2 style="color:#38bdf8; margin:0 0 15px 0; font-size: 22px; font-weight: 900;">NAVI<span style="color:#fff">VORTEX</span></h2>
-    <div class="telemetry"><div class="label">Altitude</div><div id="alt-txt" class="value">100 m</div></div>
-    <div class="telemetry"><div class="label">Status</div><div id="status-txt" class="value" style="color:#38bdf8;">PLANNING</div></div>
-    
-    <button id="lock-btn" class="btn" onclick="toggleLock()">🔒 LOCK MISSION</button>
-    <button id="start-btn" class="btn" onclick="startAutonomousFlight()">🚀 START MISSION</button>
-    <button class="btn reset-btn" onclick="location.reload()">RESET SYSTEM</button>
-  </div>
-  <div id="cesiumContainer"></div>
+    <div id="dashboard">
+        <h2 style="color:#38bdf8; margin:0 0 15px 0; font-size: 22px; font-weight: 900;">NAVI<span style="color:#fff">VORTEX</span></h2>
+        <div class="telemetry"><div class="label">Altitude</div><div id="alt-txt" class="value">100 m</div></div>
+        <div class="telemetry"><div class="label">Status</div><div id="status-txt" class="value" style="color:#38bdf8;">PLANNING</div></div>
+        <button id="lock-btn" class="btn" onclick="toggleLock()">🔒 LOCK MISSION</button>
+        <button id="start-btn" class="btn" onclick="startAutonomousFlight()">🚀 START MISSION</button>
+        <button class="btn reset-btn" onclick="location.reload()">RESET SYSTEM</button>
+    </div>
+    <div id="cesiumContainer"></div>
 
-  <script>
-    Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzMzEyYzc1OS03OTY0LTQ5MGYtODcwMi0zMGNiYmZjNGIxMTkiLCJpZCI6Mzc2MTk2LCJpYXQiOjE3Njc4NjA4NjJ9.aZRZorILCG4gIlzwCnm1L2SCp58z-TCg6yNaDbPLxnU';
-    const GOOGLE_API_KEY = 'AIzaSyDDPGFsMFFW8Q8s9Y-2aonzk6LofSBuhps';
+    <script>
+        Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzMzEyYzc1OS03OTY0LTQ5MGYtODcwMi0zMGNiYmZjNGIxMTkiLCJpZCI6Mzc2MTk2LCJpYXQiOjE3Njc4NjA4NjJ9.aZRZorILCG4gIlzwCnm1L2SCp58z-TCg6yNaDbPLxnU';
+        const GOOGLE_API_KEY = 'AIzaSyDDPGFsMFFW8Q8s9Y-2aonzk6LofSBuhps';
 
-    const viewer = new Cesium.Viewer('cesiumContainer', {
-      terrain: Cesium.Terrain.fromWorldTerrain(),
-      animation: false, timeline: false, baseLayerPicker: false, selectionIndicator: false, infoBox: false
-    });
-
-    let droneEntity, heading = 0, waypoints = [], isLocked = false, isFlying = false;
-
-// Arazinin veya binaların çizgiyi gölgelemesini tamamen devre dışı bırakır
-viewer.scene.globe.depthTestAgainstTerrain = false;
-
-
-    viewer.scene.logarithmicDepthBuffer = false;
-    async function init() {
-      const tileset = await Cesium.createGooglePhotorealistic3DTileset(GOOGLE_API_KEY);
-      viewer.scene.primitives.add(tileset);
-
-
-// Tileset yüklendikten hemen sonra ekle
-tileset.backFaceCulling = false; // Binaların iç yüzeylerini de algılar
-viewer.scene.globe.depthTestAgainstTerrain = false; // Çizgi çakışmalarını azaltır
-
-      
-      
-      const startPos = Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 100);
-      droneEntity = viewer.entities.add({
-          position: startPos,
-          model: { uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumDrone/CesiumDrone.glb', minimumPixelSize: 90 }
-      });
-      
-      viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 500) });
-
-      const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-
-      handler.setInputAction((click) => {
-          if (isLocked || isFlying) return;
-          const pickedPos = viewer.scene.pickPosition(click.position);
-          if (Cesium.defined(pickedPos)) {
-              const carto = Cesium.Cartographic.fromCartesian(pickedPos);
-              const groundPos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, carto.height);
-              const wp = {
-                isBlocked: false,
-                  currentPos: pickedPos,
-                  groundPos: groundPos,
-                  pointEntity: viewer.entities.add({
-                      position: new Cesium.CallbackProperty(() => wp.currentPos, false),
-                      point: { pixelSize: 10, color: Cesium.Color.YELLOW, outlineColor: Cesium.Color.BLACK, outlineWidth: 2, disableDepthTestDistance: 1e9 },
-                      label: { 
-                        text: new Cesium.CallbackProperty(() => Math.round(Cesium.Cartographic.fromCartesian(wp.currentPos).height) + "m", false),
-                        font: 'bold 10pt Inter, sans-serif', fillColor: Cesium.Color.SKYBLUE, pixelOffset: new Cesium.Cartesian2(0, -25), disableDepthTestDistance: 1e9 
-
-
-
-
-
-
-                        
-                      }
-                  }),
-                  anchorLine: viewer.entities.add({
-                      polyline: {
-                          positions: new Cesium.CallbackProperty(() => [wp.groundPos, wp.currentPos], false),
-                          width: 1, material: new Cesium.PolylineDashMaterialProperty({color: Cesium.Color.WHITE.withAlpha(0.5)}), disableDepthTestDistance: 1e9
-                      }
-                  }),
-                  pathLine: null
-              };
-              let prev = (waypoints.length === 0) ? droneEntity : waypoints[waypoints.length - 1];
-wp.pathLine = viewer.entities.add({
-    polyline: {
-        positions: new Cesium.CallbackProperty(() => {
-            const start = (prev === droneEntity) ? droneEntity.position.getValue(viewer.clock.currentTime) : prev.currentPos;
-            return [start, wp.currentPos];
-        }, false),
-        width: 6, // Biraz kalınlaştırdık
-        material: Cesium.Color.GREEN,
-        // BURASI ÖNEMLİ: Çizgi binanın ARKASINDA kalsa bile kırmızı görünmesini sağlar
-        depthFailMaterial: Cesium.Color.RED, 
-        disableDepthTestDistance: 1e9, // Bazı tarayıcılarda bu yardımcı olur
-        arcType: Cesium.ArcType.NONE
-    }
-});
-
-// wp.pathLine içindeki material kısmını bu şekilde güncelle:
-material: new Cesium.ColorMaterialProperty(
-    new Cesium.CallbackProperty(() => {
-        // Burada rengi dinamik kontrol edeceğiz (Bir sonraki adımda kırmızı/yeşil mantığı buraya bağlanacak)
-        return wp.isBlocked ? Cesium.Color.RED : Cesium.Color.GREEN;
-    }, false)
-),
-
-      
-    }
-});
-              waypoints.push(wp);
-            checkPathSafety(wp);
-          }
-      }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-
-      viewer.canvas.addEventListener('wheel', (e) => {
-          if (isLocked || waypoints.length === 0 || isFlying) return;
-          viewer.scene.screenSpaceCameraController.enableZoom = false;
-          const lastWP = waypoints[waypoints.length - 1];
-          const carto = Cesium.Cartographic.fromCartesian(lastWP.currentPos);
-          const newAlt = carto.height + (e.deltaY < 0 ? 5 : -5);
-          lastWP.currentPos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, Math.max(0, newAlt));
-        checkPathSafety(lastWP);
-          setTimeout(() => { if(!isLocked) viewer.scene.screenSpaceCameraController.enableZoom = true; }, 200);
-      }, { passive: false });
-
-      document.addEventListener('keydown', (e) => {
-          if (isFlying) return;
-          const p = droneEntity.position.getValue(viewer.clock.currentTime);
-          const c = Cesium.Cartographic.fromCartesian(p);
-          let lon = Cesium.Math.toDegrees(c.longitude), lat = Cesium.Math.toDegrees(c.latitude), alt = c.height;
-          const s = 0.00005, k = e.key.toLowerCase();
-          if (k === 'a') heading -= 5; if (k === 'd') heading += 5;
-          if (k === 'w') { lat += s * Math.cos(Cesium.Math.toRadians(heading)); lon += s * Math.sin(Cesium.Math.toRadians(heading)); }
-          if (k === 's') { lat -= s * Math.cos(Cesium.Math.toRadians(heading)); lon -= s * Math.sin(Cesium.Math.toRadians(heading)); }
-          if (k === 'q') alt += 3; if (k === 'e') alt -= 3;
-          droneEntity.position = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
-          droneEntity.orientation = Cesium.Transforms.headingPitchRollQuaternion(droneEntity.position.getValue(viewer.clock.currentTime), new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading), 0, 0));
-          document.getElementById('alt-txt').innerText = Math.round(alt) + " m";
-      });
-    }
-
-    function toggleLock() {
-        if (waypoints.length === 0) return;
-        isLocked = !isLocked;
-        const lockBtn = document.getElementById('lock-btn');
-        const startBtn = document.getElementById('start-btn');
-        const statusTxt = document.getElementById('status-txt');
-
-        if (isLocked) {
-            lockBtn.innerText = "🔓 UNLOCK TO EDIT";
-            lockBtn.classList.add('locked');
-            startBtn.style.display = "flex";
-            statusTxt.innerText = "MISSION READY";
-            statusTxt.style.color = "#10b981";
-        } else {
-            lockBtn.innerText = "🔒 LOCK MISSION";
-            lockBtn.classList.remove('locked');
-            startBtn.style.display = "none";
-            statusTxt.innerText = "PLANNING";
-            statusTxt.style.color = "#38bdf8";
-        }
-        viewer.scene.screenSpaceCameraController.enableZoom = true;
-    }
-
-    async function startAutonomousFlight() {
-        if (waypoints.length === 0 || isFlying) return;
-        isFlying = true;
-        document.getElementById('status-txt').innerText = "AUTOPILOT: ON";
-        document.getElementById('start-btn').style.display = "none";
-        document.getElementById('lock-btn').style.display = "none";
-
-        // Start following drone
-        viewer.trackedEntity = droneEntity;
-
-        for (let i = 0; i < waypoints.length; i++) {
-            const startPos = droneEntity.position.getValue(viewer.clock.currentTime);
-            const endPos = waypoints[i].currentPos;
-            const distance = Cesium.Cartesian3.distance(startPos, endPos);
-            const duration = distance / 25; // 25 m/s hızı
-
-            await flyToPoint(startPos, endPos, duration);
-        }
-
-        // --- Mission Finish Ceremony ---
-        document.getElementById('status-txt').innerText = "GÖREV TAMAMLANDI";
-        viewer.trackedEntity = undefined; // Stop forced tracking
-        
-        // 360-degree victory spin
-        const finalPos = droneEntity.position.getValue(viewer.clock.currentTime);
-        for(let r=0; r<360; r+=5) {
-            droneEntity.orientation = Cesium.Transforms.headingPitchRollQuaternion(finalPos, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(r), 0, 0));
-            await new Promise(res => setTimeout(res, 20));
-        }
-
-        isFlying = false;
-        isLocked = false;
-        document.getElementById('lock-btn').style.display = "flex";
-        document.getElementById('lock-btn').innerText = "🔒 NEW MISSION";
-        document.getElementById('lock-btn').classList.remove('locked');
-    }
-
-    function flyToPoint(start, end, duration) {
-        return new Promise((resolve) => {
-            const startTime = performance.now();
-            function frame(now) {
-                const t = Math.min((now - startTime) / (duration * 1000), 1);
-                const pos = Cesium.Cartesian3.lerp(start, end, t, new Cesium.Cartesian3());
-                droneEntity.position = pos;
-
-                const dir = Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(end, start, new Cesium.Cartesian3()), new Cesium.Cartesian3());
-                const hpr = new Cesium.HeadingPitchRoll(Math.atan2(dir.x, dir.y), 0, 0);
-                droneEntity.orientation = Cesium.Transforms.headingPitchRollQuaternion(pos, hpr);
-
-                if (t < 1) requestAnimationFrame(frame);
-                else resolve();
-            }
-            requestAnimationFrame(frame);
+        const viewer = new Cesium.Viewer('cesiumContainer', {
+            terrain: Cesium.Terrain.fromWorldTerrain(),
+            animation: false, timeline: false, baseLayerPicker: false, selectionIndicator: false, infoBox: false
         });
-    }
 
-    init();
+        // Temel Görünürlük Ayarları
+        viewer.scene.globe.depthTestAgainstTerrain = false;
+        viewer.scene.camera.frustum.near = 0.1;
 
+        let droneEntity, heading = 0, waypoints = [], isLocked = false, isFlying = false;
 
+        async function init() {
+            const tileset = await Cesium.createGooglePhotorealistic3DTileset(GOOGLE_API_KEY);
+            viewer.scene.primitives.add(tileset);
+            tileset.backFaceCulling = false;
 
+            const startPos = Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 100);
+            droneEntity = viewer.entities.add({
+                position: startPos,
+                model: { uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumDrone/CesiumDrone.glb', minimumPixelSize: 90 }
+            });
 
+            viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 500) });
 
-    function checkPathSafety(wp) {
-    let prev = waypoints[waypoints.indexOf(wp) - 1] || droneEntity;
-    let start = (prev === droneEntity) ? droneEntity.position.getValue(viewer.clock.currentTime) : prev.currentPos;
-    let end = wp.currentPos;
+            const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 
-    // İki nokta arasındaki yönü ve mesafeyi hesapla
-    let direction = Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(end, start, new Cesium.Cartesian3()), new Cesium.Cartesian3());
-    let distance = Cesium.Cartesian3.distance(start, end);
-    let ray = new Cesium.Ray(start, direction);
+            handler.setInputAction((click) => {
+                if (isLocked || isFlying) return;
+                const pickedPos = viewer.scene.pickPosition(click.position);
+                if (Cesium.defined(pickedPos)) {
+                    const carto = Cesium.Cartographic.fromCartesian(pickedPos);
+                    const groundPos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, 0);
+                    
+                    const wp = {
+                        isBlocked: false,
+                        currentPos: pickedPos,
+                        groundPos: groundPos,
+                        pointEntity: viewer.entities.add({
+                            position: new Cesium.CallbackProperty(() => wp.currentPos, false),
+                            point: { pixelSize: 10, color: Cesium.Color.YELLOW, outlineColor: Cesium.Color.BLACK, outlineWidth: 2, disableDepthTestDistance: Number.POSITIVE_INFINITY },
+                            label: { 
+                                text: new Cesium.CallbackProperty(() => Math.round(Cesium.Cartographic.fromCartesian(wp.currentPos).height) + "m", false),
+                                font: 'bold 10pt Inter, sans-serif', fillColor: Cesium.Color.SKYBLUE, pixelOffset: new Cesium.Cartesian2(0, -25), disableDepthTestDistance: Number.POSITIVE_INFINITY 
+                            }
+                        }),
+                        anchorLine: viewer.entities.add({
+                            polyline: {
+                                positions: new Cesium.CallbackProperty(() => [Cesium.Cartesian3.fromRadians(Cesium.Cartographic.fromCartesian(wp.currentPos).longitude, Cesium.Cartographic.fromCartesian(wp.currentPos).latitude, 0), wp.currentPos], false),
+                                width: 1, material: new Cesium.PolylineDashMaterialProperty({color: Cesium.Color.WHITE.withAlpha(0.5)}), disableDepthTestDistance: Number.POSITIVE_INFINITY
+                            }
+                        })
+                    };
 
-    // Işın göndererek bir engele çarpıp çarpmadığını bak
-    let result = viewer.scene.pickFromRay(ray);
+                    let prev = (waypoints.length === 0) ? droneEntity : waypoints[waypoints.length - 1];
+                    
+                    wp.pathLine = viewer.entities.add({
+                        polyline: {
+                            positions: new Cesium.CallbackProperty(() => {
+                                const start = (prev === droneEntity) ? droneEntity.position.getValue(viewer.clock.currentTime) : prev.currentPos;
+                                return [start, wp.currentPos];
+                            }, false),
+                            width: 6,
+                            material: new Cesium.ColorMaterialProperty(new Cesium.CallbackProperty(() => {
+                                return wp.isBlocked ? Cesium.Color.RED : Cesium.Color.GREEN;
+                            }, false)),
+                            depthFailMaterial: Cesium.Color.RED,
+                            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                            arcType: Cesium.ArcType.NONE
+                        }
+                    });
 
-if (Cesium.defined(hit) && Cesium.Cartesian3.distance(start, hit.position) < (distance - 5.0)) {
-    // 5 metreden daha yakın çarpmaları (self-collision) görmezden gel
-    wp.pathLine.polyline.material = Cesium.Color.RED;
-} else {
-    wp.pathLine.polyline.material = Cesium.Color.GREEN;
-}
+                    waypoints.push(wp);
+                    checkPathSafety(wp);
+                }
+            }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
+            viewer.canvas.addEventListener('wheel', (e) => {
+                if (isLocked || waypoints.length === 0 || isFlying) return;
+                viewer.scene.screenSpaceCameraController.enableZoom = false;
+                const lastWP = waypoints[waypoints.length - 1];
+                const carto = Cesium.Cartographic.fromCartesian(lastWP.currentPos);
+                const newAlt = carto.height + (e.deltaY < 0 ? 5 : -5);
+                lastWP.currentPos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, Math.max(0.1, newAlt));
+                checkPathSafety(lastWP);
+                setTimeout(() => { if(!isLocked) viewer.scene.screenSpaceCameraController.enableZoom = true; }, 200);
+            }, { passive: false });
 
+            document.addEventListener('keydown', (e) => {
+                if (isFlying) return;
+                const p = droneEntity.position.getValue(viewer.clock.currentTime);
+                const c = Cesium.Cartographic.fromCartesian(p);
+                let lon = Cesium.Math.toDegrees(c.longitude), lat = Cesium.Math.toDegrees(c.latitude), alt = c.height;
+                const s = 0.00005, k = e.key.toLowerCase();
+                
+                if (k === 'a') heading -= 5; 
+                if (k === 'd') heading += 5;
+                if (k === 'w') { 
+                    lat += s * Math.cos(Cesium.Math.toRadians(heading)); 
+                    lon += s * Math.sin(Cesium.Math.toRadians(heading)); 
+                }
+                if (k === 's') { 
+                    lat -= s * Math.cos(Cesium.Math.toRadians(heading)); 
+                    lon -= s * Math.sin(Cesium.Math.toRadians(heading)); 
+                }
+                if (k === 'q') alt += 3; 
+                if (k === 'e') alt = Math.max(0.1, alt - 3);
 
+                const newPos = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
+                droneEntity.position = newPos;
+                droneEntity.orientation = Cesium.Transforms.headingPitchRollQuaternion(newPos, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading), 0, 0));
+                document.getElementById('alt-txt').innerText = Math.round(alt) + " m";
+            });
+        }
 
-      // checkPathSafety içindeki satırları buna çevir:
-if (blocked) {
-    wp.isBlocked = true;
-} else {
-    wp.isBlocked = false;
-}
+        function checkPathSafety(wp) {
+            let prev = waypoints[waypoints.indexOf(wp) - 1] || droneEntity;
+            let start = (prev === droneEntity) ? droneEntity.position.getValue(viewer.clock.currentTime) : prev.currentPos;
+            let end = wp.currentPos;
 
-      
-    }
-}
+            let direction = Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(end, start, new Cesium.Cartesian3()), new Cesium.Cartesian3());
+            let distance = Cesium.Cartesian3.distance(start, end);
+            let ray = new Cesium.Ray(start, direction);
 
-    
-  </script>
+            let hit = viewer.scene.pickFromRay(ray);
+
+            if (Cesium.defined(hit) && Cesium.Cartesian3.distance(start, hit.position) < (distance - 5.0)) {
+                wp.isBlocked = true;
+            } else {
+                wp.isBlocked = false;
+            }
+        }
+
+        function toggleLock() {
+            if (waypoints.length === 0) return;
+            isLocked = !isLocked;
+            const lockBtn = document.getElementById('lock-btn');
+            const startBtn = document.getElementById('start-btn');
+            const statusTxt = document.getElementById('status-txt');
+
+            if (isLocked) {
+                lockBtn.innerText = "🔓 UNLOCK TO EDIT";
+                startBtn.style.display = "flex";
+                statusTxt.innerText = "MISSION READY";
+                statusTxt.style.color = "#10b981";
+            } else {
+                lockBtn.innerText = "🔒 LOCK MISSION";
+                startBtn.style.display = "none";
+                statusTxt.innerText = "PLANNING";
+                statusTxt.style.color = "#38bdf8";
+            }
+        }
+
+        async function startAutonomousFlight() {
+            if (waypoints.length === 0 || isFlying) return;
+            isFlying = true;
+            document.getElementById('status-txt').innerText = "AUTOPILOT: ON";
+            document.getElementById('start-btn').style.display = "none";
+            document.getElementById('lock-btn').style.display = "none";
+
+            viewer.trackedEntity = droneEntity;
+
+            for (let i = 0; i < waypoints.length; i++) {
+                const startPos = droneEntity.position.getValue(viewer.clock.currentTime);
+                const endPos = waypoints[i].currentPos;
+                const duration = Cesium.Cartesian3.distance(startPos, endPos) / 25;
+                await flyToPoint(startPos, endPos, duration);
+            }
+
+            document.getElementById('status-txt').innerText = "GÖREV TAMAMLANDI";
+            viewer.trackedEntity = undefined;
+            
+            const finalPos = droneEntity.position.getValue(viewer.clock.currentTime);
+            for(let r=0; r<360; r+=5) {
+                droneEntity.orientation = Cesium.Transforms.headingPitchRollQuaternion(finalPos, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(r), 0, 0));
+                await new Promise(res => setTimeout(res, 20));
+            }
+
+            isFlying = false;
+            isLocked = false;
+            document.getElementById('lock-btn').style.display = "flex";
+            document.getElementById('lock-btn').innerText = "🔒 NEW MISSION";
+        }
+
+        function flyToPoint(start, end, duration) {
+            return new Promise((resolve) => {
+                const startTime = performance.now();
+                function frame(now) {
+                    const t = Math.min((now - startTime) / (duration * 1000), 1);
+                    const pos = Cesium.Cartesian3.lerp(start, end, t, new Cesium.Cartesian3());
+                    droneEntity.position = pos;
+                    const dir = Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(end, start, new Cesium.Cartesian3()), new Cesium.Cartesian3());
+                    droneEntity.orientation = Cesium.Transforms.headingPitchRollQuaternion(pos, new Cesium.HeadingPitchRoll(Math.atan2(dir.x, dir.y), 0, 0));
+                    if (t < 1) requestAnimationFrame(frame);
+                    else resolve();
+                }
+                requestAnimationFrame(frame);
+            });
+        }
+
+        init();
+    </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
