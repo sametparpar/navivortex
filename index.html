@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V15.19 - Core Base</title>
+    <title>NaviVortex V15.37 - Core Base</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -88,6 +88,25 @@ const wp = {
             disableDepthTestDistance: Number.POSITIVE_INFINITY // Eklenen satır
         }
     }),
+
+    anchor: viewer.entities.add({
+    polyline: {
+        positions: new Cesium.CallbackProperty(() => {
+            // Noktanın o anki konumu
+            const currentCarto = Cesium.Cartographic.fromCartesian(wp.pos);
+            // Aynı koordinatın yerdeki (sıfır yükseklik) karşılığı
+            const groundPos = Cesium.Cartesian3.fromRadians(currentCarto.longitude, currentCarto.latitude, 0);
+            return [groundPos, wp.pos];
+        }, false),
+        width: 1,
+        material: new Cesium.PolylineDashMaterialProperty({
+            color: Cesium.Color.WHITE.withAlpha(0.6),
+            dashLength: 8
+        }),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY
+    }
+}),
+    
 line: viewer.entities.add({
     polyline: {
         positions: new Cesium.CallbackProperty(() => {
@@ -95,11 +114,13 @@ line: viewer.entities.add({
             let start = (idx === 0) ? initialHomePos : waypoints[idx-1].pos;
             return [start, wp.pos];
         }, false),
-        width: 4, 
+        width: 5, // Biraz daha belirgin
         material: Cesium.Color.GREEN,
-        depthFailMaterial: Cesium.Color.GREEN, // Yerin altında kalsa da yeşil göster
-        disableDepthTestDistance: Number.POSITIVE_INFINITY, // Mesafeden bağımsız derinlik testini kapat
-        arcType: Cesium.ArcType.NONE // Dümdüz hat çek
+        depthFailMaterial: Cesium.Color.GREEN,
+        // KRİTİK EKLEME: Çizginin her zaman en önde çizilmesini sağlar
+        eyeOffset: new Cesium.Cartesian3(0, 0, -10), 
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        arcType: Cesium.ArcType.NONE
     }
 })
                     };
@@ -168,6 +189,7 @@ line: viewer.entities.add({
     </script>
 </body>
 </html>
+
 
 
 
