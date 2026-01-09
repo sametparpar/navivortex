@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>NaviVortex 13.22 </title>
+  <title>NaviVortex 13.27 </title>
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <style>
@@ -104,10 +104,13 @@ wp.pathLine = viewer.entities.add({
         }, false),
         width: 5,
         material: Cesium.Color.GREEN,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY // Burası kritik
+        arcType: Cesium.ArcType.NONE, // Çizginin eğilmesini engeller, düz hat yapar
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        clampToGround: false // Burası önemli, true ise binaların altında kalabilir
     }
 });
               waypoints.push(wp);
+            checkPathSafety(wp);
           }
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
@@ -118,6 +121,7 @@ wp.pathLine = viewer.entities.add({
           const carto = Cesium.Cartographic.fromCartesian(lastWP.currentPos);
           const newAlt = carto.height + (e.deltaY < 0 ? 5 : -5);
           lastWP.currentPos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, Math.max(0, newAlt));
+        checkPathSafety(lastWP);
           setTimeout(() => { if(!isLocked) viewer.scene.screenSpaceCameraController.enableZoom = true; }, 200);
       }, { passive: false });
 
@@ -217,8 +221,37 @@ wp.pathLine = viewer.entities.add({
     }
 
     init();
+
+
+
+
+
+    function checkPathSafety(wp) {
+    let prev = waypoints[waypoints.indexOf(wp) - 1] || droneEntity;
+    let start = (prev === droneEntity) ? droneEntity.position.getValue(viewer.clock.currentTime) : prev.currentPos;
+    let end = wp.currentPos;
+
+    // İki nokta arasındaki yönü ve mesafeyi hesapla
+    let direction = Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(end, start, new Cesium.Cartesian3()), new Cesium.Cartesian3());
+    let distance = Cesium.Cartesian3.distance(start, end);
+    let ray = new Cesium.Ray(start, direction);
+
+    // Işın göndererek bir engele çarpıp çarpmadığını bak
+    let result = viewer.scene.pickFromRay(ray);
+
+    if (Cesium.defined(result) && Cesium.Cartesian3.distance(start, result.position) < distance - 1.0) {
+        // Eğer çarpılan nesne hedeften daha yakınsa yol kapalıdır
+        wp.pathLine.polyline.material = Cesium.Color.RED;
+    } else {
+        // Yol temizse yeşil kalır
+        wp.pathLine.polyline.material = Cesium.Color.GREEN;
+    }
+}
+
+    
   </script>
 </body>
 </html>
+
 
 
