@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>NaviVortex V39 - Mission Mastery</title>
+  <title>NaviVortex 13.18 </title>
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <style>
@@ -98,6 +98,7 @@
                       positions: new Cesium.CallbackProperty(() => {
                           const start = (prev === droneEntity) ? droneEntity.position.getValue(viewer.clock.currentTime) : prev.currentPos;
                           return [start, wp.currentPos];
+                        disableDepthTestDistance: Number.POSITIVE_INFINITY
                       }, false),
                       width: 5, material: Cesium.Color.GREEN, disableDepthTestDistance: 1e9
                   }
@@ -215,3 +216,4 @@
   </script>
 </body>
 </html>
+
