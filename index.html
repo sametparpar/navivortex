@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>NaviVortex 14.21 </title>
+  <title>NaviVortex 14.22 </title>
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <style>
@@ -137,9 +137,6 @@ material: new Cesium.ColorMaterialProperty(
 ),
 
       
-        arcType: Cesium.ArcType.NONE, // Çizginin eğilmesini engeller, düz hat yapar
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-        clampToGround: false // Burası önemli, true ise binaların altında kalabilir
     }
 });
               waypoints.push(wp);
@@ -297,6 +294,7 @@ if (blocked) {
   </script>
 </body>
 </html>
+
 
 
 
