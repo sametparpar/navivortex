@@ -57,6 +57,9 @@
     let homePos = Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 100);
     let zoomRange = 100;
 
+    // Bu satır kameranın objelere 10cm'e kadar yaklaşmasını sağlar
+viewer.scene.camera.frustum.near = 0.1;
+    
     async function init() {
         const tileset = await Cesium.createGooglePhotorealistic3DTileset(GOOGLE_API_KEY);
         viewer.scene.primitives.add(tileset);
@@ -69,13 +72,32 @@
             model: { uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumDrone/CesiumDrone.glb', minimumPixelSize: 100 }
         });
 
+
+
+// Derinlik testini küresel olarak kapatıyoruz ki çizgiler her zaman üstte kalsın
+viewer.scene.globe.depthTestAgainstTerrain = false;
+
+
+      
         // Search Redirect Fix
-        viewer.geocoder.viewModel.destinationFound = (vm, dest) => {
-            const carto = Cesium.Cartographic.fromCartesian(dest);
-            homePos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, 100);
-            viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, 600) });
-            fullReset();
-        };
+viewer.geocoder.viewModel.destinationFound = (viewModel, destination) => {
+    const cartographic = Cesium.Cartographic.fromCartesian(destination);
+    // Drone'u ve kalkış noktasını yeni koordinata taşı
+    homePos = Cesium.Cartesian3.fromRadians(cartographic.longitude, cartographic.latitude, 100);
+    
+    // Kamerayı oraya uçur
+    viewer.camera.flyTo({ 
+        destination: Cesium.Cartesian3.fromRadians(cartographic.longitude, cartographic.latitude, 500) 
+    });
+    
+    // Eski rotayı temizle
+    fullReset(); 
+};
+
+
+
+
+      
 
         const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 
@@ -223,3 +245,4 @@
   </script>
 </body>
 </html>
+
