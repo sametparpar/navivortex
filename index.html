@@ -39,6 +39,8 @@
             animation: false, timeline: false, baseLayerPicker: false
         });
 
+        viewer.scene.camera.frustum.near = 0.1; // Kameranın objeleri kesme mesafesini 10cm'e düşürür
+
         // Temel Görünürlük: Çizgiler binaların içinden geçse bile görünsün
         viewer.scene.globe.depthTestAgainstTerrain = false;
 
@@ -158,4 +160,5 @@ line: viewer.entities.add({
     </script>
 </body>
 </html>
+
 
