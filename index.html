@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>NaviVortex 13.18 </title>
+  <title>NaviVortex 13.22 </title>
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <style>
@@ -53,6 +53,9 @@
 
     let droneEntity, heading = 0, waypoints = [], isLocked = false, isFlying = false;
 
+// Arazinin veya binaların çizgiyi gölgelemesini tamamen devre dışı bırakır
+viewer.scene.globe.depthTestAgainstTerrain = false;
+    
     async function init() {
       const tileset = await Cesium.createGooglePhotorealistic3DTileset(GOOGLE_API_KEY);
       viewer.scene.primitives.add(tileset);
@@ -93,16 +96,17 @@
                   pathLine: null
               };
               let prev = (waypoints.length === 0) ? droneEntity : waypoints[waypoints.length - 1];
-              wp.pathLine = viewer.entities.add({
-                  polyline: {
-                      positions: new Cesium.CallbackProperty(() => {
-                          const start = (prev === droneEntity) ? droneEntity.position.getValue(viewer.clock.currentTime) : prev.currentPos;
-                          return [start, wp.currentPos];
-                        disableDepthTestDistance: Number.POSITIVE_INFINITY
-                      }, false),
-                      width: 5, material: Cesium.Color.GREEN, disableDepthTestDistance: 1e9
-                  }
-              });
+wp.pathLine = viewer.entities.add({
+    polyline: {
+        positions: new Cesium.CallbackProperty(() => {
+            const start = (prev === droneEntity) ? droneEntity.position.getValue(viewer.clock.currentTime) : prev.currentPos;
+            return [start, wp.currentPos];
+        }, false),
+        width: 5,
+        material: Cesium.Color.GREEN,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY // Burası kritik
+    }
+});
               waypoints.push(wp);
           }
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
@@ -216,4 +220,5 @@
   </script>
 </body>
 </html>
+
 
