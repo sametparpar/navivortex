@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V13.48</title>
+    <title>NaviVortex V14.04</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -83,6 +83,24 @@ handler.setInputAction((click) => {
                 position: new Cesium.CallbackProperty(() => wp.pos, false),
                 point: { pixelSize: 10, color: Cesium.Color.YELLOW, disableDepthTestDistance: Number.POSITIVE_INFINITY }
             }),
+
+            anchor: viewer.entities.add({
+    polyline: {
+        positions: new Cesium.CallbackProperty(() => {
+            const c = Cesium.Cartographic.fromCartesian(wp.pos);
+            // Noktanın koordinatlarını alıp yüksekliği 0 (yer seviyesi) yapıyoruz
+            const ground = Cesium.Cartesian3.fromRadians(c.longitude, c.latitude, 0);
+            return [ground, wp.pos];
+        }, false),
+        width: 2,
+        material: new Cesium.PolylineDashMaterialProperty({
+            color: Cesium.Color.WHITE.withAlpha(0.6),
+            dashLength: 8
+        }),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY
+    }
+}),
+            
             line: viewer.entities.add({
                 polyline: {
                     positions: new Cesium.CallbackProperty(() => {
@@ -152,6 +170,7 @@ handler.setInputAction((click) => {
     </script>
 </body>
 </html>
+
 
 
 
