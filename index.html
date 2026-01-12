@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V09.28</title>
+    <title>NaviVortex V09.58</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -70,21 +70,38 @@
                 if (isLocked || isFlying) return;
                 
                 const picked = viewer.scene.pickPosition(click.position);
-                if (Cesium.defined(picked)) {
-                    const carto = Cesium.Cartographic.fromCartesian(picked);
-                    const currentDroneAlt = Cesium.Cartographic.fromCartesian(dronePos).height;
-                    
-                    // Noktayı drone yüksekliğine sabitle
-                    const fixedPos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, currentDroneAlt);
+if (Cesium.defined(picked)) {
+    const carto = Cesium.Cartographic.fromCartesian(picked);
+    const currentDroneAlt = Cesium.Cartographic.fromCartesian(dronePos).height;
+    
+    // Yüksekliği drone ile aynı yap
+    const fixedPos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, currentDroneAlt);
 
-                    if (waypoints.length === 0) initialHomePos = dronePos;
+    if (waypoints.length === 0) initialHomePos = dronePos;
 
-                    const wp = {
-                        pos: fixedPos,
-                        entity: viewer.entities.add({
-                            position: new Cesium.CallbackProperty(() => wp.pos, false),
-                            point: { pixelSize: 10, color: Cesium.Color.YELLOW, disableDepthTestDistance: Number.POSITIVE_INFINITY }
-                        }),
+    const wp = {
+        pos: fixedPos,
+        entity: viewer.entities.add({
+            position: fixedPos,
+            point: { pixelSize: 8, color: Cesium.Color.YELLOW, disableDepthTestDistance: Number.POSITIVE_INFINITY }
+        }),
+        line: viewer.entities.add({
+            polyline: {
+                positions: new Cesium.CallbackProperty(() => {
+                    let idx = waypoints.indexOf(wp);
+                    let start = (idx === 0) ? initialHomePos : waypoints[idx-1].pos;
+                    return [start, wp.pos];
+                }, false),
+                width: 5,
+                material: Cesium.Color.GREEN,
+                depthFailMaterial: Cesium.Color.GREEN,
+                disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                arcType: Cesium.ArcType.NONE
+            }
+        })
+    };
+    waypoints.push(wp);
+}
                         anchor: viewer.entities.add({
                             polyline: {
                                 positions: new Cesium.CallbackProperty(() => {
@@ -172,4 +189,5 @@ line: viewer.entities.add({
     </script>
 </body>
 </html>
+
 
