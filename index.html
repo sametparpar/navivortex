@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V14.16</title>
+    <title>NaviVortex V14.19</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -87,19 +87,18 @@ handler.setInputAction((click) => {
 anchor: viewer.entities.add({
     polyline: {
         positions: new Cesium.CallbackProperty(() => {
-            const c = Cesium.Cartographic.fromCartesian(wp.pos);
-            // 0 yerine -500 yaparak çizginin yerin iyice altına uzanmasını sağlıyoruz
-            // clampToGround: true özelliği ise bu uzun çizginin sadece yer üstünde kalan kısmını görünür kılacak
-            const deepGround = Cesium.Cartesian3.fromRadians(c.longitude, c.latitude, -500);
-            return [deepGround, wp.pos];
+            const carto = Cesium.Cartographic.fromCartesian(wp.pos);
+            // Bulunduğumuz yerin tam yüksekliğini ölç (Eğer ölçemezse 0 al)
+            const terrainHeight = viewer.scene.sampleHeight(carto) || 0;
+            const groundPos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, terrainHeight);
+            return [groundPos, wp.pos];
         }, false),
         width: 2,
         material: new Cesium.PolylineDashMaterialProperty({
-            color: Cesium.Color.WHITE.withAlpha(0.6),
+            color: Cesium.Color.WHITE.withAlpha(0.7),
             dashLength: 8
         }),
-        clampToGround: true, // Çizgiyi yeryüzü şekline göre keser
-        disableDepthTestDistance: 0 // Derinlik testini açıyoruz ki yerin altındaki kısım gizlensin
+        disableDepthTestDistance: Number.POSITIVE_INFINITY 
     }
 }),
             
@@ -172,6 +171,7 @@ anchor: viewer.entities.add({
     </script>
 </body>
 </html>
+
 
 
 
