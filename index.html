@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V14.37</title>
+    <title>NaviVortex V14.46</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -144,10 +144,6 @@ anchor: viewer.entities.add({
             if (k === 's') { lat -= s * Math.cos(Cesium.Math.toRadians(heading)); lon -= s * Math.sin(Cesium.Math.toRadians(heading)); }
 if (k === 'q') alt += 5; // Yüksekliği 5 metre artır
 if (k === 'e') alt -= 5; // Yüksekliği 5 metre azalt
-
-// Drone'un yerin çok altına girmesini engellemek için basit bir limit
-if (alt < -100) alt = -100; 
-
 dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
 document.getElementById('alt-txt').innerText = "Altitude: " + Math.round(alt) + " m";
         });
@@ -186,6 +182,7 @@ document.getElementById('alt-txt').innerText = "Altitude: " + Math.round(alt) + 
     </script>
 </body>
 </html>
+
 
 
 
