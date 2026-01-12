@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V14.46</title>
+    <title>NaviVortex V14.52</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -72,6 +72,7 @@ handler.setInputAction((click) => {
     const picked = viewer.scene.pickPosition(click.position);
 if (Cesium.defined(picked)) {
     const carto = Cesium.Cartographic.fromCartesian(picked);
+    const currentDroneAlt = Cesium.Cartographic.fromCartesian(dronePos).height;
     
     // 1. Tıkladığın noktanın altındaki yerin rakımını (denizden yüksekliğini) ölç
     const terrainHeight = viewer.scene.sampleHeight(carto) || 0;
@@ -82,7 +83,11 @@ if (Cesium.defined(picked)) {
     const droneRelativeAlt = Math.max(20, currentDroneCarto.height - (viewer.scene.sampleHeight(currentDroneCarto) || 0));
 
     // 3. Yeni noktayı: O noktanın zemini + drone'un yer seviyesinden yüksekliği olarak ayarla
-    const fixedPos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, terrainHeight + droneRelativeAlt);
+    const fixedPos = Cesium.Cartesian3.fromDegrees(
+    Cesium.Math.toDegrees(carto.longitude), 
+    Cesium.Math.toDegrees(carto.latitude), 
+    currentDroneAlt
+);
 
     if (waypoints.length === 0) initialHomePos = dronePos;
     // ... geri kalan wp tanımları aynı kalabilir
@@ -182,6 +187,7 @@ document.getElementById('alt-txt').innerText = "Altitude: " + Math.round(alt) + 
     </script>
 </body>
 </html>
+
 
 
 
