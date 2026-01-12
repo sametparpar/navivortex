@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V16.04</title>
+    <title>NaviVortex V16.11</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -21,7 +21,8 @@
 <body>
     <div id="dashboard">
         <h2 style="margin:0 0 10px 0; color:#38bdf8;">NAVIVORTEX V54</h2>
-        <div id="alt-txt">AGL Altitude: 100 m</div>
+        <div id="agl-txt" style="color: #10b981;">AGL: 100 m (Yerden)</div>
+        <div id="msl-txt" style="color: #38bdf8; font-size: 0.8em;">MSL: 100 m (Denizden)</div>
         <button id="lock-btn" class="btn" onclick="toggleLock()">🔒 LOCK MISSION</button>
         <button id="start-btn" class="btn" onclick="startFlight()">🚀 START FLIGHT</button>
         <button class="btn reset-btn" onclick="location.reload()">RESET SYSTEM</button>
@@ -133,39 +134,46 @@ handler.setInputAction((click) => {
 }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
         }
 
-        document.addEventListener('keydown', (e) => {
-            if (isLocked || isFlying) return;
-            const k = e.key.toLowerCase();
+document.addEventListener('keydown', (e) => {
+    if (isLocked || isFlying) return;
+    
+    const k = e.key.toLowerCase();
+    const c = Cesium.Cartographic.fromCartesian(dronePos);
+    let lon = Cesium.Math.toDegrees(c.longitude);
+    let lat = Cesium.Math.toDegrees(c.latitude);
+    let currentMSL = c.height; // Mevcut deniz seviyesi yüksekliği
+    
+    const moveStep = 0.00005; // WASD hızı
 
-            // GERİ AL (UNDO) ÖZELLİĞİ - "Z" TUŞU
-            if (k === 'z' && waypoints.length > 0) {
-                const lastWP = waypoints.pop();
-                viewer.entities.remove(lastWP.entity);
-                viewer.entities.remove(lastWP.anchor);
-                viewer.entities.remove(lastWP.line);
-                return;
-            }
+    // Yön Kontrolleri (WASD)
+    if (k === 'w') { lat += moveStep * Math.cos(Cesium.Math.toRadians(heading)); lon += moveStep * Math.sin(Cesium.Math.toRadians(heading)); }
+    if (k === 's') { lat -= moveStep * Math.cos(Cesium.Math.toRadians(heading)); lon -= moveStep * Math.sin(Cesium.Math.toRadians(heading)); }
+    if (k === 'a') heading -= 5;
+    if (k === 'd') heading += 5;
+    
+    // Yükseklik Kontrolleri (Q/E) - TAM 1 METRE HASSASİYET
+    if (k === 'q') currentMSL += 1;
+    if (k === 'e') currentMSL -= 1;
 
-            const c = Cesium.Cartographic.fromCartesian(dronePos);
-            let lon = Cesium.Math.toDegrees(c.longitude);
-            let lat = Cesium.Math.toDegrees(c.latitude);
-            let alt = c.height;
-            
-            const moveStep = 0.00005;
-            const altStep = 5;
+    // "Geri Al" (Z Tuşu)
+    if (k === 'z' && waypoints.length > 0) {
+        const lastWP = waypoints.pop();
+        viewer.entities.remove(lastWP.entity);
+        viewer.entities.remove(lastWP.anchor);
+        viewer.entities.remove(lastWP.line);
+        return;
+    }
 
-            if (k === 'w') { lat += moveStep * Math.cos(Cesium.Math.toRadians(heading)); lon += moveStep * Math.sin(Cesium.Math.toRadians(heading)); }
-            if (k === 's') { lat -= moveStep * Math.cos(Cesium.Math.toRadians(heading)); lon -= moveStep * Math.sin(Cesium.Math.toRadians(heading)); }
-            if (k === 'a') heading -= 5;
-            if (k === 'd') heading += 5;
-            if (k === 'q') alt += 5; // Mutlak yüksekliği artır
-            if (k === 'e') alt -= 5; // Mutlak yüksekliği azalt
-
-            dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
-            const ground = viewer.scene.sampleHeight(c) || 0;
-            const realAGL = alt - ground; // Gerçek yerden yükseklik
-            document.getElementById('alt-txt').innerText = "AGL Altitude: " + Math.round(realAGL) + " m";
-        });
+    // Yeni pozisyonu mutlak olarak güncelle
+    dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, currentMSL);
+    
+    // Bilgileri ekrana yaz
+    const groundHeight = viewer.scene.sampleHeight(c) || 0;
+    const aglValue = currentMSL - groundHeight;
+    
+    document.getElementById('agl-txt').innerText = "AGL: " + Math.round(aglValue) + " m (Yerden)";
+    document.getElementById('msl-txt').innerText = "MSL: " + Math.round(currentMSL) + " m (Denizden)";
+});
 
         function toggleLock() {
             if (waypoints.length === 0) return;
@@ -201,5 +209,6 @@ handler.setInputAction((click) => {
     </script>
 </body>
 </html>
+
 
 
