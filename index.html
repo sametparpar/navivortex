@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V15.01</title>
+    <title>NaviVortex V15.13</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -44,6 +44,7 @@
         let drone, waypoints = [], isLocked = false, isFlying = false, heading = 0;
         let dronePos = Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 100);
         let initialHomePos;
+        let currentAGL = 100; // Drone başlangıçta yerden 100m yüksekte olsun
 
         async function init() {
             try {
@@ -82,11 +83,11 @@ if (Cesium.defined(picked)) {
     const currentAGL = droneCarto.height - droneGround;
 
     // Noktayı: (Tıklanan yerin zemini) + (Drone'un yerden yüksekliği) şeklinde koy
-    const fixedPos = Cesium.Cartesian3.fromRadians(
-        carto.longitude, 
-        carto.latitude, 
-        groundAtPoint + currentAGL
-    );
+const fixedPos = Cesium.Cartesian3.fromRadians(
+    carto.longitude, 
+    carto.latitude, 
+    groundAtPoint + currentAGL
+);
 
     if (waypoints.length === 0) initialHomePos = dronePos;
     // ... geri kalan wp tanımları aynı kalabilir
@@ -155,6 +156,7 @@ anchor: viewer.entities.add({
     // 3. Tuşlara basınca deniz seviyesini değil, "Yerden Yüksekliği" değiştiriyoruz
     if (k === 'q') currentAGL += 5; // Yerden 5 metre daha yüksel
     if (k === 'e') currentAGL = Math.max(2, currentAGL - 5); // Yere en fazla 2 metre yaklaş
+            
     
     // 4. Yeni konumu: Zemin + Yeni Yerden Yükseklik olarak belirliyoruz
     dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, groundHeight + currentAGL);
@@ -196,6 +198,7 @@ anchor: viewer.entities.add({
     </script>
 </body>
 </html>
+
 
 
 
