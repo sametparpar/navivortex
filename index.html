@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V08.56 - Core Base</title>
+    <title>NaviVortex V52 - Stable Visuals</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -16,17 +16,15 @@
         #start-btn { background: #10b981; color: white; display: none; }
         #lock-btn { background: #0ea5e9; color: white; }
         .reset-btn { background: #ef4444; color: white; margin-top: 20px; font-size: 10px; }
-        .info { font-size: 12px; color: #94a3b8; margin-top: 10px; }
     </style>
 </head>
 <body>
     <div id="dashboard">
-        <h2 style="margin:0 0 10px 0; color:#38bdf8;">NAVIVORTEX V51</h2>
+        <h2 style="margin:0 0 10px 0; color:#38bdf8;">NAVIVORTEX V52</h2>
         <div id="alt-txt">Altitude: 100 m</div>
         <button id="lock-btn" class="btn" onclick="toggleLock()">🔒 LOCK MISSION</button>
         <button id="start-btn" class="btn" onclick="startFlight()">🚀 START FLIGHT</button>
         <button class="btn reset-btn" onclick="location.reload()">RESET SYSTEM</button>
-        <div class="info">WASD: Move | QE: Altitude<br>Click: Add Point</div>
     </div>
     <div id="cesiumContainer"></div>
 
@@ -39,12 +37,10 @@
             animation: false, timeline: false, baseLayerPicker: false
         });
 
-        viewer.scene.camera.frustum.near = 0.1; // Kameranın objeleri kesme mesafesini 10cm'e düşürür
-
-        // Temel Görünürlük: Çizgiler binaların içinden geçse bile görünsün
+        // GÖRSEL STABİLİTE AYARLARI
         viewer.scene.globe.depthTestAgainstTerrain = false;
-        viewer.scene.logarithmicDepthBuffer = true; // Tekrar True yapıyoruz, uzak mesafe hassasiyeti için
-        viewer.scene.highDynamicRange = false; // Renk patlamalarını ve kaybolmaları önleyebilir
+        viewer.scene.camera.frustum.near = 0.1;
+        viewer.scene.logarithmicDepthBuffer = true;
 
         let drone, waypoints = [], isLocked = false, isFlying = false, heading = 0;
         let dronePos = Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 100);
@@ -54,80 +50,74 @@
             const tileset = await Cesium.createGooglePhotorealistic3DTileset(GOOGLE_API_KEY);
             viewer.scene.primitives.add(tileset);
 
-drone = viewer.entities.add({
-    position: new Cesium.CallbackProperty(() => dronePos, false),
-    orientation: new Cesium.CallbackProperty(() => {
-        return Cesium.Transforms.headingPitchRollQuaternion(dronePos, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading), 0, 0));
-    }, false),
-    model: { 
-    uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumDrone/CesiumDrone.glb', 
-    minimumPixelSize: 80,
-    disableDepthTestDistance: Number.POSITIVE_INFINITY,
-    heightReference: Cesium.HeightReference.NONE // Havada asılı kalmasını garanti eder
-}
-});
+            drone = viewer.entities.add({
+                position: new Cesium.CallbackProperty(() => dronePos, false),
+                orientation: new Cesium.CallbackProperty(() => {
+                    return Cesium.Transforms.headingPitchRollQuaternion(dronePos, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading), 0, 0));
+                }, false),
+                model: { 
+                    uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumDrone/CesiumDrone.glb', 
+                    minimumPixelSize: 80,
+                    disableDepthTestDistance: Number.POSITIVE_INFINITY 
+                }
+            });
 
             viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 400) });
 
             const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-handler.setInputAction((click) => {
-    if (isLocked || isFlying) return;
-
-    if (waypoints.length === 0) {
-        initialHomePos = dronePos; 
-    }
-
-    const picked = viewer.scene.pickPosition(click.position);
+            handler.setInputAction((click) => {
+                if (isLocked || isFlying) return;
+                
+                const picked = viewer.scene.pickPosition(click.position);
                 if (Cesium.defined(picked)) {
-const wp = {
-    pos: picked,
-    entity: viewer.entities.add({
-        position: picked,
-        point: { 
-            pixelSize: 8, 
-            color: Cesium.Color.YELLOW,
-            disableDepthTestDistance: Number.POSITIVE_INFINITY // Eklenen satır
-        }
-    }),
+                    if (waypoints.length === 0) initialHomePos = dronePos;
 
-anchor: viewer.entities.add({
-    polyline: {
-        positions: new Cesium.CallbackProperty(() => {
-            // Noktanın koordinatlarını güvenli bir şekilde al
-            const carto = Cesium.Ellipsoid.WGS84.cartesianToCartographic(wp.pos);
-            const ground = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, 0);
-            return [ground, wp.pos];
-        }, false),
-        width: 2,
-        material: new Cesium.PolylineDashMaterialProperty({
-            color: Cesium.Color.WHITE.withAlpha(0.7)
-        })
-    }
-}),
-    
-line: viewer.entities.add({
-    polyline: {
-        positions: new Cesium.CallbackProperty(() => {
-            let idx = waypoints.indexOf(wp);
-            let start = (idx === 0) ? initialHomePos : waypoints[idx-1].pos;
-            return [start, wp.pos];
-        }, false),
-        width: 5,
-        // Material yerine doğrudan Color kullanarak gölgelendirmeyi devre dışı bırakıyoruz
-        material: Cesium.Color.GREEN,
-        // depthFailMaterial'i kaldırıyoruz (bazen çakışmaya neden olabilir)
-        // Bunun yerine her zaman en üstte çizilmesini şu şekilde zorluyoruz:
-        clampToGround: false,
-        zIndex: 100 // Diğer tüm harita elemanlarının üstünde tutar
-    }
-}),
+                    const wp = {
+                        pos: picked,
+                        // SARI NOKTA
+                        entity: viewer.entities.add({
+                            position: picked,
+                            point: { 
+                                pixelSize: 10, 
+                                color: Cesium.Color.YELLOW,
+                                disableDepthTestDistance: Number.POSITIVE_INFINITY 
+                            }
+                        }),
+                        // DİKEY İZDÜŞÜM HATTI (BEYAZ KESİK)
+                        anchor: viewer.entities.add({
+                            polyline: {
+                                positions: new Cesium.CallbackProperty(() => {
+                                    const carto = Cesium.Cartographic.fromCartesian(wp.pos);
+                                    const ground = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, 0);
+                                    return [ground, wp.pos];
+                                }, false),
+                                width: 2,
+                                material: new Cesium.PolylineDashMaterialProperty({ color: Cesium.Color.WHITE.withAlpha(0.6) }),
+                                disableDepthTestDistance: Number.POSITIVE_INFINITY
+                            }
+                        }),
+                        // ANA YEŞİL ROTA HATTI
+                        line: viewer.entities.add({
+                            polyline: {
+                                positions: new Cesium.CallbackProperty(() => {
+                                    let idx = waypoints.indexOf(wp);
+                                    let start = (idx === 0) ? initialHomePos : waypoints[idx-1].pos;
+                                    return [start, wp.pos];
+                                }, false),
+                                width: 6,
+                                material: Cesium.Color.GREEN,
+                                depthFailMaterial: Cesium.Color.GREEN, // Binaların arkasında kalsa bile yeşil çiz
+                                disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                                arcType: Cesium.ArcType.NONE
+                            }
+                        })
                     };
                     waypoints.push(wp);
                 }
             }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
         }
 
-        // Klavye Kontrolleri
+        // KLAVYE KONTROLLERİ
         document.addEventListener('keydown', (e) => {
             if (isLocked || isFlying) return;
             const c = Cesium.Cartographic.fromCartesian(dronePos);
@@ -139,7 +129,7 @@ line: viewer.entities.add({
             if (k === 'w') { lat += s * Math.cos(Cesium.Math.toRadians(heading)); lon += s * Math.sin(Cesium.Math.toRadians(heading)); }
             if (k === 's') { lat -= s * Math.cos(Cesium.Math.toRadians(heading)); lon -= s * Math.sin(Cesium.Math.toRadians(heading)); }
             if (k === 'q') alt += 2;
-            if (k === 'e') alt = Math.max(0.5, alt - 2);
+            if (k === 'e') alt = Math.max(0.1, alt - 2);
             
             dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
             document.getElementById('alt-txt').innerText = "Altitude: " + Math.round(alt) + " m";
@@ -154,7 +144,6 @@ line: viewer.entities.add({
 
         async function startFlight() {
             isFlying = true;
-            // Kamera takibi: drone arkasına bakış
             viewer.trackedEntity = drone;
 
             let currentPos = dronePos;
@@ -168,11 +157,8 @@ line: viewer.entities.add({
                     function frame(now) {
                         let t = Math.min((now - startTime) / (duration * 1000), 1);
                         dronePos = Cesium.Cartesian3.lerp(start, end, t, new Cesium.Cartesian3());
-                        
-                        // Otomatik Heading (Hedefe Bakış)
                         const dir = Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(end, start, new Cesium.Cartesian3()), new Cesium.Cartesian3());
                         heading = Cesium.Math.toDegrees(Math.atan2(dir.x, dir.y));
-
                         if (t < 1) requestAnimationFrame(frame); else resolve();
                     }
                     requestAnimationFrame(frame);
@@ -187,10 +173,3 @@ line: viewer.entities.add({
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
