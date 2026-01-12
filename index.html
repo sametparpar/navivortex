@@ -43,7 +43,8 @@
 
         // Temel Görünürlük: Çizgiler binaların içinden geçse bile görünsün
         viewer.scene.globe.depthTestAgainstTerrain = false;
-        viewer.scene.screenSpaceCameraController.enableCollisionDetection = false;
+        viewer.scene.logarithmicDepthBuffer = true; // Tekrar True yapıyoruz, uzak mesafe hassasiyeti için
+        viewer.scene.highDynamicRange = false; // Renk patlamalarını ve kaybolmaları önleyebilir
 
         let drone, waypoints = [], isLocked = false, isFlying = false, heading = 0;
         let dronePos = Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 100);
@@ -89,21 +90,18 @@ const wp = {
         }
     }),
 
-    anchor: viewer.entities.add({
+anchor: viewer.entities.add({
     polyline: {
         positions: new Cesium.CallbackProperty(() => {
-            // Noktanın o anki konumu
-            const currentCarto = Cesium.Cartographic.fromCartesian(wp.pos);
-            // Aynı koordinatın yerdeki (sıfır yükseklik) karşılığı
-            const groundPos = Cesium.Cartesian3.fromRadians(currentCarto.longitude, currentCarto.latitude, 0);
-            return [groundPos, wp.pos];
+            // Noktanın koordinatlarını güvenli bir şekilde al
+            const carto = Cesium.Ellipsoid.WGS84.cartesianToCartographic(wp.pos);
+            const ground = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, 0);
+            return [ground, wp.pos];
         }, false),
-        width: 1,
+        width: 2,
         material: new Cesium.PolylineDashMaterialProperty({
-            color: Cesium.Color.WHITE.withAlpha(0.6),
-            dashLength: 8
-        }),
-        disableDepthTestDistance: Number.POSITIVE_INFINITY
+            color: Cesium.Color.WHITE.withAlpha(0.7)
+        })
     }
 }),
     
@@ -114,15 +112,15 @@ line: viewer.entities.add({
             let start = (idx === 0) ? initialHomePos : waypoints[idx-1].pos;
             return [start, wp.pos];
         }, false),
-        width: 5, // Biraz daha belirgin
+        width: 5,
+        // Material yerine doğrudan Color kullanarak gölgelendirmeyi devre dışı bırakıyoruz
         material: Cesium.Color.GREEN,
-        depthFailMaterial: Cesium.Color.GREEN,
-        // KRİTİK EKLEME: Çizginin her zaman en önde çizilmesini sağlar
-        eyeOffset: new Cesium.Cartesian3(0, 0, -10), 
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-        arcType: Cesium.ArcType.NONE
+        // depthFailMaterial'i kaldırıyoruz (bazen çakışmaya neden olabilir)
+        // Bunun yerine her zaman en üstte çizilmesini şu şekilde zorluyoruz:
+        clampToGround: false,
+        zIndex: 100 // Diğer tüm harita elemanlarının üstünde tutar
     }
-})
+}),
                     };
                     waypoints.push(wp);
                 }
@@ -189,6 +187,7 @@ line: viewer.entities.add({
     </script>
 </body>
 </html>
+
 
 
 
