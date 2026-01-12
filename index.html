@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V10.07</title>
+    <title>NaviVortex V13.48</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -71,9 +71,10 @@
     
     const picked = viewer.scene.pickPosition(click.position);
     if (Cesium.defined(picked)) {
-        // Drone'un mevcut yüksekliğini al ve noktayı oraya sabitle
         const carto = Cesium.Cartographic.fromCartesian(picked);
         const currentDroneAlt = Cesium.Cartographic.fromCartesian(dronePos).height;
+        
+        // Noktayı drone yüksekliğine sabitle
         const fixedPos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, currentDroneAlt);
 
         if (waypoints.length === 0) initialHomePos = dronePos;
@@ -81,30 +82,51 @@
         const wp = {
             pos: fixedPos,
             entity: viewer.entities.add({
-                position: fixedPos,
+                position: new Cesium.CallbackProperty(() => wp.pos, false),
                 point: { 
-                    pixelSize: 8, 
+                    pixelSize: 10, 
                     color: Cesium.Color.YELLOW, 
                     disableDepthTestDistance: Number.POSITIVE_INFINITY 
                 }
-            }),
-            line: viewer.entities.add({
-                polyline: {
-                    positions: new Cesium.CallbackProperty(() => {
-                        let idx = waypoints.indexOf(wp);
-                        let start = (idx === 0) ? initialHomePos : waypoints[idx-1].pos;
-                        return [start, wp.pos];
-                    }, false),
-                    width: 5,
-                    material: Cesium.Color.GREEN,
-                    depthFailMaterial: Cesium.Color.GREEN, // Yer altında kalsa bile görün
-                    disableDepthTestDistance: Number.POSITIVE_INFINITY,
-                    arcType: Cesium.ArcType.NONE
-                }
             })
         };
+
+        // Dikey İzdüşüm Hattı
+        wp.anchor = viewer.entities.add({
+            polyline: {
+                positions: new Cesium.CallbackProperty(() => {
+                    const c = Cesium.Cartographic.fromCartesian(wp.pos);
+                    const ground = Cesium.Cartesian3.fromRadians(c.longitude, c.latitude, 0);
+                    return [ground, wp.pos];
+                }, false),
+                width: 2,
+                material: new Cesium.PolylineDashMaterialProperty({ color: Cesium.Color.WHITE.withAlpha(0.6) }),
+                disableDepthTestDistance: Number.POSITIVE_INFINITY
+            }
+        });
+
+        // Ana Yeşil Rota Hattı
+        wp.line = viewer.entities.add({
+            polyline: {
+                positions: new Cesium.CallbackProperty(() => {
+                    let idx = waypoints.indexOf(wp);
+                    let start = (idx === 0) ? initialHomePos : waypoints[idx-1].pos;
+                    return [start, wp.pos];
+                }, false),
+                width: 6,
+                material: Cesium.Color.GREEN,
+                // Yerin altında kalsa bile görünmesini sağlayan ayar
+                depthFailMaterial: new Cesium.PolylineDashMaterialProperty({
+                    color: Cesium.Color.GREEN,
+                    dashLength: 16.0
+                }),
+                eyeOffset: new Cesium.Cartesian3(0, 0, -10),
+                disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                arcType: Cesium.ArcType.NONE
+            }
+        });
+
         waypoints.push(wp);
-        // checkPathSafety(wp);  <-- BURAYI SİLDİK, HATA ALMAMAK İÇİN ÇAĞIRMIYORUZ
     }
 }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
     waypoints.push(wp);
@@ -196,6 +218,7 @@ line: viewer.entities.add({
     </script>
 </body>
 </html>
+
 
 
 
