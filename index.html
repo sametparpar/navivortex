@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V53 - Fixed Altitude & Visuals</title>
+    <title>NaviVortex V09.28</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -97,20 +97,26 @@
                                 disableDepthTestDistance: Number.POSITIVE_INFINITY
                             }
                         }),
-                        line: viewer.entities.add({
-                            polyline: {
-                                positions: new Cesium.CallbackProperty(() => {
-                                    let idx = waypoints.indexOf(wp);
-                                    let start = (idx === 0) ? initialHomePos : waypoints[idx-1].pos;
-                                    return [start, wp.pos];
-                                }, false),
-                                width: 6,
-                                material: Cesium.Color.GREEN,
-                                depthFailMaterial: Cesium.Color.GREEN,
-                                disableDepthTestDistance: Number.POSITIVE_INFINITY,
-                                arcType: Cesium.ArcType.NONE
-                            }
-                        })
+line: viewer.entities.add({
+    polyline: {
+        positions: new Cesium.CallbackProperty(() => {
+            let idx = waypoints.indexOf(wp);
+            let start = (idx === 0) ? initialHomePos : waypoints[idx-1].pos;
+            return [start, wp.pos];
+        }, false),
+        width: 6,
+        material: Cesium.Color.GREEN,
+        // Bu özellik çizgi yerin/binanın altında kalsa bile görünmesini sağlar
+        depthFailMaterial: new Cesium.PolylineDashMaterialProperty({
+            color: Cesium.Color.GREEN,
+            dashLength: 16.0 // Yer altındaki kısımlar hafif kesik çizgi görünebilir, istersen düz de yapabiliriz
+        }),
+        // eyeOffset çizgiyi kameraya doğru milimetrik olarak yaklaştırır, titremeyi bitirir
+        eyeOffset: new Cesium.Cartesian3(0, 0, -10), 
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        arcType: Cesium.ArcType.NONE
+    }
+})
                     };
                     waypoints.push(wp);
                 }
@@ -166,3 +172,4 @@
     </script>
 </body>
 </html>
+
