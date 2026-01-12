@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V15.44</title>
+    <title>NaviVortex V16.04</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -158,12 +158,13 @@ handler.setInputAction((click) => {
             if (k === 's') { lat -= moveStep * Math.cos(Cesium.Math.toRadians(heading)); lon -= moveStep * Math.sin(Cesium.Math.toRadians(heading)); }
             if (k === 'a') heading -= 5;
             if (k === 'd') heading += 5;
-            if (k === 'q') alt += altStep;
-            if (k === 'e') alt -= altStep;
+            if (k === 'q') alt += 5; // Mutlak yüksekliği artır
+            if (k === 'e') alt -= 5; // Mutlak yüksekliği azalt
 
             dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
             const ground = viewer.scene.sampleHeight(c) || 0;
-            document.getElementById('alt-txt').innerText = "AGL Altitude: " + Math.round(alt - ground) + " m";
+            const realAGL = alt - ground; // Gerçek yerden yükseklik
+            document.getElementById('alt-txt').innerText = "AGL Altitude: " + Math.round(realAGL) + " m";
         });
 
         function toggleLock() {
@@ -200,4 +201,5 @@ handler.setInputAction((click) => {
     </script>
 </body>
 </html>
+
 
