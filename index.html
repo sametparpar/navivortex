@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V14.57</title>
+    <title>NaviVortex V15.01</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -72,22 +72,21 @@ handler.setInputAction((click) => {
     const picked = viewer.scene.pickPosition(click.position);
 if (Cesium.defined(picked)) {
     const carto = Cesium.Cartographic.fromCartesian(picked);
-    const currentDroneAlt = Cesium.Cartographic.fromCartesian(dronePos).height;
     
-    // 1. Tıkladığın noktanın altındaki yerin rakımını (denizden yüksekliğini) ölç
-    const terrainHeight = viewer.scene.sampleHeight(carto) || 0;
+    // Tıklanan noktanın altındaki zemini ölç
+    const groundAtPoint = viewer.scene.sampleHeight(carto) || 0;
     
-    // 2. Drone'un o anki yer seviyesinden yüksekliğini (AGL) koruyalım
-    // Veya sabit bir değer istiyorsan buraya 50 gibi bir sayı da yazabiliriz
-    const currentDroneCarto = Cesium.Cartographic.fromCartesian(dronePos);
-    const droneRelativeAlt = Math.max(20, currentDroneCarto.height - (viewer.scene.sampleHeight(currentDroneCarto) || 0));
+    // Drone'un o anki yerden yüksekliğini (AGL) al
+    const droneCarto = Cesium.Cartographic.fromCartesian(dronePos);
+    const droneGround = viewer.scene.sampleHeight(droneCarto) || 0;
+    const currentAGL = droneCarto.height - droneGround;
 
-    // 3. Yeni noktayı: O noktanın zemini + drone'un yer seviyesinden yüksekliği olarak ayarla
-    const fixedPos = Cesium.Cartesian3.fromDegrees(
-    Cesium.Math.toDegrees(carto.longitude), 
-    Cesium.Math.toDegrees(carto.latitude), 
-    currentDroneAlt
-);
+    // Noktayı: (Tıklanan yerin zemini) + (Drone'un yerden yüksekliği) şeklinde koy
+    const fixedPos = Cesium.Cartesian3.fromRadians(
+        carto.longitude, 
+        carto.latitude, 
+        groundAtPoint + currentAGL
+    );
 
     if (waypoints.length === 0) initialHomePos = dronePos;
     // ... geri kalan wp tanımları aynı kalabilir
@@ -139,20 +138,29 @@ anchor: viewer.entities.add({
         }
 
         document.addEventListener('keydown', (e) => {
-            if (isLocked || isFlying) return;
-            const c = Cesium.Cartographic.fromCartesian(dronePos);
-            let lon = Cesium.Math.toDegrees(c.longitude), lat = Cesium.Math.toDegrees(c.latitude), alt = c.height;
-            const s = 0.00005, k = e.key.toLowerCase();
-            if (k === 'a') heading -= 5;
-            if (k === 'd') heading += 5;
-            if (k === 'w') { lat += s * Math.cos(Cesium.Math.toRadians(heading)); lon += s * Math.sin(Cesium.Math.toRadians(heading)); }
-            if (k === 's') { lat -= s * Math.cos(Cesium.Math.toRadians(heading)); lon -= s * Math.sin(Cesium.Math.toRadians(heading)); }
-if (k === 'q') alt += 5; // Yüksekliği 5 metre artır
-if (k === 'e') alt -= 5; // Yüksekliği 5 metre azalt
-            if (alt < -100) alt = -100;
-dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
-document.getElementById('alt-txt').innerText = "Altitude: " + Math.round(alt) + " m";
-        });
+    if (isLocked || isFlying) return;
+    
+    const c = Cesium.Cartographic.fromCartesian(dronePos);
+    let lon = Cesium.Math.toDegrees(c.longitude);
+    let lat = Cesium.Math.toDegrees(c.latitude);
+    
+    // 1. Altımızdaki zeminin yüksekliğini ölçüyoruz
+    const groundHeight = viewer.scene.sampleHeight(c) || 0;
+    
+    // 2. Mevcut yerden yüksekliğimizi hesaplıyoruz (Deniz Seviyesi - Zemin)
+    let currentAGL = c.height - groundHeight;
+    
+    const k = e.key.toLowerCase();
+    
+    // 3. Tuşlara basınca deniz seviyesini değil, "Yerden Yüksekliği" değiştiriyoruz
+    if (k === 'q') currentAGL += 5; // Yerden 5 metre daha yüksel
+    if (k === 'e') currentAGL = Math.max(2, currentAGL - 5); // Yere en fazla 2 metre yaklaş
+    
+    // 4. Yeni konumu: Zemin + Yeni Yerden Yükseklik olarak belirliyoruz
+    dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, groundHeight + currentAGL);
+    
+    document.getElementById('alt-txt').innerText = "Yerden Yükseklik: " + Math.round(currentAGL) + " m";
+});
 
         function toggleLock() {
             if (waypoints.length === 0) return;
@@ -188,6 +196,7 @@ document.getElementById('alt-txt').innerText = "Altitude: " + Math.round(alt) + 
     </script>
 </body>
 </html>
+
 
 
 
