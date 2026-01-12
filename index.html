@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V14.19</title>
+    <title>NaviVortex V14.30</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -70,12 +70,23 @@ handler.setInputAction((click) => {
     if (isLocked || isFlying) return;
     
     const picked = viewer.scene.pickPosition(click.position);
-    if (Cesium.defined(picked)) {
-        const carto = Cesium.Cartographic.fromCartesian(picked);
-        const currentDroneAlt = Cesium.Cartographic.fromCartesian(dronePos).height;
-        const fixedPos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, currentDroneAlt);
+if (Cesium.defined(picked)) {
+    const carto = Cesium.Cartographic.fromCartesian(picked);
+    
+    // 1. Tıkladığın noktanın altındaki yerin rakımını (denizden yüksekliğini) ölç
+    const terrainHeight = viewer.scene.sampleHeight(carto) || 0;
+    
+    // 2. Drone'un o anki yer seviyesinden yüksekliğini (AGL) koruyalım
+    // Veya sabit bir değer istiyorsan buraya 50 gibi bir sayı da yazabiliriz
+    const currentDroneCarto = Cesium.Cartographic.fromCartesian(dronePos);
+    const droneRelativeAlt = Math.max(20, currentDroneCarto.height - (viewer.scene.sampleHeight(currentDroneCarto) || 0));
 
-        if (waypoints.length === 0) initialHomePos = dronePos;
+    // 3. Yeni noktayı: O noktanın zemini + drone'un yer seviyesinden yüksekliği olarak ayarla
+    const fixedPos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, terrainHeight + droneRelativeAlt);
+
+    if (waypoints.length === 0) initialHomePos = dronePos;
+    // ... geri kalan wp tanımları aynı kalabilir
+    
 
         const wp = {
             pos: fixedPos,
@@ -132,7 +143,17 @@ anchor: viewer.entities.add({
             if (k === 'w') { lat += s * Math.cos(Cesium.Math.toRadians(heading)); lon += s * Math.sin(Cesium.Math.toRadians(heading)); }
             if (k === 's') { lat -= s * Math.cos(Cesium.Math.toRadians(heading)); lon -= s * Math.sin(Cesium.Math.toRadians(heading)); }
             if (k === 'q') alt += 2;
-            if (k === 'e') alt = Math.max(0.1, alt - 2);
+            if (k === 'e') {
+    const terrainUnderDrone = viewer.scene.sampleHeight(c) || 0;
+    // Drone'un deniz seviyesinden yüksekliği, yer rakımından az olamaz (+2 metre emniyet)
+    alt = Math.max(terrainUnderDrone + 2, alt - 2); 
+}
+
+
+
+
+
+            
             dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
             document.getElementById('alt-txt').innerText = "Altitude: " + Math.round(alt) + " m";
         });
@@ -171,6 +192,7 @@ anchor: viewer.entities.add({
     </script>
 </body>
 </html>
+
 
 
 
