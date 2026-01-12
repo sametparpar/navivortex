@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V52 - Stable Visuals</title>
+    <title>NaviVortex V09.08</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -69,20 +69,57 @@
                 if (isLocked || isFlying) return;
                 
                 const picked = viewer.scene.pickPosition(click.position);
-                if (Cesium.defined(picked)) {
-                    if (waypoints.length === 0) initialHomePos = dronePos;
+if (Cesium.defined(picked)) {
+    // 1. Tıklanan yerin koordinatlarını al
+    const carto = Cesium.Cartographic.fromCartesian(picked);
+    
+    // 2. Drone'un o anki yüksekliğini al
+    const currentDroneAlt = Cesium.Cartographic.fromCartesian(dronePos).height;
+    
+    // 3. Tıklanan noktanın yüksekliğini drone'un yüksekliğine zorla sabitle
+    const fixedPos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, currentDroneAlt);
 
-                    const wp = {
-                        pos: picked,
-                        // SARI NOKTA
-                        entity: viewer.entities.add({
-                            position: picked,
-                            point: { 
-                                pixelSize: 10, 
-                                color: Cesium.Color.YELLOW,
-                                disableDepthTestDistance: Number.POSITIVE_INFINITY 
-                            }
-                        }),
+    if (waypoints.length === 0) initialHomePos = dronePos;
+
+    const wp = {
+        pos: fixedPos, // Artık picked değil, yüksekliği sabitlenmiş fixedPos kullanıyoruz
+        entity: viewer.entities.add({
+            position: new Cesium.CallbackProperty(() => wp.pos, false),
+            point: { 
+                pixelSize: 10, 
+                color: Cesium.Color.YELLOW,
+                disableDepthTestDistance: Number.POSITIVE_INFINITY 
+            }
+        }),
+        anchor: viewer.entities.add({
+            polyline: {
+                positions: new Cesium.CallbackProperty(() => {
+                    const c = Cesium.Cartographic.fromCartesian(wp.pos);
+                    const ground = Cesium.Cartesian3.fromRadians(c.longitude, c.latitude, 0);
+                    return [ground, wp.pos];
+                }, false),
+                width: 2,
+                material: new Cesium.PolylineDashMaterialProperty({ color: Cesium.Color.WHITE.withAlpha(0.6) }),
+                disableDepthTestDistance: Number.POSITIVE_INFINITY
+            }
+        }),
+        line: viewer.entities.add({
+            polyline: {
+                positions: new Cesium.CallbackProperty(() => {
+                    let idx = waypoints.indexOf(wp);
+                    let start = (idx === 0) ? initialHomePos : waypoints[idx-1].pos;
+                    return [start, wp.pos];
+                }, false),
+                width: 6,
+                material: Cesium.Color.GREEN,
+                depthFailMaterial: Cesium.Color.GREEN,
+                disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                arcType: Cesium.ArcType.NONE
+            }
+        })
+    };
+    waypoints.push(wp);
+}
                         // DİKEY İZDÜŞÜM HATTI (BEYAZ KESİK)
                         anchor: viewer.entities.add({
                             polyline: {
@@ -173,3 +210,4 @@
     </script>
 </body>
 </html>
+
