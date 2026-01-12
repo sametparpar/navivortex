@@ -66,15 +66,13 @@
             viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 400) });
 
             const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-            handler.setInputAction((click) => {
+handler.setInputAction((click) => {
     if (isLocked || isFlying) return;
     
     const picked = viewer.scene.pickPosition(click.position);
     if (Cesium.defined(picked)) {
         const carto = Cesium.Cartographic.fromCartesian(picked);
         const currentDroneAlt = Cesium.Cartographic.fromCartesian(dronePos).height;
-        
-        // Noktayı drone yüksekliğine sabitle
         const fixedPos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, currentDroneAlt);
 
         if (waypoints.length === 0) initialHomePos = dronePos;
@@ -83,90 +81,26 @@
             pos: fixedPos,
             entity: viewer.entities.add({
                 position: new Cesium.CallbackProperty(() => wp.pos, false),
-                point: { 
-                    pixelSize: 10, 
-                    color: Cesium.Color.YELLOW, 
-                    disableDepthTestDistance: Number.POSITIVE_INFINITY 
+                point: { pixelSize: 10, color: Cesium.Color.YELLOW, disableDepthTestDistance: Number.POSITIVE_INFINITY }
+            }),
+            line: viewer.entities.add({
+                polyline: {
+                    positions: new Cesium.CallbackProperty(() => {
+                        let idx = waypoints.indexOf(wp);
+                        let start = (idx === 0) ? initialHomePos : waypoints[idx-1].pos;
+                        return [start, wp.pos];
+                    }, false),
+                    width: 6,
+                    material: Cesium.Color.GREEN,
+                    depthFailMaterial: Cesium.Color.GREEN,
+                    disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                    arcType: Cesium.ArcType.NONE
                 }
             })
         };
-
-        // Dikey İzdüşüm Hattı
-        wp.anchor = viewer.entities.add({
-            polyline: {
-                positions: new Cesium.CallbackProperty(() => {
-                    const c = Cesium.Cartographic.fromCartesian(wp.pos);
-                    const ground = Cesium.Cartesian3.fromRadians(c.longitude, c.latitude, 0);
-                    return [ground, wp.pos];
-                }, false),
-                width: 2,
-                material: new Cesium.PolylineDashMaterialProperty({ color: Cesium.Color.WHITE.withAlpha(0.6) }),
-                disableDepthTestDistance: Number.POSITIVE_INFINITY
-            }
-        });
-
-        // Ana Yeşil Rota Hattı
-        wp.line = viewer.entities.add({
-            polyline: {
-                positions: new Cesium.CallbackProperty(() => {
-                    let idx = waypoints.indexOf(wp);
-                    let start = (idx === 0) ? initialHomePos : waypoints[idx-1].pos;
-                    return [start, wp.pos];
-                }, false),
-                width: 6,
-                material: Cesium.Color.GREEN,
-                // Yerin altında kalsa bile görünmesini sağlayan ayar
-                depthFailMaterial: new Cesium.PolylineDashMaterialProperty({
-                    color: Cesium.Color.GREEN,
-                    dashLength: 16.0
-                }),
-                eyeOffset: new Cesium.Cartesian3(0, 0, -10),
-                disableDepthTestDistance: Number.POSITIVE_INFINITY,
-                arcType: Cesium.ArcType.NONE
-            }
-        });
-
         waypoints.push(wp);
     }
 }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-    waypoints.push(wp);
-}
-                        anchor: viewer.entities.add({
-                            polyline: {
-                                positions: new Cesium.CallbackProperty(() => {
-                                    const c = Cesium.Cartographic.fromCartesian(wp.pos);
-                                    const ground = Cesium.Cartesian3.fromRadians(c.longitude, c.latitude, 0);
-                                    return [ground, wp.pos];
-                                }, false),
-                                width: 2,
-                                material: new Cesium.PolylineDashMaterialProperty({ color: Cesium.Color.WHITE.withAlpha(0.6) }),
-                                disableDepthTestDistance: Number.POSITIVE_INFINITY
-                            }
-                        }),
-line: viewer.entities.add({
-    polyline: {
-        positions: new Cesium.CallbackProperty(() => {
-            let idx = waypoints.indexOf(wp);
-            let start = (idx === 0) ? initialHomePos : waypoints[idx-1].pos;
-            return [start, wp.pos];
-        }, false),
-        width: 6,
-        material: Cesium.Color.GREEN,
-        // Bu özellik çizgi yerin/binanın altında kalsa bile görünmesini sağlar
-        depthFailMaterial: new Cesium.PolylineDashMaterialProperty({
-            color: Cesium.Color.GREEN,
-            dashLength: 16.0 // Yer altındaki kısımlar hafif kesik çizgi görünebilir, istersen düz de yapabiliriz
-        }),
-        // eyeOffset çizgiyi kameraya doğru milimetrik olarak yaklaştırır, titremeyi bitirir
-        eyeOffset: new Cesium.Cartesian3(0, 0, -10), 
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-        arcType: Cesium.ArcType.NONE
-    }
-})
-                    };
-                    waypoints.push(wp);
-                }
-            }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
         }
 
         document.addEventListener('keydown', (e) => {
@@ -218,6 +152,7 @@ line: viewer.entities.add({
     </script>
 </body>
 </html>
+
 
 
 
