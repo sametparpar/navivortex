@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V09.08</title>
+    <title>NaviVortex V53 - Fixed Altitude & Visuals</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -20,7 +20,7 @@
 </head>
 <body>
     <div id="dashboard">
-        <h2 style="margin:0 0 10px 0; color:#38bdf8;">NAVIVORTEX V52</h2>
+        <h2 style="margin:0 0 10px 0; color:#38bdf8;">NAVIVORTEX V53</h2>
         <div id="alt-txt">Altitude: 100 m</div>
         <button id="lock-btn" class="btn" onclick="toggleLock()">🔒 LOCK MISSION</button>
         <button id="start-btn" class="btn" onclick="startFlight()">🚀 START FLIGHT</button>
@@ -37,18 +37,19 @@
             animation: false, timeline: false, baseLayerPicker: false
         });
 
-        // GÖRSEL STABİLİTE AYARLARI
+        // Görsel Stabilite Ayarları
         viewer.scene.globe.depthTestAgainstTerrain = false;
         viewer.scene.camera.frustum.near = 0.1;
-        viewer.scene.logarithmicDepthBuffer = true;
 
         let drone, waypoints = [], isLocked = false, isFlying = false, heading = 0;
         let dronePos = Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 100);
         let initialHomePos;
 
         async function init() {
-            const tileset = await Cesium.createGooglePhotorealistic3DTileset(GOOGLE_API_KEY);
-            viewer.scene.primitives.add(tileset);
+            try {
+                const tileset = await Cesium.createGooglePhotorealistic3DTileset(GOOGLE_API_KEY);
+                viewer.scene.primitives.add(tileset);
+            } catch (e) { console.error("Tileset yüklenemedi:", e); }
 
             drone = viewer.entities.add({
                 position: new Cesium.CallbackProperty(() => dronePos, false),
@@ -69,63 +70,26 @@
                 if (isLocked || isFlying) return;
                 
                 const picked = viewer.scene.pickPosition(click.position);
-if (Cesium.defined(picked)) {
-    // 1. Tıklanan yerin koordinatlarını al
-    const carto = Cesium.Cartographic.fromCartesian(picked);
-    
-    // 2. Drone'un o anki yüksekliğini al
-    const currentDroneAlt = Cesium.Cartographic.fromCartesian(dronePos).height;
-    
-    // 3. Tıklanan noktanın yüksekliğini drone'un yüksekliğine zorla sabitle
-    const fixedPos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, currentDroneAlt);
+                if (Cesium.defined(picked)) {
+                    const carto = Cesium.Cartographic.fromCartesian(picked);
+                    const currentDroneAlt = Cesium.Cartographic.fromCartesian(dronePos).height;
+                    
+                    // Noktayı drone yüksekliğine sabitle
+                    const fixedPos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, currentDroneAlt);
 
-    if (waypoints.length === 0) initialHomePos = dronePos;
+                    if (waypoints.length === 0) initialHomePos = dronePos;
 
-    const wp = {
-        pos: fixedPos, // Artık picked değil, yüksekliği sabitlenmiş fixedPos kullanıyoruz
-        entity: viewer.entities.add({
-            position: new Cesium.CallbackProperty(() => wp.pos, false),
-            point: { 
-                pixelSize: 10, 
-                color: Cesium.Color.YELLOW,
-                disableDepthTestDistance: Number.POSITIVE_INFINITY 
-            }
-        }),
-        anchor: viewer.entities.add({
-            polyline: {
-                positions: new Cesium.CallbackProperty(() => {
-                    const c = Cesium.Cartographic.fromCartesian(wp.pos);
-                    const ground = Cesium.Cartesian3.fromRadians(c.longitude, c.latitude, 0);
-                    return [ground, wp.pos];
-                }, false),
-                width: 2,
-                material: new Cesium.PolylineDashMaterialProperty({ color: Cesium.Color.WHITE.withAlpha(0.6) }),
-                disableDepthTestDistance: Number.POSITIVE_INFINITY
-            }
-        }),
-        line: viewer.entities.add({
-            polyline: {
-                positions: new Cesium.CallbackProperty(() => {
-                    let idx = waypoints.indexOf(wp);
-                    let start = (idx === 0) ? initialHomePos : waypoints[idx-1].pos;
-                    return [start, wp.pos];
-                }, false),
-                width: 6,
-                material: Cesium.Color.GREEN,
-                depthFailMaterial: Cesium.Color.GREEN,
-                disableDepthTestDistance: Number.POSITIVE_INFINITY,
-                arcType: Cesium.ArcType.NONE
-            }
-        })
-    };
-    waypoints.push(wp);
-}
-                        // DİKEY İZDÜŞÜM HATTI (BEYAZ KESİK)
+                    const wp = {
+                        pos: fixedPos,
+                        entity: viewer.entities.add({
+                            position: new Cesium.CallbackProperty(() => wp.pos, false),
+                            point: { pixelSize: 10, color: Cesium.Color.YELLOW, disableDepthTestDistance: Number.POSITIVE_INFINITY }
+                        }),
                         anchor: viewer.entities.add({
                             polyline: {
                                 positions: new Cesium.CallbackProperty(() => {
-                                    const carto = Cesium.Cartographic.fromCartesian(wp.pos);
-                                    const ground = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, 0);
+                                    const c = Cesium.Cartographic.fromCartesian(wp.pos);
+                                    const ground = Cesium.Cartesian3.fromRadians(c.longitude, c.latitude, 0);
                                     return [ground, wp.pos];
                                 }, false),
                                 width: 2,
@@ -133,7 +97,6 @@ if (Cesium.defined(picked)) {
                                 disableDepthTestDistance: Number.POSITIVE_INFINITY
                             }
                         }),
-                        // ANA YEŞİL ROTA HATTI
                         line: viewer.entities.add({
                             polyline: {
                                 positions: new Cesium.CallbackProperty(() => {
@@ -143,7 +106,7 @@ if (Cesium.defined(picked)) {
                                 }, false),
                                 width: 6,
                                 material: Cesium.Color.GREEN,
-                                depthFailMaterial: Cesium.Color.GREEN, // Binaların arkasında kalsa bile yeşil çiz
+                                depthFailMaterial: Cesium.Color.GREEN,
                                 disableDepthTestDistance: Number.POSITIVE_INFINITY,
                                 arcType: Cesium.ArcType.NONE
                             }
@@ -154,20 +117,17 @@ if (Cesium.defined(picked)) {
             }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
         }
 
-        // KLAVYE KONTROLLERİ
         document.addEventListener('keydown', (e) => {
             if (isLocked || isFlying) return;
             const c = Cesium.Cartographic.fromCartesian(dronePos);
             let lon = Cesium.Math.toDegrees(c.longitude), lat = Cesium.Math.toDegrees(c.latitude), alt = c.height;
             const s = 0.00005, k = e.key.toLowerCase();
-            
             if (k === 'a') heading -= 5;
             if (k === 'd') heading += 5;
             if (k === 'w') { lat += s * Math.cos(Cesium.Math.toRadians(heading)); lon += s * Math.sin(Cesium.Math.toRadians(heading)); }
             if (k === 's') { lat -= s * Math.cos(Cesium.Math.toRadians(heading)); lon -= s * Math.sin(Cesium.Math.toRadians(heading)); }
             if (k === 'q') alt += 2;
             if (k === 'e') alt = Math.max(0.1, alt - 2);
-            
             dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
             document.getElementById('alt-txt').innerText = "Altitude: " + Math.round(alt) + " m";
         });
@@ -182,20 +142,16 @@ if (Cesium.defined(picked)) {
         async function startFlight() {
             isFlying = true;
             viewer.trackedEntity = drone;
-
             let currentPos = dronePos;
             for (const wp of waypoints) {
                 const start = currentPos;
                 const end = wp.pos;
                 const duration = Cesium.Cartesian3.distance(start, end) / 20;
-
                 await new Promise(resolve => {
                     let startTime = performance.now();
                     function frame(now) {
                         let t = Math.min((now - startTime) / (duration * 1000), 1);
                         dronePos = Cesium.Cartesian3.lerp(start, end, t, new Cesium.Cartesian3());
-                        const dir = Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(end, start, new Cesium.Cartesian3()), new Cesium.Cartesian3());
-                        heading = Cesium.Math.toDegrees(Math.atan2(dir.x, dir.y));
                         if (t < 1) requestAnimationFrame(frame); else resolve();
                     }
                     requestAnimationFrame(frame);
@@ -210,4 +166,3 @@ if (Cesium.defined(picked)) {
     </script>
 </body>
 </html>
-
