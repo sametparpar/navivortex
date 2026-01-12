@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V15.13</title>
+    <title>NaviVortex V15.21</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -71,52 +71,68 @@ handler.setInputAction((click) => {
     if (isLocked || isFlying) return;
     
     const picked = viewer.scene.pickPosition(click.position);
-if (Cesium.defined(picked)) {
-    const carto = Cesium.Cartographic.fromCartesian(picked);
-    
-    // Tıklanan noktanın altındaki zemini ölç
-    const groundAtPoint = viewer.scene.sampleHeight(carto) || 0;
-    
-    // Drone'un o anki yerden yüksekliğini (AGL) al
-    const droneCarto = Cesium.Cartographic.fromCartesian(dronePos);
-    const droneGround = viewer.scene.sampleHeight(droneCarto) || 0;
-    const currentAGL = droneCarto.height - droneGround;
+    if (Cesium.defined(picked)) {
+        const carto = Cesium.Cartographic.fromCartesian(picked);
+        
+        // 1. Drone'un o anki MUTLAK (deniz seviyesi) yüksekliğini alıyoruz
+        const droneAlt = Cesium.Cartographic.fromCartesian(dronePos).height;
+        
+        // 2. Noktayı tam olarak drone'un uçtuğu bu mutlak yüksekliğe koyuyoruz
+        // (Böylece arazi değişse bile rota dümdüz devam eder)
+        const fixedPos = Cesium.Cartesian3.fromDegrees(
+            Cesium.Math.toDegrees(carto.longitude), 
+            Cesium.Math.toDegrees(carto.latitude), 
+            droneAlt
+        );
 
-    // Noktayı: (Tıklanan yerin zemini) + (Drone'un yerden yüksekliği) şeklinde koy
-const fixedPos = Cesium.Cartesian3.fromRadians(
-    carto.longitude, 
-    carto.latitude, 
-    groundAtPoint + currentAGL
-);
-
-    if (waypoints.length === 0) initialHomePos = dronePos;
-    // ... geri kalan wp tanımları aynı kalabilir
-    
+        if (waypoints.length === 0) initialHomePos = dronePos;
 
         const wp = {
             pos: fixedPos,
             entity: viewer.entities.add({
                 position: new Cesium.CallbackProperty(() => wp.pos, false),
-                point: { pixelSize: 10, color: Cesium.Color.YELLOW, disableDepthTestDistance: Number.POSITIVE_INFINITY }
+                point: { 
+                    pixelSize: 10, 
+                    color: Cesium.Color.YELLOW, 
+                    disableDepthTestDistance: Number.POSITIVE_INFINITY 
+                }
             }),
-
-anchor: viewer.entities.add({
-    polyline: {
-        positions: new Cesium.CallbackProperty(() => {
-            const carto = Cesium.Cartographic.fromCartesian(wp.pos);
-            // Bulunduğumuz yerin tam yüksekliğini ölç (Eğer ölçemezse 0 al)
-            const terrainHeight = viewer.scene.sampleHeight(carto) || 0;
-            const groundPos = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, terrainHeight);
-            return [groundPos, wp.pos];
-        }, false),
-        width: 2,
-        material: new Cesium.PolylineDashMaterialProperty({
-            color: Cesium.Color.WHITE.withAlpha(0.7),
-            dashLength: 8
-        }),
-        disableDepthTestDistance: Number.POSITIVE_INFINITY 
+            // İzdüşüm Hattı: Tam o noktadaki zemini ölçüp oraya kadar iner
+            anchor: viewer.entities.add({
+                polyline: {
+                    positions: new Cesium.CallbackProperty(() => {
+                        const c = Cesium.Cartographic.fromCartesian(wp.pos);
+                        const terrainHeight = viewer.scene.sampleHeight(c) || 0;
+                        const groundPos = Cesium.Cartesian3.fromRadians(c.longitude, c.latitude, terrainHeight);
+                        return [groundPos, wp.pos];
+                    }, false),
+                    width: 2,
+                    material: new Cesium.PolylineDashMaterialProperty({
+                        color: Cesium.Color.WHITE.withAlpha(0.7),
+                        dashLength: 8
+                    }),
+                    disableDepthTestDistance: Number.POSITIVE_INFINITY 
+                }
+            }),
+            // Yeşil Rota Hattı
+            line: viewer.entities.add({
+                polyline: {
+                    positions: new Cesium.CallbackProperty(() => {
+                        let idx = waypoints.indexOf(wp);
+                        let start = (idx === 0) ? initialHomePos : waypoints[idx-1].pos;
+                        return [start, wp.pos];
+                    }, false),
+                    width: 6,
+                    material: Cesium.Color.GREEN,
+                    depthFailMaterial: Cesium.Color.GREEN,
+                    disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                    arcType: Cesium.ArcType.NONE
+                }
+            })
+        };
+        waypoints.push(wp);
     }
-}),
+}, Cesium.ScreenSpaceEventType.LEFT_CLICK);
             
             line: viewer.entities.add({
                 polyline: {
@@ -141,28 +157,33 @@ anchor: viewer.entities.add({
         document.addEventListener('keydown', (e) => {
     if (isLocked || isFlying) return;
     
+    const k = e.key.toLowerCase();
     const c = Cesium.Cartographic.fromCartesian(dronePos);
     let lon = Cesium.Math.toDegrees(c.longitude);
     let lat = Cesium.Math.toDegrees(c.latitude);
+    let alt = c.height;
     
-    // 1. Altımızdaki zeminin yüksekliğini ölçüyoruz
-    const groundHeight = viewer.scene.sampleHeight(c) || 0;
+    const moveStep = 0.00005; // WASD hızı
+    const altStep = 5;       // QE hızı
+
+    // Yön Hesaplama
+    if (k === 'w') { lat += moveStep * Math.cos(Cesium.Math.toRadians(heading)); lon += moveStep * Math.sin(Cesium.Math.toRadians(heading)); }
+    if (k === 's') { lat -= moveStep * Math.cos(Cesium.Math.toRadians(heading)); lon -= moveStep * Math.sin(Cesium.Math.toRadians(heading)); }
+    if (k === 'a') heading -= 5;
+    if (k === 'd') heading += 5;
     
-    // 2. Mevcut yerden yüksekliğimizi hesaplıyoruz (Deniz Seviyesi - Zemin)
-    let currentAGL = c.height - groundHeight;
+    // Yükseklik Kontrolü (Saf Matematik)
+    if (k === 'q') alt += altStep;
+    if (k === 'e') alt -= altStep;
+
+    // Yeni pozisyonu uygula
+    dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
     
-    const k = e.key.toLowerCase();
-    
-    // 3. Tuşlara basınca deniz seviyesini değil, "Yerden Yüksekliği" değiştiriyoruz
-    if (k === 'q') currentAGL += 5; // Yerden 5 metre daha yüksel
-    if (k === 'e') currentAGL = Math.max(2, currentAGL - 5); // Yere en fazla 2 metre yaklaş
-            
-    
-    // 4. Yeni konumu: Zemin + Yeni Yerden Yükseklik olarak belirliyoruz
-    dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, groundHeight + currentAGL);
-    
-    document.getElementById('alt-txt').innerText = "Yerden Yükseklik: " + Math.round(currentAGL) + " m";
+    // Ekranda sadece bilgi amaçlı AGL gösterelim (Hesaplamayı buraya hapsedelim)
+    const ground = viewer.scene.sampleHeight(c) || 0;
+    document.getElementById('alt-txt').innerText = "Yerden Yükseklik: " + Math.round(alt - ground) + " m";
 });
+        
 
         function toggleLock() {
             if (waypoints.length === 0) return;
@@ -198,6 +219,7 @@ anchor: viewer.entities.add({
     </script>
 </body>
 </html>
+
 
 
 
