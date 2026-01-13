@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V10.58</title>
+    <title>NaviVortex V11.06</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -45,94 +45,100 @@
         let dronePos = Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 100);
         let initialHomePos;
 
-        async function init() {
-            try {
-                const tileset = await Cesium.createGooglePhotorealistic3DTileset(GOOGLE_API_KEY);
-                viewer.scene.primitives.add(tileset);
-            } catch (e) { console.error("Tileset error:", e); }
+        // 1. Helikopter Model Güncellemesi (init fonksiyonu içinde)
+async function init() {
+    try {
+        const tileset = await Cesium.createGooglePhotorealistic3DTileset(GOOGLE_API_KEY);
+        viewer.scene.primitives.add(tileset);
+    } catch (e) { console.error("Tileset error:", e); }
 
-            drone = viewer.entities.add({
-                position: new Cesium.CallbackProperty(() => dronePos, false),
-                orientation: new Cesium.CallbackProperty(() => {
-                    return Cesium.Transforms.headingPitchRollQuaternion(dronePos, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading), 0, 0));
-                }, false),
-                model: { 
-                    uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumDrone/CesiumDrone.glb', 
-                    minimumPixelSize: 80,
-                    disableDepthTestDistance: Number.POSITIVE_INFINITY 
-                }
-            });
-
-            viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 400) });
-
-            const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-handler.setInputAction((click) => {
-    if (isLocked || isFlying) return;
-    
-    const picked = viewer.scene.pickPosition(click.position);
-    if (Cesium.defined(picked)) {
-        const carto = Cesium.Cartographic.fromCartesian(picked);
-        
-        // 1. Drone'un o anki MUTLAK (deniz seviyesi) yüksekliğini alıyoruz
-        const droneAlt = Cesium.Cartographic.fromCartesian(dronePos).height;
-        
-        // 2. Noktayı tam olarak drone'un uçtuğu bu mutlak yüksekliğe koyuyoruz
-        // (Böylece arazi değişse bile rota dümdüz devam eder)
-        const fixedPos = Cesium.Cartesian3.fromDegrees(
-            Cesium.Math.toDegrees(carto.longitude), 
-            Cesium.Math.toDegrees(carto.latitude), 
-            droneAlt
-        );
-
-        if (waypoints.length === 0) initialHomePos = dronePos;
-
-        const wp = {
-            pos: fixedPos,
-            entity: viewer.entities.add({
-                position: new Cesium.CallbackProperty(() => wp.pos, false),
-                point: { 
-                    pixelSize: 10, 
-                    color: Cesium.Color.YELLOW, 
-                    disableDepthTestDistance: Number.POSITIVE_INFINITY 
-                }
-            }),
-            // İzdüşüm Hattı: Tam o noktadaki zemini ölçüp oraya kadar iner
-            anchor: viewer.entities.add({
-                polyline: {
-                    positions: new Cesium.CallbackProperty(() => {
-                        const c = Cesium.Cartographic.fromCartesian(wp.pos);
-                        const terrainHeight = viewer.scene.sampleHeight(c) || 0;
-                        const groundPos = Cesium.Cartesian3.fromRadians(c.longitude, c.latitude, terrainHeight);
-                        return [groundPos, wp.pos];
-                    }, false),
-                    width: 2,
-                    material: new Cesium.PolylineDashMaterialProperty({
-                        color: Cesium.Color.WHITE.withAlpha(0.7),
-                        dashLength: 8
-                    }),
-                    disableDepthTestDistance: Number.POSITIVE_INFINITY 
-                }
-            }),
-            // Yeşil Rota Hattı
-            line: viewer.entities.add({
-                polyline: {
-                    positions: new Cesium.CallbackProperty(() => {
-                        let idx = waypoints.indexOf(wp);
-                        let start = (idx === 0) ? initialHomePos : waypoints[idx-1].pos;
-                        return [start, wp.pos];
-                    }, false),
-                    width: 6,
-                    material: Cesium.Color.GREEN,
-                    depthFailMaterial: Cesium.Color.GREEN,
-                    disableDepthTestDistance: Number.POSITIVE_INFINITY,
-                    arcType: Cesium.ArcType.NONE
-                }
-            })
-        };
-        waypoints.push(wp);
-    }
-}, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+    // Helikopterimizi ekliyoruz (Görünürlük için ölçeği artırıldı)
+    drone = viewer.entities.add({
+        name: "Helicopter",
+        position: new Cesium.CallbackProperty(() => dronePos, false),
+        orientation: new Cesium.CallbackProperty(() => {
+            return Cesium.Transforms.headingPitchRollQuaternion(dronePos, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading), 0, 0));
+        }, false),
+        model: { 
+            uri: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/CesiumMilkTruck/glTF-Binary/CesiumMilkTruck.glb', // Geçici: Helikopter formu için uygun model (Dilersen başka bir .glb URL ekleyebiliriz)
+            minimumPixelSize: 120,
+            scale: 2.0,
+            disableDepthTestDistance: Number.POSITIVE_INFINITY 
         }
+    });
+
+    viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 1000) });
+
+    // 2. Tıklama ile Rota ve Heliport Belirleme
+    const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+    handler.setInputAction((click) => {
+        if (isLocked || isFlying) return;
+        
+        const picked = viewer.scene.pickPosition(click.position);
+        if (Cesium.defined(picked)) {
+            const carto = Cesium.Cartographic.fromCartesian(picked);
+            const droneAlt = Cesium.Cartographic.fromCartesian(dronePos).height;
+            
+            const fixedPos = Cesium.Cartesian3.fromDegrees(
+                Cesium.Math.toDegrees(carto.longitude), 
+                Cesium.Math.toDegrees(carto.latitude), 
+                droneAlt
+            );
+
+            if (waypoints.length === 0) initialHomePos = dronePos;
+
+            // Nokta tipini belirle (Kalkış, Yol, İniş)
+            let pointColor = Cesium.Color.YELLOW;
+            let labelText = "WAYPOINT";
+            if (waypoints.length === 0) { pointColor = Cesium.Color.DEEPSKYBLUE; labelText = "START HELIPORT"; }
+
+            const wp = {
+                pos: fixedPos,
+                entity: viewer.entities.add({
+                    position: new Cesium.CallbackProperty(() => wp.pos, false),
+                    point: { pixelSize: 12, color: pointColor, outlineColor: Cesium.Color.WHITE, outlineWidth: 2, disableDepthTestDistance: Number.POSITIVE_INFINITY },
+                    label: { text: labelText, font: '12px sans-serif', verticalOrigin: Cesium.VerticalOrigin.BOTTOM, pixelOffset: new Cesium.Cartesian2(0, -15), disableDepthTestDistance: Number.POSITIVE_INFINITY }
+                }),
+                anchor: viewer.entities.add({
+                    polyline: {
+                        positions: new Cesium.CallbackProperty(() => {
+                            const c = Cesium.Cartographic.fromCartesian(wp.pos);
+                            const terrainHeight = viewer.scene.sampleHeight(c) || 0;
+                            return [Cesium.Cartesian3.fromRadians(c.longitude, c.latitude, terrainHeight), wp.pos];
+                        }, false),
+                        width: 1,
+                        material: new Cesium.PolylineDashMaterialProperty({ color: Cesium.Color.WHITE.withAlpha(0.5) }),
+                        disableDepthTestDistance: Number.POSITIVE_INFINITY 
+                    }
+                }),
+                line: viewer.entities.add({
+                    polyline: {
+                        positions: new Cesium.CallbackProperty(() => {
+                            let idx = waypoints.indexOf(wp);
+                            let start = (idx === 0) ? initialHomePos : waypoints[idx-1].pos;
+                            return [start, wp.pos];
+                        }, false),
+                        width: 8,
+                        material: Cesium.Color.fromCssColorString('#0ea5e9').withAlpha(0.6), // Havacılık koridoru mavisi
+                        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                        arcType: Cesium.ArcType.NONE
+                    }
+                })
+            };
+            waypoints.push(wp);
+            
+            // Son noktayı her zaman "DESTINATION HELIPORT" olarak güncelle
+            if (waypoints.length > 1) {
+                waypoints[waypoints.length-1].entity.label.text = "DESTINATION HELIPORT";
+                waypoints[waypoints.length-1].entity.point.color = Cesium.Color.RED;
+                if (waypoints.length > 2) {
+                    waypoints[waypoints.length-2].entity.label.text = "CORRIDOR POINT";
+                    waypoints[waypoints.length-2].entity.point.color = Cesium.Color.YELLOW;
+                }
+            }
+        }
+    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+}
 
 document.addEventListener('keydown', (e) => {
     if (isLocked || isFlying) return;
@@ -212,6 +218,7 @@ document.addEventListener('keydown', (e) => {
     </script>
 </body>
 </html>
+
 
 
 
