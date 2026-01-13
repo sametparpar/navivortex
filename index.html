@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V17.31</title>
+    <title>NaviVortex V17.51</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -153,16 +153,28 @@ auth.onAuthStateChanged((user) => {
         Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzMzEyYzc1OS03OTY0LTQ5MGYtODcwMi0zMGNiYmZjNGIxMTkiLCJpZCI6Mzc2MTk2LCJpYXQiOjE3Njc4NjA4NjJ9.aZRZorILCG4gIlzwCnm1L2SCp58z-TCg6yNaDbPLxnU';
         
         
-        // YENİ: Nokta Ekleme Fonksiyonu (Hem tıklama hem bulut için)
+
+// SİSTEMİ SIFIRLAMA FONKSİYONU
+function resetSystem() {
+    waypoints.forEach(wp => {
+        viewer.entities.remove(wp.entity);
+        viewer.entities.remove(wp.anchor);
+        viewer.entities.remove(wp.line);
+    });
+    waypoints = [];
+    isLocked = false;
+    isFlying = false;
+    if(document.getElementById('start-btn')) document.getElementById('start-btn').style.display = "none";
+    if(document.getElementById('lock-btn')) document.getElementById('lock-btn').innerText = "🔒 LOCK MISSION";
+}
+
+// NOKTA EKLEME MOTORU (Hem tıklama hem bulut için)
 function addWaypoint(fixedPos) {
     if (waypoints.length === 0) initialHomePos = dronePos;
 
     let pointColor = Cesium.Color.YELLOW;
     let labelText = "WAYPOINT";
-    if (waypoints.length === 0) { 
-        pointColor = Cesium.Color.DEEPSKYBLUE; 
-        labelText = "START HELIPORT"; 
-    }
+    if (waypoints.length === 0) { pointColor = Cesium.Color.DEEPSKYBLUE; labelText = "START HELIPORT"; }
 
     const wp = {
         pos: fixedPos,
@@ -207,20 +219,6 @@ function addWaypoint(fixedPos) {
             waypoints[waypoints.length-2].entity.point.color = Cesium.Color.YELLOW;
         }
     }
-}
-
-// YENİ: Sistemi Sıfırlama Fonksiyonu
-function resetSystem() {
-    waypoints.forEach(wp => {
-        viewer.entities.remove(wp.entity);
-        viewer.entities.remove(wp.anchor);
-        viewer.entities.remove(wp.line);
-    });
-    waypoints = [];
-    isLocked = false;
-    isFlying = false;
-    document.getElementById('start-btn').style.display = "none";
-    document.getElementById('lock-btn').innerText = "🔒 LOCK MISSION";
 }
         
         
@@ -313,12 +311,9 @@ handler.setInputAction((click) => {
         const carto = Cesium.Cartographic.fromCartesian(picked);
         const droneAlt = Cesium.Cartographic.fromCartesian(dronePos).height;
         const fixedPos = Cesium.Cartesian3.fromDegrees(
-            Cesium.Math.toDegrees(carto.longitude), 
-            Cesium.Math.toDegrees(carto.latitude), 
-            droneAlt
+            Cesium.Math.toDegrees(carto.longitude), Cesium.Math.toDegrees(carto.latitude), droneAlt
         );
-        // Yukarıda yeni yazdığımız fonksiyonu çağırıyoruz
-        addWaypoint(fixedPos);
+        addWaypoint(fixedPos); // Artık motoru çağırıyoruz
     }
 }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
@@ -673,3 +668,4 @@ function updateManualAlt(val) {
     </script>
 </body>
 </html>
+
