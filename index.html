@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V16.31</title>
+    <title>NaviVortex V17.31</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -151,6 +151,81 @@ auth.onAuthStateChanged((user) => {
 
         
         Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzMzEyYzc1OS03OTY0LTQ5MGYtODcwMi0zMGNiYmZjNGIxMTkiLCJpZCI6Mzc2MTk2LCJpYXQiOjE3Njc4NjA4NjJ9.aZRZorILCG4gIlzwCnm1L2SCp58z-TCg6yNaDbPLxnU';
+        
+        
+        // YENİ: Nokta Ekleme Fonksiyonu (Hem tıklama hem bulut için)
+function addWaypoint(fixedPos) {
+    if (waypoints.length === 0) initialHomePos = dronePos;
+
+    let pointColor = Cesium.Color.YELLOW;
+    let labelText = "WAYPOINT";
+    if (waypoints.length === 0) { 
+        pointColor = Cesium.Color.DEEPSKYBLUE; 
+        labelText = "START HELIPORT"; 
+    }
+
+    const wp = {
+        pos: fixedPos,
+        entity: viewer.entities.add({
+            position: new Cesium.CallbackProperty(() => wp.pos, false),
+            point: { pixelSize: 12, color: pointColor, outlineColor: Cesium.Color.WHITE, outlineWidth: 2, disableDepthTestDistance: Number.POSITIVE_INFINITY },
+            label: { text: labelText, font: '12px sans-serif', verticalOrigin: Cesium.VerticalOrigin.BOTTOM, pixelOffset: new Cesium.Cartesian2(0, -15), disableDepthTestDistance: Number.POSITIVE_INFINITY }
+        }),
+        anchor: viewer.entities.add({
+            polyline: {
+                positions: new Cesium.CallbackProperty(() => {
+                    const c = Cesium.Cartographic.fromCartesian(wp.pos);
+                    const terrainHeight = viewer.scene.sampleHeight(c) || 0;
+                    return [Cesium.Cartesian3.fromRadians(c.longitude, c.latitude, terrainHeight), wp.pos];
+                }, false),
+                width: 1,
+                material: new Cesium.PolylineDashMaterialProperty({ color: Cesium.Color.WHITE.withAlpha(0.5) }),
+                disableDepthTestDistance: Number.POSITIVE_INFINITY 
+            }
+        }),
+        line: viewer.entities.add({
+            polyline: {
+                positions: new Cesium.CallbackProperty(() => {
+                    let idx = waypoints.indexOf(wp);
+                    let start = (idx === 0) ? initialHomePos : waypoints[idx-1].pos;
+                    return [start, wp.pos];
+                }, false),
+                width: 8,
+                material: Cesium.Color.fromCssColorString('#0ea5e9').withAlpha(0.6),
+                disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                arcType: Cesium.ArcType.NONE
+            }
+        })
+    };
+    waypoints.push(wp);
+
+    if (waypoints.length > 1) {
+        waypoints[waypoints.length-1].entity.label.text = "DESTINATION HELIPORT";
+        waypoints[waypoints.length-1].entity.point.color = Cesium.Color.RED;
+        if (waypoints.length > 2) {
+            waypoints[waypoints.length-2].entity.label.text = "CORRIDOR POINT";
+            waypoints[waypoints.length-2].entity.point.color = Cesium.Color.YELLOW;
+        }
+    }
+}
+
+// YENİ: Sistemi Sıfırlama Fonksiyonu
+function resetSystem() {
+    waypoints.forEach(wp => {
+        viewer.entities.remove(wp.entity);
+        viewer.entities.remove(wp.anchor);
+        viewer.entities.remove(wp.line);
+    });
+    waypoints = [];
+    isLocked = false;
+    isFlying = false;
+    document.getElementById('start-btn').style.display = "none";
+    document.getElementById('lock-btn').innerText = "🔒 LOCK MISSION";
+}
+        
+        
+        
+        
         const GOOGLE_API_KEY = 'AIzaSyDDPGFsMFFW8Q8s9Y-2aonzk6LofSBuhps';
 
         const viewer = new Cesium.Viewer('cesiumContainer', {
@@ -164,6 +239,14 @@ auth.onAuthStateChanged((user) => {
         let drone, waypoints = [], isLocked = false, isFlying = false, heading = 0;
         let dronePos = Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 100);
         let initialHomePos;
+
+
+
+
+
+
+
+        
 
         // 1. Helikopter Model Güncellemesi (init fonksiyonu içinde)
 // 2. DİNAMİK BAŞLANGIÇ: Kullanıcı Konumuna Git
@@ -223,20 +306,23 @@ orientation: new Cesium.CallbackProperty(() => {
 
     // 2. Tıklama ile Rota ve Heliport Belirleme
     const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-    handler.setInputAction((click) => {
-        if (isLocked || isFlying) return;
-        
-        const picked = viewer.scene.pickPosition(click.position);
-        if (Cesium.defined(picked)) {
-            const carto = Cesium.Cartographic.fromCartesian(picked);
-            const droneAlt = Cesium.Cartographic.fromCartesian(dronePos).height;
-            
-            const fixedPos = Cesium.Cartesian3.fromDegrees(
-                Cesium.Math.toDegrees(carto.longitude), 
-                Cesium.Math.toDegrees(carto.latitude), 
-                droneAlt
-            );
+handler.setInputAction((click) => {
+    if (isLocked || isFlying) return;
+    const picked = viewer.scene.pickPosition(click.position);
+    if (Cesium.defined(picked)) {
+        const carto = Cesium.Cartographic.fromCartesian(picked);
+        const droneAlt = Cesium.Cartographic.fromCartesian(dronePos).height;
+        const fixedPos = Cesium.Cartesian3.fromDegrees(
+            Cesium.Math.toDegrees(carto.longitude), 
+            Cesium.Math.toDegrees(carto.latitude), 
+            droneAlt
+        );
+        // Yukarıda yeni yazdığımız fonksiyonu çağırıyoruz
+        addWaypoint(fixedPos);
+    }
+}, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
+        
             if (waypoints.length === 0) initialHomePos = dronePos;
 
             // Nokta tipini belirle (Kalkış, Yol, İniş)
@@ -564,8 +650,6 @@ function drawSavedRoute(pathData) {
 
 
         
-        
-                init();
 
 
 
@@ -589,22 +673,3 @@ function updateManualAlt(val) {
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
