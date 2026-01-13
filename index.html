@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V11.13</title>
+    <title>NaviVortex V12.03</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -57,13 +57,16 @@ drone = viewer.entities.add({
     name: "Helicopter",
     position: new Cesium.CallbackProperty(() => dronePos, false),
     orientation: new Cesium.CallbackProperty(() => {
-        return Cesium.Transforms.headingPitchRollQuaternion(dronePos, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading), 0, 0));
+        // Modelin burnunun doğru yöne bakması için HeadingPitchRoll ayarı
+        return Cesium.Transforms.headingPitchRollQuaternion(
+            dronePos, 
+            new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading + 90), 0, 0) 
+        );
     }, false),
     model: { 
-        // Cesium'un resmi helikopter benzeri hava aracı modeli
         uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumAir/Cesium_Air.glb', 
-        minimumPixelSize: 150, // Daha büyük görünmesi için
-        scale: 1.0,
+        minimumPixelSize: 100,
+        scale: 1.5,
         disableDepthTestDistance: Number.POSITIVE_INFINITY 
     }
 });
@@ -143,47 +146,38 @@ drone = viewer.entities.add({
 
 document.addEventListener('keydown', (e) => {
     if (isLocked || isFlying) return;
-    
     const k = e.key.toLowerCase();
+    
+    // Mevcut konumu al
     const c = Cesium.Cartographic.fromCartesian(dronePos);
     let lon = Cesium.Math.toDegrees(c.longitude);
     let lat = Cesium.Math.toDegrees(c.latitude);
-    let alt = c.height; // Mevcut Deniz Seviyesi (MSL)
+    let alt = c.height;
     
-    const moveStep = 0.00005; 
-    const altStep = 1; // 1 metrelik hassas değişim
+    // Helikopter hızı (Havacılık için biraz daha artırıldı)
+    const moveStep = 0.0001; 
 
-    // WASD Hareketleri
-    if (k === 'w') { lat += moveStep * Math.cos(Cesium.Math.toRadians(heading)); lon += moveStep * Math.sin(Cesium.Math.toRadians(heading)); }
-    if (k === 's') { lat -= moveStep * Math.cos(Cesium.Math.toRadians(heading)); lon -= moveStep * Math.sin(Cesium.Math.toRadians(heading)); }
-    if (k === 'a') heading -= 5;
-    if (k === 'd') heading += 5;
+    // Yön Hesaplama (W artık baktığın yöne gider)
+    // Helikopterin heading açısını radyana çevirip trigonometrik ilerleme yapıyoruz
+    const rad = Cesium.Math.toRadians(heading);
+    if (k === 'w') { lat += moveStep * Math.cos(rad); lon += moveStep * Math.sin(rad); }
+    if (k === 's') { lat -= moveStep * Math.cos(rad); lon -= moveStep * Math.sin(rad); }
+    if (k === 'a') heading -= 5; // Sola dön
+    if (k === 'd') heading += 5; // Sağa dön
     
-    // Q ve E ile Deniz Seviyesi (MSL) Yüksekliğini Değiştir
-    if (k === 'q') alt += altStep;
-    if (k === 'e') alt -= altStep;
+    // Yükseklik (Q/E)
+    if (k === 'q') alt += 1;
+    if (k === 'e') alt -= 1;
 
-    // Z ile Geri Al
-    if (k === 'z' && waypoints.length > 0) {
-        const lastWP = waypoints.pop();
-        viewer.entities.remove(lastWP.entity);
-        viewer.entities.remove(lastWP.anchor);
-        viewer.entities.remove(lastWP.line);
-        return;
-    }
-
-    // 1. Yeni pozisyonu oluştur
+    // Pozisyonu Güncelle
     dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
-    
-    // 2. Yeni pozisyonun altındaki zemini "Anlık" olarak ölç
-    // updatedCarto ile yeni yüksekliği sisteme tanıtıyoruz
-    const updatedCarto = Cesium.Cartographic.fromCartesian(dronePos);
-    const groundHeight = viewer.scene.sampleHeight(updatedCarto) || 0;
-    
-    // 3. AGL = Mevcut MSL - Zemin Rakımı
+
+    // AGL HESAPLAMA (KRİTİK DÜZELTME)
+    // sampleHeight helikopterin kendisine çarpmasın diye drone objesini hariç tutuyoruz
+    const groundHeight = viewer.scene.sampleHeight(c, [drone]) || 0;
     const currentAGL = alt - groundHeight;
 
-    // 4. Göstergeleri Güncelle
+    // Dashboard Güncelleme
     document.getElementById('agl-txt').innerText = "AGL: " + Math.round(currentAGL) + " m (Yerden)";
     document.getElementById('msl-txt').innerText = "MSL: " + Math.round(alt) + " m (Denizden)";
 });
@@ -222,6 +216,7 @@ document.addEventListener('keydown', (e) => {
     </script>
 </body>
 </html>
+
 
 
 
