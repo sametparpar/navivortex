@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V14.49</title>
+    <title>NaviVortex V15.08</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -530,7 +530,22 @@ async function loadMissionsList() {
 
 
 
+// Kayıtlı bir görevi haritaya çizen ana fonksiyon
+function drawSavedRoute(pathData) {
+    // 1. Önce haritadaki mevcut noktaları temizle (Yeni rota karışmasın)
+    resetSystem(); 
 
+    // 2. Buluttan gelen her bir noktayı haritaya geri ekle
+    pathData.forEach(point => {
+        // Koordinatları harita formatına (Cartesian3) geri çevir
+        const position = Cesium.Cartesian3.fromDegrees(point.lon, point.lat, point.alt);
+        
+        // Senin mevcut addWaypoint fonksiyonunu kullanarak noktayı ekle
+        addWaypoint(position);
+    });
+
+    console.log("Mission loaded from cloud successfully.");
+}
 
 
 
@@ -565,6 +580,7 @@ function updateManualAlt(val) {
     </script>
 </body>
 </html>
+
 
 
 
