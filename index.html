@@ -23,17 +23,17 @@
     <h2 style="margin:0 0 10px 0; color:#38bdf8; font-size: 18px;">NAVIVORTEX V60</h2>
     
     <div style="margin-bottom: 10px; font-size: 13px;">
-        <label>Manuel MSL (Denizden):</label>
+        <label>Manuel MSL (Altitude):</label>
         <input type="number" id="manual-msl" style="width: 60px; background:#0f172a; color:white; border:1px solid #38bdf8;" 
                onchange="updateManualAlt(this.value)"> m
     </div>
 
     <div style="margin-top: 15px; font-size: 13px; border-top: 1px solid #334155; padding-top:10px;">
-    <label>Uçuş Hızı:</label><br>
+    <label>Cruise Speed:</label><br>
     <select id="flight-speed" style="width: 100%; background:#0f172a; color:white; border:1px solid #38bdf8; padding:5px; margin-top:5px;">
-        <option value="15">YAVAŞ (54 km/h)</option>
-        <option value="40" selected>NORMAL (144 km/h)</option>
-        <option value="80">HIZLI (288 km/h)</option>
+        <option value="15">Slow (54 km/h)</option>
+        <option value="40" selected>Normal (144 km/h)</option>
+        <option value="80">Speed (288 km/h)</option>
     </select>
 </div>
 
@@ -260,8 +260,8 @@ if (k === 'd') heading += 2;
     const currentAGL = alt - groundHeight;
 
     // Dashboard Güncelleme
-    document.getElementById('agl-txt').innerText = "AGL: " + Math.round(currentAGL) + " m (Yerden)";
-    document.getElementById('msl-txt').innerText = "MSL: " + Math.round(alt) + " m (Denizden)";
+    document.getElementById('agl-txt').innerText = "AGL: " + Math.round(currentAGL) + " m (Above Ground)";
+    document.getElementById('msl-txt').innerText = "MSL: " + Math.round(alt) + " m (Mean Sea Level)";
 });
 
         function toggleLock() {
@@ -394,6 +394,7 @@ function updateManualAlt(val) {
     </script>
 </body>
 </html>
+
 
 
 
