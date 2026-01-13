@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V12.25</title>
+    <title>NaviVortex V12.46</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -19,21 +19,22 @@
     </style>
 </head>
 <body>
-    <div id="dashboard">
-        <h2 style="margin:0 0 10px 0; color:#38bdf8;">NAVIVORTEX V54</h2>
-<div id="agl-txt" style="color: #10b981; font-weight: bold;">AGL: 100 m (Yerden)</div>
-<div id="msl-txt" style="color: #38bdf8; font-size: 0.9em;">MSL: 100 m (Denizden)</div>
-        <button id="lock-btn" class="btn" onclick="toggleLock()">🔒 LOCK MISSION</button>
-        <button id="start-btn" class="btn" onclick="startFlight()">🚀 START FLIGHT</button>
-        <div style="margin-top: 15px; border-top: 1px solid #334155; padding-top: 10px;">
-    <input type="text" id="search-city" placeholder="Şehir adı veya Enlem, Boylam" 
-       onkeypress="if(event.key === 'Enter') goToLocation()"
-       style="width: 75%; padding: 8px; border-radius: 4px; border: 1px solid #38bdf8; background: #0f172a; color: white; font-size: 12px;">
-    <button onclick="goToLocation()" 
-            style="width: 20%; padding: 8px; background: #38bdf8; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">GİT</button>
-</div>
-        <button class="btn reset-btn" onclick="location.reload()">RESET SYSTEM</button>
+<div id="dashboard">
+    <h2 style="margin:0 0 10px 0; color:#38bdf8; font-size: 18px;">NAVIVORTEX V60</h2>
+    
+    <div style="margin-bottom: 10px; font-size: 13px;">
+        <label>Manuel MSL (Denizden):</label>
+        <input type="number" id="manual-msl" style="width: 60px; background:#0f172a; color:white; border:1px solid #38bdf8;" 
+               onchange="updateManualAlt(this.value)"> m
     </div>
+
+    <div id="agl-txt" style="color: #10b981; font-weight: bold;">AGL: -- m</div>
+    <div id="msl-txt" style="color: #38bdf8; font-size: 0.9em;">MSL: -- m</div>
+    
+    <button id="lock-btn" class="btn" onclick="toggleLock()">🔒 LOCK MISSION</button>
+    <button id="start-btn" class="btn" onclick="startFlight()">🚀 START FLIGHT</button>
+    <button class="btn reset-btn" onclick="location.reload()">RESET SYSTEM</button>
+</div>
     <div id="cesiumContainer"></div>
 
     <script>
@@ -64,7 +65,8 @@ drone = viewer.entities.add({
     name: "Helicopter",
     position: new Cesium.CallbackProperty(() => dronePos, false),
 orientation: new Cesium.CallbackProperty(() => {
-    // -90 derece kalibrasyonu burnu tam ileriye (W yönüne) sabitler
+    // Helikopter modelleri genelde 90 derece sapma ile gelir
+    // heading açısına -90 ekleyerek burnu ileri sabitliyoruz
     return Cesium.Transforms.headingPitchRollQuaternion(
         dronePos, 
         new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading - 90), 0, 0)
@@ -149,6 +151,36 @@ orientation: new Cesium.CallbackProperty(() => {
             }
         }
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+
+
+
+
+viewer.geocoder.viewModel.destinationFound = function(destination) {
+    const cartographic = Cesium.Cartographic.fromCartesian(destination);
+    const lon = Cesium.Math.toDegrees(cartographic.longitude);
+    const lat = Cesium.Math.toDegrees(cartographic.latitude);
+    
+    setTimeout(() => {
+        const ground = viewer.scene.sampleHeight(cartographic) || 0;
+        dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, ground + 100);
+        viewer.camera.flyTo({ 
+            destination: Cesium.Cartesian3.fromDegrees(lon, lat, ground + 500),
+            duration: 2
+        });
+    }, 1500);
+    return destination;
+};
+
+// Başlangıç Konumunu İnegöl/Bursa Yap
+dronePos = Cesium.Cartesian3.fromDegrees(29.5100, 40.0800, 150); 
+viewer.camera.setView({ 
+    destination: Cesium.Cartesian3.fromDegrees(29.5100, 40.0800, 800) 
+});
+
+
+
+    
 }
 
 document.addEventListener('keydown', (e) => {
@@ -301,9 +333,30 @@ function teleportHelicopter(lat, lon) {
         
         
                 init();
+
+
+
+
+// MANUEL YÜKSEKLİK GİRİŞİ FONKSİYONU
+function updateManualAlt(val) {
+    if(!val) return;
+    const c = Cesium.Cartographic.fromCartesian(dronePos);
+    const lon = Cesium.Math.toDegrees(c.longitude);
+    const lat = Cesium.Math.toDegrees(c.latitude);
+    // Drone'u kullanıcının girdiği yeni MSL yüksekliğine taşır
+    dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, parseFloat(val));
+}
+
+
+
+
+
+
+        
     </script>
 </body>
 </html>
+
 
 
 
