@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V14.42</title>
+    <title>NaviVortex V14.49</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -45,8 +45,12 @@
 </div>
 
 <div id="save-section" style="display: none; border-top: 1px solid #334155; margin-top: 10px; padding-top: 10px;">
-    <input type="text" id="route-name" placeholder="Mission Name (e.g. Alps Tour)" style="margin-bottom: 5px; width: 100%; padding: 8px; background: #1e293b; border: 1px solid #334155; color: white;">
-    <button class="btn" style="background: #10b981;" onclick="saveRoute()">💾 SAVE MISSION</button>
+    <input type="text" id="route-name" placeholder="Mission Name (e.g. Alpha 1)" style="margin-bottom: 5px; width: 100%; padding: 8px; background: #1e293b; border: 1px solid #334155; color: white;">
+    <button class="btn" style="background: #10b981; margin-bottom: 10px;" onclick="saveRoute()">💾 SAVE MISSION</button>
+    
+    <label style="font-size: 11px; color: #94a3b8; display: block; margin-top: 10px;">STORED MISSIONS</label>
+    <div id="mission-list" style="margin-top: 5px; max-height: 150px; overflow-y: auto;">
+        </div>
 </div>
 
 
@@ -132,6 +136,7 @@ auth.onAuthStateChanged((user) => {
     const saveSection = document.getElementById('save-section');
 
     if (user) {
+        loadMissionsList(); // Kullanıcı girince listeyi yükle
         loggedOutView.style.display = 'none';
         userInfo.style.display = 'flex';
         saveSection.style.display = 'block';
@@ -466,6 +471,74 @@ function teleportHelicopter(lat, lon) {
 
 
 
+// 1. Rotayı Veritabanına Kaydetme
+async function saveRoute() {
+    const user = auth.currentUser;
+    const routeName = document.getElementById('route-name').value;
+
+    if (!user) return alert("Please login first!");
+    if (!routeName) return alert("Please enter a mission name!");
+    if (waypoints.length === 0) return alert("Please create a route first!");
+
+    const routeData = waypoints.map(wp => {
+        const carto = Cesium.Cartographic.fromCartesian(wp.pos);
+        return {
+            lon: Cesium.Math.toDegrees(carto.longitude),
+            lat: Cesium.Math.toDegrees(carto.latitude),
+            alt: carto.height
+        };
+    });
+
+    try {
+        await db.collection("users").doc(user.uid).collection("missions").add({
+            name: routeName,
+            path: routeData,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        alert("Mission saved to cloud!");
+        document.getElementById('route-name').value = ""; // Kutuyu temizle
+        loadMissionsList(); // Listeyi tazele
+    } catch (e) {
+        alert("Error saving: " + e.message);
+    }
+}
+
+// 2. Kayıtlı Rotaları Veritabanından Çekme
+async function loadMissionsList() {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const snapshot = await db.collection("users").doc(user.uid).collection("missions")
+                             .orderBy("createdAt", "desc").get();
+    
+    const listDiv = document.getElementById('mission-list');
+    listDiv.innerHTML = ""; 
+
+    snapshot.forEach(doc => {
+        const mission = doc.data();
+        const btn = document.createElement('button');
+        btn.innerText = "📂 " + mission.name;
+        btn.className = "btn";
+        btn.style = "font-size: 11px; padding: 8px; margin-bottom: 5px; background: #1e293b; border: 1px solid #38bdf8; text-align: left;";
+        btn.onclick = () => alert("This route has " + mission.path.length + " points. Loading to map...");
+        listDiv.appendChild(btn);
+    });
+}
+
+
+
+
+
+
+
+
+
+
+
+
+        
+
+
         
         
                 init();
@@ -492,6 +565,7 @@ function updateManualAlt(val) {
     </script>
 </body>
 </html>
+
 
 
 
