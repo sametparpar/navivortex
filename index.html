@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V12.46</title>
+    <title>NaviVortex V13.28</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -27,6 +27,15 @@
         <input type="number" id="manual-msl" style="width: 60px; background:#0f172a; color:white; border:1px solid #38bdf8;" 
                onchange="updateManualAlt(this.value)"> m
     </div>
+
+    <div style="margin-top: 15px; font-size: 13px; border-top: 1px solid #334155; padding-top:10px;">
+    <label>Uçuş Hızı:</label><br>
+    <select id="flight-speed" style="width: 100%; background:#0f172a; color:white; border:1px solid #38bdf8; padding:5px; margin-top:5px;">
+        <option value="15">YAVAŞ (54 km/h)</option>
+        <option value="40" selected>NORMAL (144 km/h)</option>
+        <option value="80">HIZLI (288 km/h)</option>
+    </select>
+</div>
 
     <div id="agl-txt" style="color: #10b981; font-weight: bold;">AGL: -- m</div>
     <div id="msl-txt" style="color: #38bdf8; font-size: 0.9em;">MSL: -- m</div>
@@ -54,11 +63,38 @@
         let initialHomePos;
 
         // 1. Helikopter Model Güncellemesi (init fonksiyonu içinde)
-async function init() {
-    try {
-        const tileset = await Cesium.createGooglePhotorealistic3DTileset(GOOGLE_API_KEY);
-        viewer.scene.primitives.add(tileset);
-    } catch (e) { console.error("Tileset error:", e); }
+// 2. DİNAMİK BAŞLANGIÇ: Kullanıcı Konumuna Git
+    if (navigator.geolocation) {
+        // Tarayıcıdan mevcut koordinatları istiyoruz
+        navigator.geolocation.getCurrentPosition((position) => {
+            const userLon = position.coords.longitude;
+            const userLat = position.coords.latitude;
+            
+            // Helikopteri kullanıcının olduğu yere ışınla
+            dronePos = Cesium.Cartesian3.fromDegrees(userLon, userLat, 150);
+            
+            // Kamerayı kullanıcının üzerine odakla
+            viewer.camera.flyTo({
+                destination: Cesium.Cartesian3.fromDegrees(userLon, userLat, 1000),
+                duration: 3 // 3 saniyede süzülerek git
+            });
+        }, (error) => {
+            // Kullanıcı izin vermezse veya hata olursa varsayılan noktada (İnegöl) başla
+            console.warn("Konum izni alınamadı, varsayılan konum kullanılıyor.");
+            fallbackToDefaultLocation();
+        });
+    } else {
+        // Tarayıcı bu özelliği desteklemiyorsa varsayılan noktada başla
+        fallbackToDefaultLocation();
+    }
+
+    // Yardımcı Fonksiyon: Konum bulunamazsa Bursa'da başlasın
+    function fallbackToDefaultLocation() {
+        dronePos = Cesium.Cartesian3.fromDegrees(29.51, 40.08, 150);
+        viewer.camera.setView({ 
+            destination: Cesium.Cartesian3.fromDegrees(29.51, 40.08, 1000) 
+        });
+    }
 
     // Helikopterimizi ekliyoruz (Görünürlük için ölçeği artırıldı)
 drone = viewer.entities.add({
@@ -243,22 +279,25 @@ if (k === 'd') heading += 2;
             for (const wp of waypoints) {
                 const start = currentPos;
                 const end = wp.pos;
-                const duration = Cesium.Cartesian3.distance(start, end) / 20;
+                const speed = parseFloat(document.getElementById('flight-speed').value);
+                const duration = Cesium.Cartesian3.distance(start, end) / speed;
                 await new Promise(resolve => {
                     let startTime = performance.now();
 function frame(now) {
     let t = Math.min((now - startTime) / (duration * 1000), 1);
     
-    // Mevcut konum ve sonraki konum arasındaki açıyı hesapla
-    const nextPos = end;
-    const direction = Cesium.Cartesian3.subtract(nextPos, dronePos, new Cesium.Cartesian3());
-    if (!Cesium.Cartesian3.equalsEpsilon(direction, Cesium.Cartesian3.ZERO, Cesium.Math.EPSILON6)) {
-        // Helikopterin burnunu otomatik olarak uçuş yönüne çevir
-        const lookAt = Cesium.Transforms.headingPitchRollQuaternion(dronePos, 
-            new Cesium.HeadingPitchRoll(Math.atan2(direction.y, direction.x), 0, 0));
-        // Buradaki "heading" değişkenini güncelliyoruz ki model doğru baksın
-        heading = Cesium.Math.toDegrees(Math.atan2(direction.y, direction.x));
-    }
+    // YÖNÜ HESAPLA: Mevcut pozisyon ile hedef arasındaki açıyı bul
+    const direction = Cesium.Cartesian3.subtract(end, start, new Cesium.Cartesian3());
+    const cartoStart = Cesium.Cartographic.fromCartesian(start);
+    const cartoEnd = Cesium.Cartographic.fromCartesian(end);
+    
+    // İki nokta arasındaki açıyı (bearing) hesapla
+    const y = Math.sin(cartoEnd.longitude - cartoStart.longitude) * Math.cos(cartoEnd.latitude);
+    const x = Math.cos(cartoStart.latitude) * Math.sin(cartoEnd.latitude) -
+              Math.sin(cartoStart.latitude) * Math.cos(cartoEnd.latitude) * Math.cos(cartoEnd.longitude - cartoStart.longitude);
+    
+    // Global heading değişkenini güncelle (Radyanı dereceye çevir)
+    heading = Cesium.Math.toDegrees(Math.atan2(y, x));
 
     dronePos = Cesium.Cartesian3.lerp(start, end, t, new Cesium.Cartesian3());
     if (t < 1) requestAnimationFrame(frame); else resolve();
@@ -356,6 +395,7 @@ function updateManualAlt(val) {
     </script>
 </body>
 </html>
+
 
 
 
