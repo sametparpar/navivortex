@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V13.30</title>
+    <title>NaviVortex V14.36</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -17,9 +17,41 @@
         #lock-btn { background: #0ea5e9; color: white; }
         .reset-btn { background: #ef4444; color: white; margin-top: 20px; font-size: 10px; }
     </style>
+
+
+     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    
 </head>
 <body>
 <div id="dashboard">
+
+<div id="auth-section" style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #334155;">
+    <div id="logged-out-view">
+        <button class="btn" style="background: #4285F4; color: white; margin-bottom: 10px;" onclick="loginWithGoogle()">Sign in with Google</button>
+        <div style="text-align: center; margin: 5px 0; font-size: 10px; color: #94a3b8;">— OR —</div>
+        <input type="email" id="auth-email" placeholder="Email Address" style="margin-bottom: 5px; width: 100%; padding: 8px; background: #1e293b; border: 1px solid #334155; color: white;">
+        <input type="password" id="auth-password" placeholder="Password" style="margin-bottom: 5px; width: 100%; padding: 8px; background: #1e293b; border: 1px solid #334155; color: white;">
+        <div style="display: flex; gap: 5px;">
+            <button class="btn" style="background: #334155; flex: 1;" onclick="handleEmailAuth('login')">Login</button>
+            <button class="btn" style="background: #0ea5e9; flex: 1;" onclick="handleEmailAuth('signup')">Sign Up</button>
+        </div>
+    </div>
+    <div id="user-info" style="display: none; justify-content: space-between; align-items: center;">
+        <span id="user-name" style="color: #38bdf8; font-weight: bold; font-size: 13px;"></span>
+        <button onclick="logout()" style="background:none; border:none; color:#ef4444; cursor:pointer; text-decoration:underline; font-size: 11px;">Logout</button>
+    </div>
+</div>
+
+<div id="save-section" style="display: none; border-top: 1px solid #334155; margin-top: 10px; padding-top: 10px;">
+    <input type="text" id="route-name" placeholder="Mission Name (e.g. Alps Tour)" style="margin-bottom: 5px; width: 100%; padding: 8px; background: #1e293b; border: 1px solid #334155; color: white;">
+    <button class="btn" style="background: #10b981;" onclick="saveRoute()">💾 SAVE MISSION</button>
+</div>
+
+
+
+    
     <h2 style="margin:0 0 10px 0; color:#38bdf8; font-size: 18px;">NAVIVORTEX V60</h2>
     
     <div style="margin-bottom: 10px; font-size: 13px;">
@@ -47,6 +79,71 @@
     <div id="cesiumContainer"></div>
 
     <script>
+
+// 1. Firebase Configuration (Paste your own keys here)
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "navivortex.firebaseapp.com",
+    projectId: "navivortex",
+    storageBucket: "navivortex.appspot.com",
+    messagingSenderId: "...",
+    appId: "..."
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// 2. Auth & SaaS Functions
+async function createUserProfile(user) {
+    const userRef = db.collection("users").doc(user.uid);
+    const doc = await userRef.get();
+    if (!doc.exists) {
+        await userRef.set({
+            displayName: user.displayName || user.email.split('@')[0],
+            email: user.email,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            membershipType: "Free"
+        });
+    }
+}
+
+function loginWithGoogle() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    auth.signInWithPopup(provider).catch(e => alert(e.message));
+}
+
+function handleEmailAuth(type) {
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    if (!email || !password) return alert("Fill all fields");
+    if (type === 'signup') auth.createUserWithEmailAndPassword(email, password).catch(e => alert(e.message));
+    else auth.signInWithEmailAndPassword(email, password).catch(e => alert(e.message));
+}
+
+function logout() { auth.signOut(); }
+
+// 3. User State Observer
+auth.onAuthStateChanged((user) => {
+    const loggedOutView = document.getElementById('logged-out-view');
+    const userInfo = document.getElementById('user-info');
+    const userName = document.getElementById('user-name');
+    const saveSection = document.getElementById('save-section');
+
+    if (user) {
+        loggedOutView.style.display = 'none';
+        userInfo.style.display = 'flex';
+        saveSection.style.display = 'block';
+        userName.innerText = "Pilot: " + (user.displayName || user.email.split('@')[0]);
+        createUserProfile(user);
+    } else {
+        loggedOutView.style.display = 'block';
+        userInfo.style.display = 'none';
+        saveSection.style.display = 'none';
+    }
+});
+
+        
         Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzMzEyYzc1OS03OTY0LTQ5MGYtODcwMi0zMGNiYmZjNGIxMTkiLCJpZCI6Mzc2MTk2LCJpYXQiOjE3Njc4NjA4NjJ9.aZRZorILCG4gIlzwCnm1L2SCp58z-TCg6yNaDbPLxnU';
         const GOOGLE_API_KEY = 'AIzaSyDDPGFsMFFW8Q8s9Y-2aonzk6LofSBuhps';
 
@@ -394,6 +491,7 @@ function updateManualAlt(val) {
     </script>
 </body>
 </html>
+
 
 
 
