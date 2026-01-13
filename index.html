@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V12.03</title>
+    <title>NaviVortex V12.09</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -56,13 +56,13 @@ async function init() {
 drone = viewer.entities.add({
     name: "Helicopter",
     position: new Cesium.CallbackProperty(() => dronePos, false),
-    orientation: new Cesium.CallbackProperty(() => {
-        // Modelin burnunun doğru yöne bakması için HeadingPitchRoll ayarı
-        return Cesium.Transforms.headingPitchRollQuaternion(
-            dronePos, 
-            new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading + 90), 0, 0) 
-        );
-    }, false),
+orientation: new Cesium.CallbackProperty(() => {
+    // -90 derece kalibrasyonu burnu tam ileriye (W yönüne) sabitler
+    return Cesium.Transforms.headingPitchRollQuaternion(
+        dronePos, 
+        new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading - 90), 0, 0)
+    );
+}, false),
     model: { 
         uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumAir/Cesium_Air.glb', 
         minimumPixelSize: 100,
@@ -160,10 +160,18 @@ document.addEventListener('keydown', (e) => {
     // Yön Hesaplama (W artık baktığın yöne gider)
     // Helikopterin heading açısını radyana çevirip trigonometrik ilerleme yapıyoruz
     const rad = Cesium.Math.toRadians(heading);
-    if (k === 'w') { lat += moveStep * Math.cos(rad); lon += moveStep * Math.sin(rad); }
-    if (k === 's') { lat -= moveStep * Math.cos(rad); lon -= moveStep * Math.sin(rad); }
-    if (k === 'a') heading -= 5; // Sola dön
-    if (k === 'd') heading += 5; // Sağa dön
+// W ve S tuşlarının yönünü 180 derece çevirdik (İleri gitmesi için)
+if (k === 'w') { 
+    lat += moveStep * Math.cos(rad); 
+    lon += moveStep * Math.sin(rad); 
+}
+if (k === 's') { 
+    lat -= moveStep * Math.cos(rad); 
+    lon -= moveStep * Math.sin(rad); 
+}
+// A ve D tuşları dönüş yönünü daha doğal hissettirmek için hassaslaştırıldı
+if (k === 'a') heading -= 2; 
+if (k === 'd') heading += 2;
     
     // Yükseklik (Q/E)
     if (k === 'q') alt += 1;
@@ -216,6 +224,7 @@ document.addEventListener('keydown', (e) => {
     </script>
 </body>
 </html>
+
 
 
 
