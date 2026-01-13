@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V12.09</title>
+    <title>NaviVortex V12.25</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -25,6 +25,13 @@
 <div id="msl-txt" style="color: #38bdf8; font-size: 0.9em;">MSL: 100 m (Denizden)</div>
         <button id="lock-btn" class="btn" onclick="toggleLock()">🔒 LOCK MISSION</button>
         <button id="start-btn" class="btn" onclick="startFlight()">🚀 START FLIGHT</button>
+        <div style="margin-top: 15px; border-top: 1px solid #334155; padding-top: 10px;">
+    <input type="text" id="search-city" placeholder="Şehir adı veya Enlem, Boylam" 
+       onkeypress="if(event.key === 'Enter') goToLocation()"
+       style="width: 75%; padding: 8px; border-radius: 4px; border: 1px solid #38bdf8; background: #0f172a; color: white; font-size: 12px;">
+    <button onclick="goToLocation()" 
+            style="width: 20%; padding: 8px; background: #38bdf8; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">GİT</button>
+</div>
         <button class="btn reset-btn" onclick="location.reload()">RESET SYSTEM</button>
     </div>
     <div id="cesiumContainer"></div>
@@ -207,11 +214,23 @@ if (k === 'd') heading += 2;
                 const duration = Cesium.Cartesian3.distance(start, end) / 20;
                 await new Promise(resolve => {
                     let startTime = performance.now();
-                    function frame(now) {
-                        let t = Math.min((now - startTime) / (duration * 1000), 1);
-                        dronePos = Cesium.Cartesian3.lerp(start, end, t, new Cesium.Cartesian3());
-                        if (t < 1) requestAnimationFrame(frame); else resolve();
-                    }
+function frame(now) {
+    let t = Math.min((now - startTime) / (duration * 1000), 1);
+    
+    // Mevcut konum ve sonraki konum arasındaki açıyı hesapla
+    const nextPos = end;
+    const direction = Cesium.Cartesian3.subtract(nextPos, dronePos, new Cesium.Cartesian3());
+    if (!Cesium.Cartesian3.equalsEpsilon(direction, Cesium.Cartesian3.ZERO, Cesium.Math.EPSILON6)) {
+        // Helikopterin burnunu otomatik olarak uçuş yönüne çevir
+        const lookAt = Cesium.Transforms.headingPitchRollQuaternion(dronePos, 
+            new Cesium.HeadingPitchRoll(Math.atan2(direction.y, direction.x), 0, 0));
+        // Buradaki "heading" değişkenini güncelliyoruz ki model doğru baksın
+        heading = Cesium.Math.toDegrees(Math.atan2(direction.y, direction.x));
+    }
+
+    dronePos = Cesium.Cartesian3.lerp(start, end, t, new Cesium.Cartesian3());
+    if (t < 1) requestAnimationFrame(frame); else resolve();
+}
                     requestAnimationFrame(frame);
                 });
                 currentPos = end;
@@ -220,10 +239,72 @@ if (k === 'd') heading += 2;
             viewer.trackedEntity = undefined;
         }
 
+
+
+
+
+
+
+        async function goToLocation() {
+    const query = document.getElementById('search-city').value.trim();
+    if (!query) return;
+
+    // 1. Senaryo: Koordinat girişi (Örn: 40.1, 29.5)
+    if (query.includes(',')) {
+        const coords = query.split(',');
+        const lat = parseFloat(coords[0]);
+        const lon = parseFloat(coords[1]);
+        if (!isNaN(lat) && !isNaN(lon)) {
+            teleportHelicopter(lat, lon);
+            return;
+        }
+    }
+
+    // 2. Senaryo: Yer ismi girişi (Örn: "Bursa", "Anıtkabir")
+    try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+        const data = await response.json();
+
+        if (data && data.length > 0) {
+            const lat = parseFloat(data[0].lat);
+            const lon = parseFloat(data[0].lon);
+            teleportHelicopter(lat, lon);
+        } else {
+            alert("Yer bulunamadı. Lütfen daha spesifik bir isim yazın.");
+        }
+    } catch (error) {
+        console.error("Arama hatası:", error);
+        alert("Arama servisine şu an ulaşılamıyor.");
+    }
+}
+
+// Helikopteri ve kamerayı taşıyan yardımcı fonksiyon
+function teleportHelicopter(lat, lon) {
+    // Helikopteri oraya taşı
+    dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, 100);
+    
+    // Kamerayı oraya uçur
+    viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(lon, lat, 1000),
+        duration: 2
+    });
+}
+
+
+
+
+
+        
+
+
+
+        
+        
                 init();
     </script>
 </body>
 </html>
+
 
 
 
