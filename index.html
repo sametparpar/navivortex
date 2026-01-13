@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V11.06</title>
+    <title>NaviVortex V11.13</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -53,19 +53,20 @@ async function init() {
     } catch (e) { console.error("Tileset error:", e); }
 
     // Helikopterimizi ekliyoruz (Görünürlük için ölçeği artırıldı)
-    drone = viewer.entities.add({
-        name: "Helicopter",
-        position: new Cesium.CallbackProperty(() => dronePos, false),
-        orientation: new Cesium.CallbackProperty(() => {
-            return Cesium.Transforms.headingPitchRollQuaternion(dronePos, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading), 0, 0));
-        }, false),
-        model: { 
-            uri: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/CesiumMilkTruck/glTF-Binary/CesiumMilkTruck.glb', // Geçici: Helikopter formu için uygun model (Dilersen başka bir .glb URL ekleyebiliriz)
-            minimumPixelSize: 120,
-            scale: 2.0,
-            disableDepthTestDistance: Number.POSITIVE_INFINITY 
-        }
-    });
+drone = viewer.entities.add({
+    name: "Helicopter",
+    position: new Cesium.CallbackProperty(() => dronePos, false),
+    orientation: new Cesium.CallbackProperty(() => {
+        return Cesium.Transforms.headingPitchRollQuaternion(dronePos, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading), 0, 0));
+    }, false),
+    model: { 
+        // Cesium'un resmi helikopter benzeri hava aracı modeli
+        uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumAir/Cesium_Air.glb', 
+        minimumPixelSize: 150, // Daha büyük görünmesi için
+        scale: 1.0,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY 
+    }
+});
 
     viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 1000) });
 
@@ -147,21 +148,22 @@ document.addEventListener('keydown', (e) => {
     const c = Cesium.Cartographic.fromCartesian(dronePos);
     let lon = Cesium.Math.toDegrees(c.longitude);
     let lat = Cesium.Math.toDegrees(c.latitude);
-    let currentMSL = c.height; // Mevcut deniz seviyesi (Mutlak)
+    let alt = c.height; // Mevcut Deniz Seviyesi (MSL)
     
-    const moveStep = 0.00005; // WASD hızı
+    const moveStep = 0.00005; 
+    const altStep = 1; // 1 metrelik hassas değişim
 
-    // Yön Kontrolleri (WASD)
+    // WASD Hareketleri
     if (k === 'w') { lat += moveStep * Math.cos(Cesium.Math.toRadians(heading)); lon += moveStep * Math.sin(Cesium.Math.toRadians(heading)); }
     if (k === 's') { lat -= moveStep * Math.cos(Cesium.Math.toRadians(heading)); lon -= moveStep * Math.sin(Cesium.Math.toRadians(heading)); }
     if (k === 'a') heading -= 5;
     if (k === 'd') heading += 5;
     
-    // Yükseklik Kontrolleri (Q/E) - TAM 1 METRE HASSASİYET
-    if (k === 'q') currentMSL += 1;
-    if (k === 'e') currentMSL -= 1;
+    // Q ve E ile Deniz Seviyesi (MSL) Yüksekliğini Değiştir
+    if (k === 'q') alt += altStep;
+    if (k === 'e') alt -= altStep;
 
-    // Geri Al (Z Tuşu)
+    // Z ile Geri Al
     if (k === 'z' && waypoints.length > 0) {
         const lastWP = waypoints.pop();
         viewer.entities.remove(lastWP.entity);
@@ -170,18 +172,20 @@ document.addEventListener('keydown', (e) => {
         return;
     }
 
-    // 1. Drone'u yeni mutlak yüksekliğine (MSL) taşı
-    dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, currentMSL);
+    // 1. Yeni pozisyonu oluştur
+    dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
     
-    // 2. Altımızdaki zemini ölç (Ekrana yazdırmak için)
-    // Ölçüm için güncel drone koordinatını kullanıyoruz
+    // 2. Yeni pozisyonun altındaki zemini "Anlık" olarak ölç
+    // updatedCarto ile yeni yüksekliği sisteme tanıtıyoruz
     const updatedCarto = Cesium.Cartographic.fromCartesian(dronePos);
     const groundHeight = viewer.scene.sampleHeight(updatedCarto) || 0;
-    const currentAGL = currentMSL - groundHeight;
+    
+    // 3. AGL = Mevcut MSL - Zemin Rakımı
+    const currentAGL = alt - groundHeight;
 
-    // 3. Bilgileri ekrana yazdır
+    // 4. Göstergeleri Güncelle
     document.getElementById('agl-txt').innerText = "AGL: " + Math.round(currentAGL) + " m (Yerden)";
-    document.getElementById('msl-txt').innerText = "MSL: " + Math.round(currentMSL) + " m (Denizden)";
+    document.getElementById('msl-txt').innerText = "MSL: " + Math.round(alt) + " m (Denizden)";
 });
 
         function toggleLock() {
@@ -218,6 +222,7 @@ document.addEventListener('keydown', (e) => {
     </script>
 </body>
 </html>
+
 
 
 
