@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V15.08</title>
+    <title>NaviVortex V16.31</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -508,21 +508,30 @@ async function loadMissionsList() {
     const user = auth.currentUser;
     if (!user) return;
 
-    const snapshot = await db.collection("users").doc(user.uid).collection("missions")
-                             .orderBy("createdAt", "desc").get();
-    
-    const listDiv = document.getElementById('mission-list');
-    listDiv.innerHTML = ""; 
+    try {
+        const snapshot = await db.collection("users").doc(user.uid).collection("missions")
+                                 .orderBy("createdAt", "desc").get();
+        
+        const listDiv = document.getElementById('mission-list');
+        listDiv.innerHTML = ""; // Listeyi her seferinde temizle
 
-    snapshot.forEach(doc => {
-        const mission = doc.data();
-        const btn = document.createElement('button');
-        btn.innerText = "📂 " + mission.name;
-        btn.className = "btn";
-        btn.style = "font-size: 11px; padding: 8px; margin-bottom: 5px; background: #1e293b; border: 1px solid #38bdf8; text-align: left;";
-        btn.onclick = () => alert("This route has " + mission.path.length + " points. Loading to map...");
-        listDiv.appendChild(btn);
-    });
+        snapshot.forEach(doc => {
+            const mission = doc.data();
+            const btn = document.createElement('button');
+            btn.innerText = "📂 " + mission.name;
+            btn.className = "btn";
+            btn.style = "font-size: 11px; padding: 8px; margin-bottom: 5px; background: #1e293b; border: 1px solid #38bdf8; text-align: left; width: 100%; cursor: pointer;";
+            
+            // İŞTE EKSİK OLAN TIKLAMA OLAYI BURADA:
+            btn.onclick = () => {
+                drawSavedRoute(mission.path);
+            };
+            
+            listDiv.appendChild(btn);
+        });
+    } catch (e) {
+        console.error("List load error:", e);
+    }
 }
 
 
@@ -580,6 +589,7 @@ function updateManualAlt(val) {
     </script>
 </body>
 </html>
+
 
 
 
