@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V17.51</title>
+    <title>NaviVortex V14.35/title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -78,14 +78,12 @@
     
     <button id="lock-btn" class="btn" onclick="toggleLock()">🔒 LOCK MISSION</button>
     <button id="start-btn" class="btn" onclick="startFlight()">🚀 START FLIGHT</button>
-    <button class="btn reset-btn" onclick="location.reload()">RESET SYSTEM</button>
+    <button class="btn reset-btn" onclick="resetSystem()">RESET SYSTEM</button>
 </div>
     <div id="cesiumContainer"></div>
 
-    <script>
-
-// 1. Firebase Configuration (Paste your own keys here)
-  const firebaseConfig = {
+// 1. Firebase Yapılandırması
+const firebaseConfig = {
     apiKey: "AIzaSyDj58VpffB4SayaOZ6iA2JSfrFUhw0hzPw",
     authDomain: "navivortex-533de.firebaseapp.com",
     projectId: "navivortex-533de",
@@ -93,68 +91,28 @@
     messagingSenderId: "887483850322",
     appId: "1:887483850322:web:5c7ba61cbf0e52cc72498b",
     measurementId: "G-HZ9EW68EN1"
-  };
+};
 
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// 2. Auth & SaaS Functions
-async function createUserProfile(user) {
-    const userRef = db.collection("users").doc(user.uid);
-    const doc = await userRef.get();
-    if (!doc.exists) {
-        await userRef.set({
-            displayName: user.displayName || user.email.split('@')[0],
-            email: user.email,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            membershipType: "Free"
-        });
-    }
-}
-
-function loginWithGoogle() {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    auth.signInWithPopup(provider).catch(e => alert(e.message));
-}
-
-function handleEmailAuth(type) {
-    const email = document.getElementById('auth-email').value;
-    const password = document.getElementById('auth-password').value;
-    if (!email || !password) return alert("Fill all fields");
-    if (type === 'signup') auth.createUserWithEmailAndPassword(email, password).catch(e => alert(e.message));
-    else auth.signInWithEmailAndPassword(email, password).catch(e => alert(e.message));
-}
-
-function logout() { auth.signOut(); }
-
-// 3. User State Observer
-auth.onAuthStateChanged((user) => {
-    const loggedOutView = document.getElementById('logged-out-view');
-    const userInfo = document.getElementById('user-info');
-    const userName = document.getElementById('user-name');
-    const saveSection = document.getElementById('save-section');
-
-    if (user) {
-        loadMissionsList(); // Kullanıcı girince listeyi yükle
-        loggedOutView.style.display = 'none';
-        userInfo.style.display = 'flex';
-        saveSection.style.display = 'block';
-        userName.innerText = "Pilot: " + (user.displayName || user.email.split('@')[0]);
-        createUserProfile(user);
-    } else {
-        loggedOutView.style.display = 'block';
-        userInfo.style.display = 'none';
-        saveSection.style.display = 'none';
-    }
+// 2. Cesium Temel Ayarları
+Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzMzEyYzc1OS03OTY0LTQ5MGYtODcwMi0zMGNiYmZjNGIxMTkiLCJpZCI6Mzc2MTk2LCJpYXQiOjE3Njc4NjA4NjJ9.aZRZorILCG4gIlzwCnm1L2SCp58z-TCg6yNaDbPLxnU';
+const viewer = new Cesium.Viewer('cesiumContainer', {
+    terrain: Cesium.Terrain.fromWorldTerrain(),
+    animation: false, timeline: false, baseLayerPicker: false
 });
 
-        
-        Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzMzEyYzc1OS03OTY0LTQ5MGYtODcwMi0zMGNiYmZjNGIxMTkiLCJpZCI6Mzc2MTk2LCJpYXQiOjE3Njc4NjA4NjJ9.aZRZorILCG4gIlzwCnm1L2SCp58z-TCg6yNaDbPLxnU';
-        
-        
+viewer.scene.globe.depthTestAgainstTerrain = false;
+viewer.scene.camera.frustum.near = 0.1;
 
-// SİSTEMİ SIFIRLAMA FONKSİYONU
+// Global Değişkenler
+let drone, waypoints = [], isLocked = false, isFlying = false, heading = 0;
+let dronePos = Cesium.Cartesian3.fromDegrees(29.5100, 40.0800, 150);
+let initialHomePos;
+
+// 3. Fonksiyonlar (AddWaypoint, Reset, vb.)
 function resetSystem() {
     waypoints.forEach(wp => {
         viewer.entities.remove(wp.entity);
@@ -168,7 +126,6 @@ function resetSystem() {
     if(document.getElementById('lock-btn')) document.getElementById('lock-btn').innerText = "🔒 LOCK MISSION";
 }
 
-// NOKTA EKLEME MOTORU (Hem tıklama hem bulut için)
 function addWaypoint(fixedPos) {
     if (waypoints.length === 0) initialHomePos = dronePos;
 
@@ -220,452 +177,132 @@ function addWaypoint(fixedPos) {
         }
     }
 }
-        
-        
-        
-        
-        const GOOGLE_API_KEY = 'AIzaSyDDPGFsMFFW8Q8s9Y-2aonzk6LofSBuhps';
 
-        const viewer = new Cesium.Viewer('cesiumContainer', {
-            terrain: Cesium.Terrain.fromWorldTerrain(),
-            animation: false, timeline: false, baseLayerPicker: false
-        });
-
-        viewer.scene.globe.depthTestAgainstTerrain = false;
-        viewer.scene.camera.frustum.near = 0.1;
-
-        let drone, waypoints = [], isLocked = false, isFlying = false, heading = 0;
-        let dronePos = Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 100);
-        let initialHomePos;
-
-
-
-
-
-
-
-        
-
-        // 1. Helikopter Model Güncellemesi (init fonksiyonu içinde)
-// 2. DİNAMİK BAŞLANGIÇ: Kullanıcı Konumuna Git
-    if (navigator.geolocation) {
-        // Tarayıcıdan mevcut koordinatları istiyoruz
-        navigator.geolocation.getCurrentPosition((position) => {
-            const userLon = position.coords.longitude;
-            const userLat = position.coords.latitude;
-            
-            // Helikopteri kullanıcının olduğu yere ışınla
-            dronePos = Cesium.Cartesian3.fromDegrees(userLon, userLat, 150);
-            
-            // Kamerayı kullanıcının üzerine odakla
-            viewer.camera.flyTo({
-                destination: Cesium.Cartesian3.fromDegrees(userLon, userLat, 1000),
-                duration: 3 // 3 saniyede süzülerek git
-            });
-        }, (error) => {
-            // Kullanıcı izin vermezse veya hata olursa varsayılan noktada (İnegöl) başla
-            console.warn("Konum izni alınamadı, varsayılan konum kullanılıyor.");
-            fallbackToDefaultLocation();
-        });
-    } else {
-        // Tarayıcı bu özelliği desteklemiyorsa varsayılan noktada başla
-        fallbackToDefaultLocation();
-    }
-
-    // Yardımcı Fonksiyon: Konum bulunamazsa Bursa'da başlasın
-    function fallbackToDefaultLocation() {
-        dronePos = Cesium.Cartesian3.fromDegrees(29.51, 40.08, 150);
-        viewer.camera.setView({ 
-            destination: Cesium.Cartesian3.fromDegrees(29.51, 40.08, 1000) 
-        });
-    }
-
-    // Helikopterimizi ekliyoruz (Görünürlük için ölçeği artırıldı)
-drone = viewer.entities.add({
-    name: "Helicopter",
-    position: new Cesium.CallbackProperty(() => dronePos, false),
-orientation: new Cesium.CallbackProperty(() => {
-    // Helikopter modelleri genelde 90 derece sapma ile gelir
-    // heading açısına -90 ekleyerek burnu ileri sabitliyoruz
-    return Cesium.Transforms.headingPitchRollQuaternion(
-        dronePos, 
-        new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading - 90), 0, 0)
-    );
-}, false),
-    model: { 
-        uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumAir/Cesium_Air.glb', 
-        minimumPixelSize: 100,
-        scale: 1.5,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY 
-    }
-});
-
-    viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(28.9784, 41.0082, 1000) });
-
-    // 2. Tıklama ile Rota ve Heliport Belirleme
-    const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-handler.setInputAction((click) => {
-    if (isLocked || isFlying) return;
-    const picked = viewer.scene.pickPosition(click.position);
-    if (Cesium.defined(picked)) {
-        const carto = Cesium.Cartographic.fromCartesian(picked);
-        const droneAlt = Cesium.Cartographic.fromCartesian(dronePos).height;
-        const fixedPos = Cesium.Cartesian3.fromDegrees(
-            Cesium.Math.toDegrees(carto.longitude), Cesium.Math.toDegrees(carto.latitude), droneAlt
-        );
-        addWaypoint(fixedPos); // Artık motoru çağırıyoruz
-    }
-}, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-
-        
-            if (waypoints.length === 0) initialHomePos = dronePos;
-
-            // Nokta tipini belirle (Kalkış, Yol, İniş)
-            let pointColor = Cesium.Color.YELLOW;
-            let labelText = "WAYPOINT";
-            if (waypoints.length === 0) { pointColor = Cesium.Color.DEEPSKYBLUE; labelText = "START HELIPORT"; }
-
-            const wp = {
-                pos: fixedPos,
-                entity: viewer.entities.add({
-                    position: new Cesium.CallbackProperty(() => wp.pos, false),
-                    point: { pixelSize: 12, color: pointColor, outlineColor: Cesium.Color.WHITE, outlineWidth: 2, disableDepthTestDistance: Number.POSITIVE_INFINITY },
-                    label: { text: labelText, font: '12px sans-serif', verticalOrigin: Cesium.VerticalOrigin.BOTTOM, pixelOffset: new Cesium.Cartesian2(0, -15), disableDepthTestDistance: Number.POSITIVE_INFINITY }
-                }),
-                anchor: viewer.entities.add({
-                    polyline: {
-                        positions: new Cesium.CallbackProperty(() => {
-                            const c = Cesium.Cartographic.fromCartesian(wp.pos);
-                            const terrainHeight = viewer.scene.sampleHeight(c) || 0;
-                            return [Cesium.Cartesian3.fromRadians(c.longitude, c.latitude, terrainHeight), wp.pos];
-                        }, false),
-                        width: 1,
-                        material: new Cesium.PolylineDashMaterialProperty({ color: Cesium.Color.WHITE.withAlpha(0.5) }),
-                        disableDepthTestDistance: Number.POSITIVE_INFINITY 
-                    }
-                }),
-                line: viewer.entities.add({
-                    polyline: {
-                        positions: new Cesium.CallbackProperty(() => {
-                            let idx = waypoints.indexOf(wp);
-                            let start = (idx === 0) ? initialHomePos : waypoints[idx-1].pos;
-                            return [start, wp.pos];
-                        }, false),
-                        width: 8,
-                        material: Cesium.Color.fromCssColorString('#0ea5e9').withAlpha(0.6), // Havacılık koridoru mavisi
-                        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-                        arcType: Cesium.ArcType.NONE
-                    }
-                })
-            };
-            waypoints.push(wp);
-            
-            // Son noktayı her zaman "DESTINATION HELIPORT" olarak güncelle
-            if (waypoints.length > 1) {
-                waypoints[waypoints.length-1].entity.label.text = "DESTINATION HELIPORT";
-                waypoints[waypoints.length-1].entity.point.color = Cesium.Color.RED;
-                if (waypoints.length > 2) {
-                    waypoints[waypoints.length-2].entity.label.text = "CORRIDOR POINT";
-                    waypoints[waypoints.length-2].entity.point.color = Cesium.Color.YELLOW;
-                }
-            }
-        }
-    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-
-
-
-
-
-viewer.geocoder.viewModel.destinationFound = function(destination) {
-    const cartographic = Cesium.Cartographic.fromCartesian(destination);
-    const lon = Cesium.Math.toDegrees(cartographic.longitude);
-    const lat = Cesium.Math.toDegrees(cartographic.latitude);
-    
-    setTimeout(() => {
-        const ground = viewer.scene.sampleHeight(cartographic) || 0;
-        dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, ground + 100);
-        viewer.camera.flyTo({ 
-            destination: Cesium.Cartesian3.fromDegrees(lon, lat, ground + 500),
-            duration: 2
-        });
-    }, 1500);
-    return destination;
-};
-
-// Başlangıç Konumunu İnegöl/Bursa Yap
-dronePos = Cesium.Cartesian3.fromDegrees(29.5100, 40.0800, 150); 
-viewer.camera.setView({ 
-    destination: Cesium.Cartesian3.fromDegrees(29.5100, 40.0800, 800) 
-});
-
-
-
-    
-
-document.addEventListener('keydown', (e) => {
-    if (isLocked || isFlying) return;
-    const k = e.key.toLowerCase();
-    
-    // Mevcut konumu al
-    const c = Cesium.Cartographic.fromCartesian(dronePos);
-    let lon = Cesium.Math.toDegrees(c.longitude);
-    let lat = Cesium.Math.toDegrees(c.latitude);
-    let alt = c.height;
-    
-    // Helikopter hızı (Havacılık için biraz daha artırıldı)
-    const moveStep = 0.0001; 
-
-    // Yön Hesaplama (W artık baktığın yöne gider)
-    // Helikopterin heading açısını radyana çevirip trigonometrik ilerleme yapıyoruz
-    const rad = Cesium.Math.toRadians(heading);
-// W ve S tuşlarının yönünü 180 derece çevirdik (İleri gitmesi için)
-if (k === 'w') { 
-    lat += moveStep * Math.cos(rad); 
-    lon += moveStep * Math.sin(rad); 
-}
-if (k === 's') { 
-    lat -= moveStep * Math.cos(rad); 
-    lon -= moveStep * Math.sin(rad); 
-}
-// A ve D tuşları dönüş yönünü daha doğal hissettirmek için hassaslaştırıldı
-if (k === 'a') heading -= 2; 
-if (k === 'd') heading += 2;
-    
-    // Yükseklik (Q/E)
-    if (k === 'q') alt += 1;
-    if (k === 'e') alt -= 1;
-
-    // Pozisyonu Güncelle
-    dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
-
-    // AGL HESAPLAMA (KRİTİK DÜZELTME)
-    // sampleHeight helikopterin kendisine çarpmasın diye drone objesini hariç tutuyoruz
-    const groundHeight = viewer.scene.sampleHeight(c, [drone]) || 0;
-    const currentAGL = alt - groundHeight;
-
-    // Dashboard Güncelleme
-    document.getElementById('agl-txt').innerText = "AGL: " + Math.round(currentAGL) + " m (Above Ground)";
-    document.getElementById('msl-txt').innerText = "MSL: " + Math.round(alt) + " m (Mean Sea Level)";
-});
-
-        function toggleLock() {
-            if (waypoints.length === 0) return;
-            isLocked = !isLocked;
-            document.getElementById('start-btn').style.display = isLocked ? "block" : "none";
-            document.getElementById('lock-btn').innerText = isLocked ? "🔓 UNLOCK" : "🔒 LOCK MISSION";
-        }
-
-        async function startFlight() {
-            isFlying = true;
-            viewer.trackedEntity = drone;
-            let currentPos = dronePos;
-            for (const wp of waypoints) {
-                const start = currentPos;
-                const end = wp.pos;
-                const speed = parseFloat(document.getElementById('flight-speed').value);
-                const duration = Cesium.Cartesian3.distance(start, end) / speed;
-                await new Promise(resolve => {
-                    let startTime = performance.now();
-function frame(now) {
-    let t = Math.min((now - startTime) / (duration * 1000), 1);
-    
-    // YÖNÜ HESAPLA: Mevcut pozisyon ile hedef arasındaki açıyı bul
-    const direction = Cesium.Cartesian3.subtract(end, start, new Cesium.Cartesian3());
-    const cartoStart = Cesium.Cartographic.fromCartesian(start);
-    const cartoEnd = Cesium.Cartographic.fromCartesian(end);
-    
-    // İki nokta arasındaki açıyı (bearing) hesapla
-    const y = Math.sin(cartoEnd.longitude - cartoStart.longitude) * Math.cos(cartoEnd.latitude);
-    const x = Math.cos(cartoStart.latitude) * Math.sin(cartoEnd.latitude) -
-              Math.sin(cartoStart.latitude) * Math.cos(cartoEnd.latitude) * Math.cos(cartoEnd.longitude - cartoStart.longitude);
-    
-    // Global heading değişkenini güncelle (Radyanı dereceye çevir)
-    heading = Cesium.Math.toDegrees(Math.atan2(y, x));
-
-    dronePos = Cesium.Cartesian3.lerp(start, end, t, new Cesium.Cartesian3());
-    if (t < 1) requestAnimationFrame(frame); else resolve();
-}
-                    requestAnimationFrame(frame);
-                });
-                currentPos = end;
-            }
-            isFlying = false;
-            viewer.trackedEntity = undefined;
-        }
-
-
-
-
-
-
-
-        async function goToLocation() {
-    const query = document.getElementById('search-city').value.trim();
-    if (!query) return;
-
-    // 1. Senaryo: Koordinat girişi (Örn: 40.1, 29.5)
-    if (query.includes(',')) {
-        const coords = query.split(',');
-        const lat = parseFloat(coords[0]);
-        const lon = parseFloat(coords[1]);
-        if (!isNaN(lat) && !isNaN(lon)) {
-            teleportHelicopter(lat, lon);
-            return;
-        }
-    }
-
-    // 2. Senaryo: Yer ismi girişi (Örn: "Bursa", "Anıtkabir")
-    try {
-        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
-        const data = await response.json();
-
-        if (data && data.length > 0) {
-            const lat = parseFloat(data[0].lat);
-            const lon = parseFloat(data[0].lon);
-            teleportHelicopter(lat, lon);
-        } else {
-            alert("Yer bulunamadı. Lütfen daha spesifik bir isim yazın.");
-        }
-    } catch (error) {
-        console.error("Arama hatası:", error);
-        alert("Arama servisine şu an ulaşılamıyor.");
-    }
-}
-
-// Helikopteri ve kamerayı taşıyan yardımcı fonksiyon
-function teleportHelicopter(lat, lon) {
-    // Helikopteri oraya taşı
-    dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, 100);
-    
-    // Kamerayı oraya uçur
-    viewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(lon, lat, 1000),
-        duration: 2
-    });
-}
-
-
-
-
-
-        
-
-
-
-// 1. Rotayı Veritabanına Kaydetme
+// 4. Bulut İşlemleri (Save/Load)
 async function saveRoute() {
     const user = auth.currentUser;
     const routeName = document.getElementById('route-name').value;
-
-    if (!user) return alert("Please login first!");
-    if (!routeName) return alert("Please enter a mission name!");
-    if (waypoints.length === 0) return alert("Please create a route first!");
+    if (!user || !routeName || waypoints.length === 0) return alert("Check entry or route!");
 
     const routeData = waypoints.map(wp => {
         const carto = Cesium.Cartographic.fromCartesian(wp.pos);
-        return {
-            lon: Cesium.Math.toDegrees(carto.longitude),
-            lat: Cesium.Math.toDegrees(carto.latitude),
-            alt: carto.height
-        };
+        return { lon: Cesium.Math.toDegrees(carto.longitude), lat: Cesium.Math.toDegrees(carto.latitude), alt: carto.height };
     });
 
     try {
         await db.collection("users").doc(user.uid).collection("missions").add({
-            name: routeName,
-            path: routeData,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            name: routeName, path: routeData, createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-        alert("Mission saved to cloud!");
-        document.getElementById('route-name').value = ""; // Kutuyu temizle
-        loadMissionsList(); // Listeyi tazele
-    } catch (e) {
-        alert("Error saving: " + e.message);
-    }
+        alert("Saved!");
+        loadMissionsList();
+    } catch (e) { alert(e.message); }
 }
 
-// 2. Kayıtlı Rotaları Veritabanından Çekme
 async function loadMissionsList() {
     const user = auth.currentUser;
     if (!user) return;
-
-    try {
-        const snapshot = await db.collection("users").doc(user.uid).collection("missions")
-                                 .orderBy("createdAt", "desc").get();
-        
-        const listDiv = document.getElementById('mission-list');
-        listDiv.innerHTML = ""; // Listeyi her seferinde temizle
-
-        snapshot.forEach(doc => {
-            const mission = doc.data();
-            const btn = document.createElement('button');
-            btn.innerText = "📂 " + mission.name;
-            btn.className = "btn";
-            btn.style = "font-size: 11px; padding: 8px; margin-bottom: 5px; background: #1e293b; border: 1px solid #38bdf8; text-align: left; width: 100%; cursor: pointer;";
-            
-            // İŞTE EKSİK OLAN TIKLAMA OLAYI BURADA:
-            btn.onclick = () => {
-                drawSavedRoute(mission.path);
-            };
-            
-            listDiv.appendChild(btn);
-        });
-    } catch (e) {
-        console.error("List load error:", e);
-    }
-}
-
-
-
-
-
-
-// Kayıtlı bir görevi haritaya çizen ana fonksiyon
-function drawSavedRoute(pathData) {
-    // 1. Önce haritadaki mevcut noktaları temizle (Yeni rota karışmasın)
-    resetSystem(); 
-
-    // 2. Buluttan gelen her bir noktayı haritaya geri ekle
-    pathData.forEach(point => {
-        // Koordinatları harita formatına (Cartesian3) geri çevir
-        const position = Cesium.Cartesian3.fromDegrees(point.lon, point.lat, point.alt);
-        
-        // Senin mevcut addWaypoint fonksiyonunu kullanarak noktayı ekle
-        addWaypoint(position);
+    const snapshot = await db.collection("users").doc(user.uid).collection("missions").orderBy("createdAt", "desc").get();
+    const listDiv = document.getElementById('mission-list');
+    listDiv.innerHTML = "";
+    snapshot.forEach(doc => {
+        const mission = doc.data();
+        const btn = document.createElement('button');
+        btn.innerText = "📂 " + mission.name;
+        btn.className = "btn";
+        btn.style = "font-size: 11px; padding: 8px; margin-bottom: 5px; background: #1e293b; border: 1px solid #38bdf8; text-align: left; width: 100%; cursor: pointer; color:white;";
+        btn.onclick = () => drawSavedRoute(mission.path);
+        listDiv.appendChild(btn);
     });
-
-    console.log("Mission loaded from cloud successfully.");
 }
 
+function drawSavedRoute(pathData) {
+    resetSystem();
+    pathData.forEach(p => addWaypoint(Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt)));
+}
 
+// 5. Auth İşlemleri
+auth.onAuthStateChanged((user) => {
+    const loggedOutView = document.getElementById('logged-out-view');
+    const userInfo = document.getElementById('user-info');
+    const saveSection = document.getElementById('save-section');
+    if (user) {
+        loggedOutView.style.display = 'none';
+        userInfo.style.display = 'flex';
+        saveSection.style.display = 'block';
+        document.getElementById('user-name').innerText = "Pilot: " + (user.displayName || user.email.split('@')[0]);
+        loadMissionsList();
+    } else {
+        loggedOutView.style.display = 'block';
+        userInfo.style.display = 'none';
+        saveSection.style.display = 'none';
+    }
+});
 
+function loginWithGoogle() { auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); }
+function logout() { auth.signOut(); }
 
+// 6. Helikopter ve Kontroller
+drone = viewer.entities.add({
+    name: "Helicopter",
+    position: new Cesium.CallbackProperty(() => dronePos, false),
+    orientation: new Cesium.CallbackProperty(() => {
+        return Cesium.Transforms.headingPitchRollQuaternion(dronePos, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading - 90), 0, 0));
+    }, false),
+    model: { uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumAir/Cesium_Air.glb', minimumPixelSize: 100, scale: 1.5 }
+});
 
-        
+const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+handler.setInputAction((click) => {
+    if (isLocked || isFlying) return;
+    const picked = viewer.scene.pickPosition(click.position);
+    if (Cesium.defined(picked)) {
+        const c = Cesium.Cartographic.fromCartesian(picked);
+        const dAlt = Cesium.Cartographic.fromCartesian(dronePos).height;
+        addWaypoint(Cesium.Cartesian3.fromDegrees(Cesium.Math.toDegrees(c.longitude), Cesium.Math.toDegrees(c.latitude), dAlt));
+    }
+}, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
+async function startFlight() {
+    isFlying = true;
+    viewer.trackedEntity = drone;
+    let current = dronePos;
+    for (const wp of waypoints) {
+        const start = current;
+        const end = wp.pos;
+        const speed = parseFloat(document.getElementById('flight-speed').value);
+        const duration = Cesium.Cartesian3.distance(start, end) / speed;
+        await new Promise(res => {
+            let sTime = performance.now();
+            function frame(now) {
+                let t = Math.min((now - sTime) / (duration * 1000), 1);
+                const cS = Cesium.Cartographic.fromCartesian(start);
+                const cE = Cesium.Cartographic.fromCartesian(end);
+                const y = Math.sin(cE.longitude - cS.longitude) * Math.cos(cE.latitude);
+                const x = Math.cos(cS.latitude) * Math.sin(cE.latitude) - Math.sin(cS.latitude) * Math.cos(cE.latitude) * Math.cos(cE.longitude - cS.longitude);
+                heading = Cesium.Math.toDegrees(Math.atan2(y, x));
+                dronePos = Cesium.Cartesian3.lerp(start, end, t, new Cesium.Cartesian3());
+                if (t < 1) requestAnimationFrame(frame); else res();
+            }
+            requestAnimationFrame(frame);
+        });
+        current = end;
+    }
+    isFlying = false;
+    viewer.trackedEntity = undefined;
+}
 
-        
+function toggleLock() {
+    if (waypoints.length === 0) return;
+    isLocked = !isLocked;
+    document.getElementById('start-btn').style.display = isLocked ? "block" : "none";
+    document.getElementById('lock-btn').innerText = isLocked ? "🔓 UNLOCK" : "🔒 LOCK MISSION";
+}
 
-
-
-
-// MANUEL YÜKSEKLİK GİRİŞİ FONKSİYONU
 function updateManualAlt(val) {
-    if(!val) return;
     const c = Cesium.Cartographic.fromCartesian(dronePos);
-    const lon = Cesium.Math.toDegrees(c.longitude);
-    const lat = Cesium.Math.toDegrees(c.latitude);
-    // Drone'u kullanıcının girdiği yeni MSL yüksekliğine taşır
-    dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, parseFloat(val));
+    dronePos = Cesium.Cartesian3.fromDegrees(Cesium.Math.toDegrees(c.longitude), Cesium.Math.toDegrees(c.latitude), parseFloat(val));
 }
-
-
-
-
-
-
-        
-    </script>
 </body>
 </html>
+
 
