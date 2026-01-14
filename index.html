@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V18.00 - Professional Edition</title>
+    <title>NaviVortex V17.20 - Professional Edition</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -103,15 +103,41 @@ const viewer = new Cesium.Viewer('cesiumContainer', {
 
 viewer.scene.globe.depthTestAgainstTerrain = false;
 
-// GEOLOOCATION (GPS) - Sayfa açılınca seni bulur
-if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition((pos) => {
-        const lon = pos.coords.longitude;
-        const lat = pos.coords.latitude;
-        dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, 150);
-        viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(lon, lat, 1500), duration: 3 });
-    });
+// GELİŞMİŞ GPS BAĞLANTISI
+function locateUser() {
+    if (navigator.geolocation) {
+        // Tarayıcıdan yüksek hassasiyetli konum iste
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                const lon = pos.coords.longitude;
+                const lat = pos.coords.latitude;
+                
+                // Helikopteri oraya ışınla
+                dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, 150);
+                
+                // Kamerayı pürüzsüzce oraya uçur
+                viewer.camera.flyTo({
+                    destination: Cesium.Cartesian3.fromDegrees(lon, lat, 1500),
+                    duration: 4,
+                    easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT
+                });
+                console.log("User located at:", lon, lat);
+            },
+            (err) => {
+                console.warn("GPS hatası veya reddi. Bursa'ya odaklanılıyor:", err.message);
+                // Hata alırsak Bursa'ya pürüzsüz geçiş yap
+                viewer.camera.flyTo({
+                    destination: Cesium.Cartesian3.fromDegrees(29.51, 40.08, 1500),
+                    duration: 3
+                });
+            },
+            { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+        );
+    }
 }
+
+// Sayfa hazır olduğunda çalıştır
+locateUser();
 
 // SEARCH BOX (GEOCODER) - Yazdığın yere ışınlar
 viewer.geocoder.viewModel.destinationFound = function(destination) {
@@ -287,3 +313,4 @@ async function startFlight() {
 </script>
 </body>
 </html>
+
