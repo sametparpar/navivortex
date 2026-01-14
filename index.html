@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V16.29</title>
+    <title>NaviVortex V16.50</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -100,7 +100,8 @@ const db = firebase.firestore();
 
 // 2. Cesium Temel Ayarları
 Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzMzEyYzc1OS03OTY0LTQ5MGYtODcwMi0zMGNiYmZjNGIxMTkiLCJpZCI6Mzc2MTk2LCJpYXQiOjE3Njc4NjA4NjJ9.aZRZorILCG4gIlzwCnm1L2SCp58z-TCg6yNaDbPLxnU';
-const viewer = new Cesium.Viewer('cesiumContainer', {
+let drone, waypoints = [], isLocked = false, isFlying = false, heading = 0;
+        const viewer = new Cesium.Viewer('cesiumContainer', {
     terrain: Cesium.Terrain.fromWorldTerrain(),
     animation: false, timeline: false, baseLayerPicker: false
 });
@@ -132,7 +133,7 @@ viewer.geocoder.viewModel.destinationFound = function(destination) {
 // --- 2. ADIM BITIŞI ---
 
 // Global Değişkenler
-let drone, waypoints = [], isLocked = false, isFlying = false, heading = 0;
+
 // Akıllı Başlangıç: Önce GPS'e bakar, yoksa Bursa'yı seçer
 if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition((pos) => {
@@ -421,16 +422,18 @@ function toggleLock() {
 }
 
 function updateManualAlt(val) {
-    if(!val) return;
+    if(!val || !dronePos) return;
     const numericAlt = parseFloat(val);
     const c = Cesium.Cartographic.fromCartesian(dronePos);
     
-    // Konumu koru, yüksekliği güncelle
+    // Konumu bozmadan sadece MSL yüksekliğini değiştir
     dronePos = Cesium.Cartesian3.fromDegrees(
         Cesium.Math.toDegrees(c.longitude), 
         Cesium.Math.toDegrees(c.latitude), 
         numericAlt
     );
+    console.log("Manuel MSL ayarlandı:", numericAlt);
+}
     
     // Dashboard yazılarını anında güncelle
     document.getElementById('msl-txt').innerText = "MSL: " + Math.round(numericAlt) + " m";
@@ -444,6 +447,7 @@ function updateManualAlt(val) {
     </script>
 </body>
 </html>
+
 
 
 
