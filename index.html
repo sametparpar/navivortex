@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V17.42 - Professional Edition</title>
+    <title>NaviVortex V17.50 - Professional Edition</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -107,7 +107,7 @@ Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOi
 
 // GLOBAL VARIABLES - Tanımlama sırası kritik!
 let drone, waypoints = [], isLocked = false, isFlying = false, heading = 0;
-let dronePos = Cesium.Cartesian3.fromDegrees(29.5100, 40.0800, 150);
+let dronePos = Cesium.Cartesian3.fromDegrees(29.5100, 40.0800, 500);
 let initialHomePos = dronePos;
 
 const viewer = new Cesium.Viewer('cesiumContainer', {
@@ -137,13 +137,16 @@ function locateUser() {
                 });
                 console.log("User located at:", lon, lat);
             },
-            (err) => {
-                console.warn("GPS hatası veya reddi. Bursa'ya odaklanılıyor:", err.message);
-                // Hata alırsak Bursa'ya pürüzsüz geçiş yap
-                viewer.camera.flyTo({
-                    destination: Cesium.Cartesian3.fromDegrees(29.51, 40.08, 1500),
-                    duration: 3
-                });
+(err) => {
+    console.warn("GPS hatası veya reddi. Bursa'ya odaklanılıyor:", err.message);
+    // Bursa koordinatlarına git ve uçağa (drone) odaklan
+    viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(29.51, 40.08, 1500),
+        duration: 3
+    });
+    // Kamera uçuşu bittikten sonra uçağı takip etmesini sağlar
+    setTimeout(() => { viewer.trackedEntity = drone; }, 3500);
+}
             },
             { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
         );
@@ -409,6 +412,7 @@ function updateMissionStats() {
 </script>
 </body>
 </html>
+
 
 
 
