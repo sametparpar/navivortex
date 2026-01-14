@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V17.20 - Professional Edition</title>
+    <title>NaviVortex V17.36 - Professional Edition</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -48,6 +48,20 @@
         <div id="mission-list" style="margin-top: 5px; max-height: 150px; overflow-y: auto;"></div>
     </div>
 
+<div style="margin-bottom: 15px; border-bottom: 1px solid #334155; padding-bottom: 10px;">
+    <label style="font-size: 11px; color: #94a3b8;">ACTIVE VEHICLE:</label>
+    <select id="vehicle-type" onchange="changeVehicle(this.value)" style="width: 100%; background:#1e293b; color:#38bdf8; border:1px solid #38bdf8; padding:8px; border-radius:4px; margin-top:5px;">
+        <option value="heli">Helicopter (Standard)</option>
+        <option value="drone">Quad-Copter Drone</option>
+        <option value="airplane">Cargo Plane</option>
+    </select>
+</div>
+
+<div id="stats-panel" style="background: rgba(2, 6, 23, 0.5); padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 12px; border-left: 3px solid #38bdf8;">
+    <div style="color: #94a3b8;">Total Distance: <span id="total-dist" style="color: white; font-weight: bold;">0.00 km</span></div>
+    <div style="color: #94a3b8;">Est. Flight Time: <span id="total-time" style="color: white; font-weight: bold;">00:00</span></div>
+</div>
+    
     <h2 style="margin:10px 0; color:#38bdf8; font-size: 18px;">NAVIVORTEX V60</h2>
     
     <div style="margin-bottom: 10px; font-size: 13px;">
@@ -137,7 +151,7 @@ function locateUser() {
 }
 
 // Sayfa hazır olduğunda çalıştır
-locateUser();
+
 
 // SEARCH BOX (GEOCODER) - Yazdığın yere ışınlar
 viewer.geocoder.viewModel.destinationFound = function(destination) {
@@ -161,6 +175,8 @@ drone = viewer.entities.add({
         minimumPixelSize: 100, scale: 1.5, heightReference: Cesium.HeightReference.NONE 
     }
 });
+
+    locateUser();
 
 // FLIGHT CONTROLS & RENDER LOOP
 const keysPressed = {};
@@ -310,7 +326,88 @@ async function startFlight() {
     }
     isFlying = false; viewer.trackedEntity = undefined;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // Araç Değiştirme
+function changeVehicle(type) {
+    let modelUri = '';
+    let scale = 1.5;
+
+    if (type === 'heli') {
+        modelUri = 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumAir/Cesium_Air.glb';
+        scale = 1.5;
+    } else if (type === 'drone') {
+        modelUri = 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumDrone/CesiumDrone.glb';
+        scale = 10.0;
+    } else if (type === 'airplane') {
+        modelUri = 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumMilkTruck/CesiumMilkTruck.glb';
+        scale = 5.0;
+    }
+
+    if (drone) {
+        drone.model.uri = modelUri;
+        drone.model.scale = scale;
+    }
+}
+
+// Canlı İstatistik Güncelleme
+function updateMissionStats() {
+    if (waypoints.length < 1) return;
+    let totalMeters = 0;
+    let currentPos = dronePos;
+
+    waypoints.forEach(wp => {
+        totalMeters += Cesium.Cartesian3.distance(currentPos, wp.pos);
+        currentPos = wp.pos;
+    });
+
+    const totalKm = totalMeters / 1000;
+    const speedKmh = parseFloat(document.getElementById('flight-speed').value) * 3.6;
+    const totalMinutes = Math.round((totalKm / speedKmh) * 60);
+
+    document.getElementById('total-dist').innerText = totalKm.toFixed(2) + " km";
+    document.getElementById('total-time').innerText = totalMinutes + " min";
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
 </script>
 </body>
 </html>
+
 
