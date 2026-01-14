@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V14.54</title>
+    <title>NaviVortex V15.08</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -263,6 +263,55 @@ handler.setInputAction((click) => {
     }
 }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
+
+
+
+        // 1. Klavyeyi Dinle
+const keysPressed = {};
+document.addEventListener('keydown', (e) => { keysPressed[e.key.toLowerCase()] = true; });
+document.addEventListener('keyup', (e) => { keysPressed[e.key.toLowerCase()] = false; });
+
+// 2. Ana Uçuş Döngüsü (Her karede çalışır)
+viewer.scene.preRender.addEventListener(function() {
+    if (isLocked || isFlying || !dronePos) return;
+
+    const moveStep = 0.0001; // Yatay hız
+    const altStep = 1.0;     // Dikey hız
+    const rad = Cesium.Math.toRadians(heading);
+    
+    let c = Cesium.Cartographic.fromCartesian(dronePos);
+    let lon = Cesium.Math.toDegrees(c.longitude);
+    let lat = Cesium.Math.toDegrees(c.latitude);
+    let alt = c.height;
+
+    // Hareket Kontrolleri
+    if (keysPressed['w']) { lat += moveStep * Math.cos(rad); lon += moveStep * Math.sin(rad); }
+    if (keysPressed['s']) { lat -= moveStep * Math.cos(rad); lon -= moveStep * Math.sin(rad); }
+    if (keysPressed['a']) heading -= 1.5;
+    if (keysPressed['d']) heading += 1.5;
+    if (keysPressed['q']) alt += altStep;
+    if (keysPressed['e']) alt -= altStep;
+
+    // Pozisyonu güncelle
+    dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
+
+    // Yükseklik Hesaplama (AGL/MSL)
+    const groundHeight = viewer.scene.sampleHeight(c, [drone]) || 0;
+    const currentAGL = alt - groundHeight;
+
+    // Paneli Güncelle
+    document.getElementById('agl-txt').innerText = "AGL: " + Math.round(currentAGL) + " m";
+    document.getElementById('msl-txt').innerText = "MSL: " + Math.round(alt) + " m";
+    
+    // Manuel giriş kutusunu da senkronize tutalım
+    document.getElementById('manual-msl').value = Math.round(alt);
+});
+
+
+
+
+        
+
 async function startFlight() {
     isFlying = true;
     viewer.trackedEntity = drone;
@@ -300,13 +349,18 @@ function toggleLock() {
 }
 
 function updateManualAlt(val) {
+    if(!val || !dronePos) return;
     const c = Cesium.Cartographic.fromCartesian(dronePos);
-    dronePos = Cesium.Cartesian3.fromDegrees(Cesium.Math.toDegrees(c.longitude), Cesium.Math.toDegrees(c.latitude), parseFloat(val));
+    const lon = Cesium.Math.toDegrees(c.longitude);
+    const lat = Cesium.Math.toDegrees(c.latitude);
+    dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, parseFloat(val));
+    console.log("Altitude set manually to:", val);
 }
 
     </script>
 </body>
 </html>
+
 
 
 
