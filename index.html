@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V16.50</title>
+    <title>NaviVortex V17.00</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -100,10 +100,81 @@ const db = firebase.firestore();
 
 // 2. Cesium Temel Ayarları
 Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzMzEyYzc1OS03OTY0LTQ5MGYtODcwMi0zMGNiYmZjNGIxMTkiLCJpZCI6Mzc2MTk2LCJpYXQiOjE3Njc4NjA4NjJ9.aZRZorILCG4gIlzwCnm1L2SCp58z-TCg6yNaDbPLxnU';
+
+
+
+
+
+
+
+
+
+        Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'; // Kendi anahtarın kalsın
+
+// GLOBAL DEĞİŞKENLERİ BURAYA TAŞIDIK
 let drone, waypoints = [], isLocked = false, isFlying = false, heading = 0;
-        const viewer = new Cesium.Viewer('cesiumContainer', {
+let dronePos = Cesium.Cartesian3.fromDegrees(29.5100, 40.0800, 150); // Başlangıç değeri
+let initialHomePos = dronePos;
+
+const viewer = new Cesium.Viewer('cesiumContainer', {
     terrain: Cesium.Terrain.fromWorldTerrain(),
     animation: false, timeline: false, baseLayerPicker: false
+});
+
+viewer.scene.globe.depthTestAgainstTerrain = false;
+viewer.scene.camera.frustum.near = 0.1;
+
+// ARAMA KUTUSU (GEOCODER) - Değişkenlerden sonra gelmeli
+viewer.geocoder.viewModel.destinationFound = function(destination) {
+    const cartographic = Cesium.Cartographic.fromCartesian(destination);
+    const lon = Cesium.Math.toDegrees(cartographic.longitude);
+    const lat = Cesium.Math.toDegrees(cartographic.latitude);
+    
+    dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, 150);
+    
+    viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(lon, lat, 1000),
+        duration: 2
+    });
+    return destination;
+};
+
+
+
+
+
+
+
+
+
+        // Dinamik Başlangıç
+if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition((pos) => {
+        const userLon = pos.coords.longitude;
+        const userLat = pos.coords.latitude;
+        dronePos = Cesium.Cartesian3.fromDegrees(userLon, userLat, 150);
+        viewer.camera.flyTo({
+            destination: Cesium.Cartesian3.fromDegrees(userLon, userLat, 1500),
+            duration: 3
+        });
+    }, () => {
+        // Hata durumunda Bursa'ya git
+        viewer.camera.flyTo({
+            destination: Cesium.Cartesian3.fromDegrees(29.51, 40.08, 1500),
+            duration: 2
+        });
+    });
+}
+
+        
+        
+        
+        
+        
+        
+        
+        
+
 });
 
 viewer.scene.globe.depthTestAgainstTerrain = false;
@@ -134,34 +205,7 @@ viewer.geocoder.viewModel.destinationFound = function(destination) {
 
 // Global Değişkenler
 
-// Akıllı Başlangıç: Önce GPS'e bakar, yoksa Bursa'yı seçer
-if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition((pos) => {
-        // GPS Bulundu: Kullanıcının olduğu yere git
-        const userLon = pos.coords.longitude;
-        const userLat = pos.coords.latitude;
-        dronePos = Cesium.Cartesian3.fromDegrees(userLon, userLat, 150);
-        
-        viewer.camera.flyTo({
-            destination: Cesium.Cartesian3.fromDegrees(userLon, userLat, 1500),
-            duration: 3
-        });
-    }, () => {
-        // GPS Reddedildi: Bursa'ya git (B Planı)
-        console.log("GPS access denied, using fallback.");
-        applyDefaultStart();
-    });
-} else {
-    applyDefaultStart();
-}
 
-function applyDefaultStart() {
-    dronePos = Cesium.Cartesian3.fromDegrees(29.5100, 40.0800, 150);
-    viewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(29.5100, 40.0800, 1500),
-        duration: 3
-    });
-}
 let initialHomePos = dronePos;
 
 // Kamera Odaklama: Sayfa açılır açılmaz Bursa'ya iner
@@ -426,13 +470,12 @@ function updateManualAlt(val) {
     const numericAlt = parseFloat(val);
     const c = Cesium.Cartographic.fromCartesian(dronePos);
     
-    // Konumu bozmadan sadece MSL yüksekliğini değiştir
     dronePos = Cesium.Cartesian3.fromDegrees(
         Cesium.Math.toDegrees(c.longitude), 
         Cesium.Math.toDegrees(c.latitude), 
         numericAlt
     );
-    console.log("Manuel MSL ayarlandı:", numericAlt);
+    console.log("Manuel Yükseklik Ayarlandı:", numericAlt);
 }
     
     // Dashboard yazılarını anında güncelle
@@ -447,6 +490,7 @@ function updateManualAlt(val) {
     </script>
 </body>
 </html>
+
 
 
 
