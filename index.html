@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V14.35</title>
+    <title>NaviVortex V14.54</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -82,6 +82,7 @@
 </div>
     <div id="cesiumContainer"></div>
 
+    <script>
 // 1. Firebase Yapılandırması
 const firebaseConfig = {
     apiKey: "AIzaSyDj58VpffB4SayaOZ6iA2JSfrFUhw0hzPw",
@@ -302,8 +303,11 @@ function updateManualAlt(val) {
     const c = Cesium.Cartographic.fromCartesian(dronePos);
     dronePos = Cesium.Cartesian3.fromDegrees(Cesium.Math.toDegrees(c.longitude), Cesium.Math.toDegrees(c.latitude), parseFloat(val));
 }
+
+    </script>
 </body>
 </html>
+
 
 
 
