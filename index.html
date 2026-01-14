@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V15.08</title>
+    <title>NaviVortex V16.29</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -108,10 +108,66 @@ const viewer = new Cesium.Viewer('cesiumContainer', {
 viewer.scene.globe.depthTestAgainstTerrain = false;
 viewer.scene.camera.frustum.near = 0.1;
 
+
+        // --- 2. ADIM BAŞLANGICI ---
+// Sağ üstteki arama kutusundan bir yer seçildiğinde tetiklenir
+viewer.geocoder.viewModel.destinationFound = function(destination) {
+    // Bulunan yerin koordinatlarını al
+    const cartographic = Cesium.Cartographic.fromCartesian(destination);
+    const lon = Cesium.Math.toDegrees(cartographic.longitude);
+    const lat = Cesium.Math.toDegrees(cartographic.latitude);
+    
+    // 1. Helikopteri o şehre/noktaya ışınla
+    dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, 150);
+    
+    // 2. Kamerayı o noktaya uçur
+    viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(lon, lat, 1000),
+        duration: 2
+    });
+
+    // Cesium'un kendi kamera hareketini durdurmak için bunu döndürüyoruz
+    return destination;
+};
+// --- 2. ADIM BITIŞI ---
+
 // Global Değişkenler
 let drone, waypoints = [], isLocked = false, isFlying = false, heading = 0;
-let dronePos = Cesium.Cartesian3.fromDegrees(29.5100, 40.0800, 150);
-let initialHomePos;
+// Akıllı Başlangıç: Önce GPS'e bakar, yoksa Bursa'yı seçer
+if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition((pos) => {
+        // GPS Bulundu: Kullanıcının olduğu yere git
+        const userLon = pos.coords.longitude;
+        const userLat = pos.coords.latitude;
+        dronePos = Cesium.Cartesian3.fromDegrees(userLon, userLat, 150);
+        
+        viewer.camera.flyTo({
+            destination: Cesium.Cartesian3.fromDegrees(userLon, userLat, 1500),
+            duration: 3
+        });
+    }, () => {
+        // GPS Reddedildi: Bursa'ya git (B Planı)
+        console.log("GPS access denied, using fallback.");
+        applyDefaultStart();
+    });
+} else {
+    applyDefaultStart();
+}
+
+function applyDefaultStart() {
+    dronePos = Cesium.Cartesian3.fromDegrees(29.5100, 40.0800, 150);
+    viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(29.5100, 40.0800, 1500),
+        duration: 3
+    });
+}
+let initialHomePos = dronePos;
+
+// Kamera Odaklama: Sayfa açılır açılmaz Bursa'ya iner
+viewer.camera.flyTo({
+    destination: Cesium.Cartesian3.fromDegrees(29.5100, 40.0800, 1500),
+    duration: 2
+});
 
 // 3. Fonksiyonlar (AddWaypoint, Reset, vb.)
 function resetSystem() {
@@ -123,8 +179,19 @@ function resetSystem() {
     waypoints = [];
     isLocked = false;
     isFlying = false;
+    
+    // Uçağı başlangıç noktasına ışınla
+    dronePos = Cesium.Cartesian3.fromDegrees(29.5100, 40.0800, 150);
+    heading = 0;
+
     if(document.getElementById('start-btn')) document.getElementById('start-btn').style.display = "none";
     if(document.getElementById('lock-btn')) document.getElementById('lock-btn').innerText = "🔒 LOCK MISSION";
+    
+    // Kamerayı tekrar uçağa odakla
+    viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(29.5100, 40.0800, 1000),
+        duration: 2
+    });
 }
 
 function addWaypoint(fixedPos) {
@@ -249,7 +316,12 @@ drone = viewer.entities.add({
     orientation: new Cesium.CallbackProperty(() => {
         return Cesium.Transforms.headingPitchRollQuaternion(dronePos, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading - 90), 0, 0));
     }, false),
-    model: { uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumAir/Cesium_Air.glb', minimumPixelSize: 100, scale: 1.5 }
+    model: { 
+    uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumAir/Cesium_Air.glb', 
+    minimumPixelSize: 100, 
+    scale: 1.5,
+    heightReference: Cesium.HeightReference.NONE // Yüksekliği manuel kontrol etmemizi sağlar
+}
 });
 
 const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
@@ -349,17 +421,30 @@ function toggleLock() {
 }
 
 function updateManualAlt(val) {
-    if(!val || !dronePos) return;
+    if(!val) return;
+    const numericAlt = parseFloat(val);
     const c = Cesium.Cartographic.fromCartesian(dronePos);
-    const lon = Cesium.Math.toDegrees(c.longitude);
-    const lat = Cesium.Math.toDegrees(c.latitude);
-    dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, parseFloat(val));
-    console.log("Altitude set manually to:", val);
+    
+    // Konumu koru, yüksekliği güncelle
+    dronePos = Cesium.Cartesian3.fromDegrees(
+        Cesium.Math.toDegrees(c.longitude), 
+        Cesium.Math.toDegrees(c.latitude), 
+        numericAlt
+    );
+    
+    // Dashboard yazılarını anında güncelle
+    document.getElementById('msl-txt').innerText = "MSL: " + Math.round(numericAlt) + " m";
+    
+    // Eğer uçuşta değilsek kamerayı uçağa hafifçe yaklaştır
+    if(!isFlying) {
+        viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY); // Kamerayı serbest bırak
+    }
 }
 
     </script>
 </body>
 </html>
+
 
 
 
