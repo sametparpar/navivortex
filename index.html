@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V11.30</title>
+    <title>NaviVortex V11.44</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -261,14 +261,14 @@ function resetSystem() {
     document.getElementById('lock-btn').innerText = "🔒 LOCK MISSION";
 }
 
-function addWaypoint(fixedPos) {
-    if (waypoints.length === 0) initialHomePos = dronePos;
-    const wp = {
-        pos: fixedPos,
-        entity: viewer.entities.add({
-            position: new Cesium.CallbackProperty(() => wp.pos, false),
-            point: { pixelSize: 10, color: Cesium.Color.YELLOW, outlineColor: Cesium.Color.WHITE, outlineWidth: 2, disableDepthTestDistance: Number.POSITIVE_INFINITY }
+material: new Cesium.PolylineDashMaterialProperty({
+                    color: Cesium.Color.WHITE.withAlpha(0.5),
+                    dashLength: 8
+                }),
+                disableDepthTestDistance: Number.POSITIVE_INFINITY 
+            }
         }),
+        // 3. NOKTALAR ARASI ROTA ÇİZGİSİ
         line: viewer.entities.add({
             polyline: {
                 positions: new Cesium.CallbackProperty(() => {
@@ -276,11 +276,18 @@ function addWaypoint(fixedPos) {
                     let start = (idx === 0) ? initialHomePos : waypoints[idx-1].pos;
                     return [start, wp.pos];
                 }, false),
-                width: 4, material: Cesium.Color.SKYBLUE, disableDepthTestDistance: Number.POSITIVE_INFINITY
+                width: 4, 
+                material: Cesium.Color.SKYBLUE, 
+                disableDepthTestDistance: Number.POSITIVE_INFINITY
             }
         })
     };
+    
     waypoints.push(wp);
+    
+    if (typeof updateMissionStats === "function") {
+        updateMissionStats();
+    }
 }
 
 const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
@@ -474,6 +481,7 @@ function updateMissionStats() {
 </script>
 </body>
 </html>
+
 
 
 
