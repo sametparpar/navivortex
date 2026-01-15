@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V11.09</title>
+    <title>NaviVortex V11.24</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -188,7 +188,7 @@ drone = viewer.entities.add({
 // Aracı kameranın odağına hemen alalım
 viewer.trackedEntity = drone;
 
-locateUser();
+
 
 // FLIGHT CONTROLS & RENDER LOOP
 const keysPressed = {};
@@ -253,12 +253,31 @@ const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 handler.setInputAction((click) => {
     if (isLocked || isFlying) return;
     const picked = viewer.scene.pickPosition(click.position);
+    
     if (Cesium.defined(picked)) {
-        const c = Cesium.Cartographic.fromCartesian(picked);
-        const dAlt = Cesium.Cartographic.fromCartesian(dronePos).height;
-        addWaypoint(Cesium.Cartesian3.fromDegrees(Cesium.Math.toDegrees(c.longitude), Cesium.Math.toDegrees(c.latitude), dAlt));
+        // EĞER BU İLK TIKLAMA İSE: Uçağı buraya getir ve görünür yap
+        if (waypoints.length === 0) {
+            dronePos = picked;
+            // Kamerayı uçağa kilitle ki uçağı anında görelim
+            viewer.trackedEntity = drone;
+            // İlk noktayı heliport olarak ekle
+            addWaypoint(picked);
+            console.log("Heliport Belirlendi ve Araç Konuşlandırıldı.");
+        } else {
+            // İkinci ve sonraki tıklamalar normal waypoint ekler
+            const dAlt = Cesium.Cartographic.fromCartesian(dronePos).height;
+            const carto = Cesium.Cartographic.fromCartesian(picked);
+            const fixedPos = Cesium.Cartesian3.fromDegrees(
+                Cesium.Math.toDegrees(carto.longitude),
+                Cesium.Math.toDegrees(carto.latitude),
+                dAlt
+            );
+            addWaypoint(fixedPos);
+        }
     }
 }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+    
 
 // AUTH & CLOUD MISSIONS
 auth.onAuthStateChanged((user) => {
@@ -421,6 +440,7 @@ function updateMissionStats() {
 </script>
 </body>
 </html>
+
 
 
 
