@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V11.24</title>
+    <title>NaviVortex V11.30</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -184,6 +184,40 @@ drone = viewer.entities.add({
     // Aracın her mesafeden görünmesini sağlar
     viewFrom: new Cesium.Cartesian3(-50, 0, 20) 
 });
+
+
+    // SMART START: Sayfa açıldığında kullanıcıyı bulur ve kamerayı oraya uçurur
+function autoStart() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                const lon = pos.coords.longitude;
+                const lat = pos.coords.latitude;
+                
+                // Uçağı (drone) henüz tıklama yapmadan önce geçici olarak buraya koyalım
+                dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, 150);
+                
+                // DÜNYA KÜRESİNDEN SENİN KONUMUNA HIZLI UÇUŞ
+                viewer.camera.flyTo({
+                    destination: Cesium.Cartesian3.fromDegrees(lon, lat, 2000), // 2km yükseklik
+                    duration: 4,
+                    easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT
+                });
+                console.log("Konum algılandı, uçuş başlatıldı.");
+            },
+            (err) => {
+                console.warn("Konum algılanamadı, Bursa'ya gidiliyor.");
+                viewer.camera.flyTo({
+                    destination: Cesium.Cartesian3.fromDegrees(29.51, 40.08, 2000),
+                    duration: 3
+                });
+            }
+        );
+    }
+}
+
+// Hemen çalıştır
+autoStart();
 
 // Aracı kameranın odağına hemen alalım
 viewer.trackedEntity = drone;
@@ -440,6 +474,7 @@ function updateMissionStats() {
 </script>
 </body>
 </html>
+
 
 
 
