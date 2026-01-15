@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V12.07</title>
+    <title>NaviVortex V15.21</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -65,7 +65,7 @@
     <h2 style="margin:10px 0; color:#38bdf8; font-size: 18px;">NAVIVORTEX V60</h2>
     
     <div style="margin-bottom: 10px; font-size: 13px;">
-        <label>Manuel MSL (Altitude):</label>
+        <label>Manual MSL (Altitude):</label>
         <input type="number" id="manual-msl" style="width: 60px; background:#0f172a; color:white; border:1px solid #38bdf8;" onchange="updateManualAlt(this.value)"> m
     </div>
 
@@ -131,7 +131,6 @@ viewer.geocoder.viewModel.destinationFound = function(destination) {
     return destination;
 };
 
-// HELICOPTER ENTITY (Gelişmiş Görünürlük Ayarı)
 drone = viewer.entities.add({
     name: "Helicopter",
     position: new Cesium.CallbackProperty(() => dronePos, false),
@@ -141,12 +140,11 @@ drone = viewer.entities.add({
     model: { 
         uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumAir/Cesium_Air.glb', 
         minimumPixelSize: 100, 
-        scale: 50.0, 
+        scale: 5.0, 
         heightReference: Cesium.HeightReference.NONE,
-        show: true // Her zaman göster
-    },
-    // Aracın her mesafeden görünmesini sağlar
-    viewFrom: new Cesium.Cartesian3(-50, 0, 20) 
+        // Bu satır uçağın yerin altında kalsa bile görünmesini sağlar:
+        disableDepthTestDistance: Number.POSITIVE_INFINITY 
+    }
 });
 
 
@@ -321,28 +319,37 @@ function addWaypoint(fixedPos) {
 
 
 
-    const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+
+    
+
+
+const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 handler.setInputAction((click) => {
     if (isLocked || isFlying) return;
     const picked = viewer.scene.pickPosition(click.position);
     
     if (Cesium.defined(picked)) {
         if (waypoints.length === 0) {
-            // 1. Uçağı tam tıkladığın yere koy
-            dronePos = picked;
+            // 1. Koordinatları al ve 50 metre irtifa ekle
+            const carto = Cesium.Cartographic.fromCartesian(picked);
+            dronePos = Cesium.Cartesian3.fromDegrees(
+                Cesium.Math.toDegrees(carto.longitude),
+                Cesium.Math.toDegrees(carto.latitude),
+                carto.height + 500 
+            );
             
-            // 2. Kamerayı uçağa KİLİTLE ve uçağa YAKINLAŞ
+            // 2. Kamerayı uçağa kilitle ve odaklan
             viewer.trackedEntity = drone;
             viewer.zoomTo(drone, new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-45), 500));
             
-            // 3. İlk noktayı (Heliport) ekle
-            addWaypoint(picked);
+            // 3. İlk noktayı (Heliport) bu yeni yükseklikle ekle
+            addWaypoint(dronePos);
             
-            console.log("Heliport Belirlendi. Araç Görünür Kılındı.");
+            console.log("Mission Start: Vehicle Deployed 50m above ground.");
         } else {
-            // Normal Waypoint ekleme
-            const dAlt = Cesium.Cartographic.fromCartesian(dronePos).height;
+            // Sonraki tıklamalarda uçağın mevcut irtifasını koru
             const carto = Cesium.Cartographic.fromCartesian(picked);
+            const dAlt = Cesium.Cartographic.fromCartesian(dronePos).height;
             const fixedPos = Cesium.Cartesian3.fromDegrees(
                 Cesium.Math.toDegrees(carto.longitude),
                 Cesium.Math.toDegrees(carto.latitude),
@@ -544,4 +551,5 @@ function updateMissionStats() {
 </script>
 </body>
 </html>
+
 
