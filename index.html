@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V12.02</title>
+    <title>NaviVortex V12.07</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -141,7 +141,7 @@ drone = viewer.entities.add({
     model: { 
         uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumAir/Cesium_Air.glb', 
         minimumPixelSize: 100, 
-        scale: 1.5, 
+        scale: 50.0, 
         heightReference: Cesium.HeightReference.NONE,
         show: true // Her zaman göster
     },
@@ -316,22 +316,31 @@ function addWaypoint(fixedPos) {
     }
 }
 
-const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+
+
+
+
+
+    const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 handler.setInputAction((click) => {
     if (isLocked || isFlying) return;
     const picked = viewer.scene.pickPosition(click.position);
     
     if (Cesium.defined(picked)) {
-        // EĞER BU İLK TIKLAMA İSE: Uçağı buraya getir ve görünür yap
         if (waypoints.length === 0) {
+            // 1. Uçağı tam tıkladığın yere koy
             dronePos = picked;
-            // Kamerayı uçağa kilitle ki uçağı anında görelim
+            
+            // 2. Kamerayı uçağa KİLİTLE ve uçağa YAKINLAŞ
             viewer.trackedEntity = drone;
-            // İlk noktayı heliport olarak ekle
+            viewer.zoomTo(drone, new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-45), 500));
+            
+            // 3. İlk noktayı (Heliport) ekle
             addWaypoint(picked);
-            console.log("Heliport Belirlendi ve Araç Konuşlandırıldı.");
+            
+            console.log("Heliport Belirlendi. Araç Görünür Kılındı.");
         } else {
-            // İkinci ve sonraki tıklamalar normal waypoint ekler
+            // Normal Waypoint ekleme
             const dAlt = Cesium.Cartographic.fromCartesian(dronePos).height;
             const carto = Cesium.Cartographic.fromCartesian(picked);
             const fixedPos = Cesium.Cartesian3.fromDegrees(
@@ -343,6 +352,16 @@ handler.setInputAction((click) => {
         }
     }
 }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+
+    
+
+
+
+
+
+
+    
 
     
 
@@ -525,3 +544,4 @@ function updateMissionStats() {
 </script>
 </body>
 </html>
+
