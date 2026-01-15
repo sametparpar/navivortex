@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V10.57</title>
+    <title>NaviVortex V11.09</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -167,7 +167,7 @@ viewer.geocoder.viewModel.destinationFound = function(destination) {
     return destination;
 };
 
-// HELICOPTER ENTITY
+// HELICOPTER ENTITY (Gelişmiş Görünürlük Ayarı)
 drone = viewer.entities.add({
     name: "Helicopter",
     position: new Cesium.CallbackProperty(() => dronePos, false),
@@ -176,9 +176,17 @@ drone = viewer.entities.add({
     }, false),
     model: { 
         uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumAir/Cesium_Air.glb', 
-        minimumPixelSize: 100, scale: 1.5, heightReference: Cesium.HeightReference.NONE 
-    }
+        minimumPixelSize: 100, 
+        scale: 1.5, 
+        heightReference: Cesium.HeightReference.NONE,
+        show: true // Her zaman göster
+    },
+    // Aracın her mesafeden görünmesini sağlar
+    viewFrom: new Cesium.Cartesian3(-50, 0, 20) 
 });
+
+// Aracı kameranın odağına hemen alalım
+viewer.trackedEntity = drone;
 
 locateUser();
 
@@ -413,6 +421,7 @@ function updateMissionStats() {
 </script>
 </body>
 </html>
+
 
 
 
