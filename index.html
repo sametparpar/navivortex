@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V11.48</title>
+    <title>NaviVortex V11.52</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -445,9 +445,9 @@ async function startFlight() {
 
 
 
-    // Araç Değiştirme
+// Araç Değiştirme ve İlk Yükleme Motoru
 function changeVehicle(type) {
-    let modelUri = '';
+    let modelUri = 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumAir/Cesium_Air.glb';
     let scale = 1.5;
 
     if (type === 'heli') {
@@ -457,15 +457,21 @@ function changeVehicle(type) {
         modelUri = 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumDrone/CesiumDrone.glb';
         scale = 10.0;
     } else if (type === 'airplane') {
-        modelUri = 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumMilkTruck/CesiumMilkTruck.glb';
+        // Kargo uçağı modeli
+        modelUri = 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumMilkTruck/CesiumMilkTruck.glb'; 
         scale = 5.0;
     }
 
     if (drone) {
         drone.model.uri = modelUri;
         drone.model.scale = scale;
+        // Görünürlüğü zorla aktif et
+        drone.show = true;
     }
 }
+
+// SAYFA AÇILDIĞINDA VARSAYILAN ARACI YÜKLE
+changeVehicle('heli');
 
 // Canlı İstatistik Güncelleme
 function updateMissionStats() {
@@ -511,6 +517,7 @@ function updateMissionStats() {
 </script>
 </body>
 </html>
+
 
 
 
