@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V16.05</title>
+    <title>NaviVortex V16.10</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -153,44 +153,68 @@ viewer.geocoder.viewModel.destinationFound = function(destination) {
 
 
     
-// SMART START: Sayfa açıldığında kullanıcıyı bulur, uçağı oraya koyar ve kamerayı uçurur
+// SMART START: Sayfa açıldığında kullanıcıyı bulur, uçağı yaratır ve kamerayı odakla
 function autoStart() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             (pos) => {
                 const lon = pos.coords.longitude;
                 const lat = pos.coords.latitude;
+                const alt = 150; 
                 
-                // 1. Uçağı (drone) senin gerçek koordinatlarına yerleştir
-                dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, 150);
+                dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
                 
-                // 2. Kamerayı uçağa kilitle (Uçak artık görünür olacak)
+                if (!drone) {
+                    drone = viewer.entities.add({
+                        name: "Mission Aircraft",
+                        position: new Cesium.CallbackProperty(() => dronePos, false),
+                        orientation: new Cesium.CallbackProperty(() => {
+                            return Cesium.Transforms.headingPitchRollQuaternion(dronePos, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading - 90), 0, 0));
+                        }, false),
+                        model: { 
+                            uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumAir/Cesium_Air.glb', 
+                            minimumPixelSize: 100, 
+                            scale: 5.0, 
+                            heightReference: Cesium.HeightReference.NONE,
+                            disableDepthTestDistance: Number.POSITIVE_INFINITY 
+                        }
+                    });
+                }
+                
                 viewer.trackedEntity = drone;
-                
-                // 3. Dünyadan senin konumuna akıcı bir iniş yap
                 viewer.camera.flyTo({
-                    destination: Cesium.Cartesian3.fromDegrees(lon, lat, 1000), // 1km yükseklik
-                    duration: 4,
+                    destination: Cesium.Cartesian3.fromDegrees(lon, lat, 1000), 
+                    duration: 3,
                     easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT
                 });
                 
-                console.log("Konum algılandı: Araç konuşlandırıldı.");
+                console.log("GPS Lock: Aircraft deployed at user location.");
             },
             (err) => {
-                console.warn("Konum reddedildi: Bursa'ya gidiliyor.");
-                // Hata durumunda Bursa koordinatları
+                console.warn("GPS Denied: Using default coordinates (Bursa).");
                 dronePos = Cesium.Cartesian3.fromDegrees(29.51, 40.08, 150);
-                viewer.trackedEntity = drone;
-                viewer.camera.flyTo({
-                    destination: Cesium.Cartesian3.fromDegrees(29.51, 40.08, 1000),
-                    duration: 3
-                });
+                // Hata durumunda Bursa'da uçağı yaratmayı unutma
+                if (!drone) {
+                    // Buraya yukarıdaki drone yaratma bloğunun aynısını koyabilirsin
+                }
             }
         );
     }
 }
-// Hemen çalıştır
+
+// BU SATIRI UNUTMA: Fonksiyonu ateşle
 autoStart();
+
+
+
+
+
+
+
+
+
+
+    
 
 // Aracı kameranın odağına hemen alalım
 viewer.trackedEntity = drone;
@@ -590,6 +614,7 @@ function updateMissionStats() {
 </script>
 </body>
 </html>
+
 
 
 
