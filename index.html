@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V17.55 - Professional Edition</title>
+    <title>NaviVortex V10.57</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -135,6 +135,10 @@ function locateUser() {
                     duration: 4,
                     easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT
                 });
+
+                // --- EKLEDİĞİMİZ SATIR: Kamera uçağı bulsun ---
+                setTimeout(() => { viewer.trackedEntity = drone; }, 4500);
+
                 console.log("User located at:", lon, lat);
             },
             (err) => {
@@ -409,6 +413,7 @@ function updateMissionStats() {
 </script>
 </body>
 </html>
+
 
 
 
