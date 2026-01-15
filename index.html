@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V11.52</title>
+    <title>NaviVortex V11.55</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -187,6 +187,7 @@ drone = viewer.entities.add({
 
 
     // SMART START: Sayfa açıldığında kullanıcıyı bulur ve kamerayı oraya uçurur
+// SMART START: Sayfa açıldığında kullanıcıyı bulur, uçağı oraya koyar ve kamerayı uçurur
 function autoStart() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
@@ -194,28 +195,34 @@ function autoStart() {
                 const lon = pos.coords.longitude;
                 const lat = pos.coords.latitude;
                 
-                // Uçağı (drone) henüz tıklama yapmadan önce geçici olarak buraya koyalım
+                // 1. Uçağı (drone) senin gerçek koordinatlarına yerleştir
                 dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, 150);
                 
-                // DÜNYA KÜRESİNDEN SENİN KONUMUNA HIZLI UÇUŞ
+                // 2. Kamerayı uçağa kilitle (Uçak artık görünür olacak)
+                viewer.trackedEntity = drone;
+                
+                // 3. Dünyadan senin konumuna akıcı bir iniş yap
                 viewer.camera.flyTo({
-                    destination: Cesium.Cartesian3.fromDegrees(lon, lat, 2000), // 2km yükseklik
+                    destination: Cesium.Cartesian3.fromDegrees(lon, lat, 1000), // 1km yükseklik
                     duration: 4,
                     easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT
                 });
-                console.log("Konum algılandı, uçuş başlatıldı.");
+                
+                console.log("Konum algılandı: Araç konuşlandırıldı.");
             },
             (err) => {
-                console.warn("Konum algılanamadı, Bursa'ya gidiliyor.");
+                console.warn("Konum reddedildi: Bursa'ya gidiliyor.");
+                // Hata durumunda Bursa koordinatları
+                dronePos = Cesium.Cartesian3.fromDegrees(29.51, 40.08, 150);
+                viewer.trackedEntity = drone;
                 viewer.camera.flyTo({
-                    destination: Cesium.Cartesian3.fromDegrees(29.51, 40.08, 2000),
+                    destination: Cesium.Cartesian3.fromDegrees(29.51, 40.08, 1000),
                     duration: 3
                 });
             }
         );
     }
 }
-
 // Hemen çalıştır
 autoStart();
 
@@ -517,6 +524,7 @@ function updateMissionStats() {
 </script>
 </body>
 </html>
+
 
 
 
