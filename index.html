@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V15.37</title>
+    <title>NaviVortex V15.49</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -194,7 +194,14 @@ document.addEventListener('keydown', (e) => { keysPressed[e.key.toLowerCase()] =
 document.addEventListener('keyup', (e) => { keysPressed[e.key.toLowerCase()] = false; });
 
 viewer.scene.preRender.addEventListener(() => {
+    // 1. Uçak ve konum varsa uçağı her zaman görünür kıl
+    if (drone && dronePos) {
+        drone.show = true;
+    }
+
+    // 2. Hareket kontrolü için kilit kontrolü (Hareket etmiyorsak buradan dön ama uçağı gizleme)
     if (isLocked || isFlying || !dronePos) return;
+
     const moveStep = 0.0001; const altStep = 1.0; const rad = Cesium.Math.toRadians(heading);
     let c = Cesium.Cartographic.fromCartesian(dronePos);
     let lon = Cesium.Math.toDegrees(c.longitude); let lat = Cesium.Math.toDegrees(c.latitude); let alt = c.height;
@@ -206,10 +213,11 @@ viewer.scene.preRender.addEventListener(() => {
 
     dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
     const ground = viewer.scene.sampleHeight(c, [drone]) || 0;
-    document.getElementById('agl-txt').innerText = "AGL: " + Math.round(alt - ground) + " m";
-    document.getElementById('msl-txt').innerText = "MSL: " + Math.round(alt) + " m";
+    
+    // İngilizce Arayüz Güncellemesi
+    document.getElementById('agl-txt').innerText = "AGL (Above Ground): " + Math.round(alt - ground) + " m";
+    document.getElementById('msl-txt').innerText = "MSL (Sea Level): " + Math.round(alt) + " m";
 });
-
 // CORE FUNCTIONS
 function updateManualAlt(val) {
     if(!val || !dronePos) return;
@@ -238,9 +246,39 @@ function resetSystem() {
     // İstatistik panelini de sıfırla
     if(document.getElementById('total-dist')) document.getElementById('total-dist').innerText = "0.00 km";
     if(document.getElementById('total-time')) document.getElementById('total-time').innerText = "00:00";
+
+
+
+
+
+
     
-    // Kamerayı uçağa geri kilitle
+if (!drone) {
+    // 1. Uçağı (drone) ilk tıkladığın noktada yarat
+    dronePos = initialPos;
+    drone = viewer.entities.add({
+        name: "Mission Aircraft",
+        position: new Cesium.CallbackProperty(() => dronePos, false),
+        orientation: new Cesium.CallbackProperty(() => {
+            return Cesium.Transforms.headingPitchRollQuaternion(dronePos, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading - 90), 0, 0));
+        }, false),
+        model: { 
+            uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumAir/Cesium_Air.glb', 
+            minimumPixelSize: 100, 
+            scale: 5.0, 
+            heightReference: Cesium.HeightReference.NONE,
+            disableDepthTestDistance: Number.POSITIVE_INFINITY 
+        }
+    });
+    
+    // 2. Kamerayı uçağa hemen kilitle ve odağı zorla
     viewer.trackedEntity = drone;
+    viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY); 
+    viewer.zoomTo(drone, new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-35), 400));
+    
+    initialHomePos = initialPos;
+    addWaypoint(initialPos);
+    console.log("Mission Intelligence: Aircraft deployed and camera locked.");
 }
 
 
@@ -561,6 +599,7 @@ function updateMissionStats() {
 </script>
 </body>
 </html>
+
 
 
 
