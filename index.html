@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V15.23</title>
+    <title>NaviVortex V15.43</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -184,21 +184,21 @@ function autoStart() {
                 const lat = pos.coords.latitude;
                 dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, 150);
                 
-                if (!drone) createDrone(dronePos);
+                // --- KRİTİK SIRALAMA ---
+                createDrone(dronePos); // 1. Önce uçağı yarat
+                viewer.trackedEntity = drone; // 2. Kamerayı uçağa bağla
                 
-                viewer.trackedEntity = drone;
-                viewer.camera.flyTo({
+                viewer.camera.flyTo({ // 3. Sonra uçuşa geç
                     destination: Cesium.Cartesian3.fromDegrees(lon, lat, 1000),
                     duration: 3
                 });
-                console.log("Konumunuza başarıyla odaklanıldı.");
+                console.log("Navigation: Focused on pilot location.");
             },
             (err) => {
-                console.warn("GPS Hatası: " + err.message);
-                focusDefaultLocation(); // Artık bu fonksiyon tanımlı olduğu için hata vermeyecek
+                console.warn("GPS Warning: " + err.message);
+                focusDefaultLocation(); 
             },
-            { enableHighAccuracy: false, timeout: 10000, maximumAge: Infinity } 
-            // timeout süresini 10 saniyeye çıkardık, HighAccuracy kapalıyken daha hızlı sonuç verir
+            { enableHighAccuracy: false, timeout: 8000 }
         );
     }
 }
@@ -665,6 +665,7 @@ function updateMissionStats() {
 </script>
 </body>
 </html>
+
 
 
 
