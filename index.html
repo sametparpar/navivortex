@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V15.18</title>
+    <title>NaviVortex V15.23</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -99,7 +99,7 @@
 
 <script>
 
-createDrone(dronePos);
+
 
     
 // 1. Firebase Configuration
@@ -151,7 +151,26 @@ viewer.geocoder.viewModel.destinationFound = function(destination) {
 
 
 
-
+function createDrone(pos) {
+    if (drone) viewer.entities.remove(drone); // Varsa eskiyi temizle
+    
+    drone = viewer.entities.add({
+        name: "Mission Aircraft",
+        position: new Cesium.CallbackProperty(() => dronePos, false),
+        orientation: new Cesium.CallbackProperty(() => {
+            return Cesium.Transforms.headingPitchRollQuaternion(dronePos, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading - 90), 0, 0));
+        }, false),
+        model: { 
+            uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumAir/Cesium_Air.glb', 
+            minimumPixelSize: 120, 
+            scale: 8.0,
+            heightReference: Cesium.HeightReference.NONE,
+            disableDepthTestDistance: Number.POSITIVE_INFINITY 
+        }
+    });
+    drone.show = true;
+    console.log("Aircraft Engine: Online");
+}
     
 
 
@@ -218,23 +237,7 @@ function focusDefaultLocation() {
 
 
     
-function createDrone(pos) {
-    drone = viewer.entities.add({
-        name: "Mission Aircraft",
-        // CallbackProperty yerine direkt dronePos referansı verelim
-        position: new Cesium.CallbackProperty(() => dronePos, false),
-        orientation: new Cesium.CallbackProperty(() => {
-            return Cesium.Transforms.headingPitchRollQuaternion(dronePos, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading - 90), 0, 0));
-        }, false),
-        model: { 
-            uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumAir/Cesium_Air.glb', 
-            minimumPixelSize: 100, 
-            scale: 5.0,
-            disableDepthTestDistance: Number.POSITIVE_INFINITY 
-        }
-    });
-    drone.show = true; // Kesin görünürlük
-}
+
     
 
 
@@ -662,6 +665,7 @@ function updateMissionStats() {
 </script>
 </body>
 </html>
+
 
 
 
