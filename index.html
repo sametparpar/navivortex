@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V14.50</title>
+    <title>NaviVortex V14.59</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -116,7 +116,7 @@ Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOi
 
 // GLOBAL VARIABLES
 let drone, waypoints = [], isLocked = false, isFlying = false, heading = 0;
-let dronePos; // Başlangıçta boş bırakıyoruz, ilk tıkla dolacak
+let dronePos = Cesium.Cartesian3.fromDegrees(29.51, 40.08, 150); // İlk değer mutlaka olsun
 let initialHomePos;
 
 const viewer = new Cesium.Viewer('cesiumContainer', {
@@ -208,10 +208,16 @@ function focusDefaultLocation() {
     console.log("GPS Timeout: Default location (Bursa) set.");
 }
 
-// Drone yaratma işlemini merkezileştirdik
+
+
+
+
+
+    
 function createDrone(pos) {
     drone = viewer.entities.add({
         name: "Mission Aircraft",
+        // CallbackProperty yerine direkt dronePos referansı verelim
         position: new Cesium.CallbackProperty(() => dronePos, false),
         orientation: new Cesium.CallbackProperty(() => {
             return Cesium.Transforms.headingPitchRollQuaternion(dronePos, new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(heading - 90), 0, 0));
@@ -223,6 +229,7 @@ function createDrone(pos) {
             disableDepthTestDistance: Number.POSITIVE_INFINITY 
         }
     });
+    drone.show = true; // Kesin görünürlük
 }
     
 
@@ -267,6 +274,22 @@ viewer.scene.preRender.addEventListener(() => {
     document.getElementById('agl-txt').innerText = "AGL (Above Ground): " + Math.round(alt - ground) + " m";
     document.getElementById('msl-txt').innerText = "MSL (Sea Level): " + Math.round(alt) + " m";
 });
+
+
+
+// Bu satır Cesium'u her an çizim yapmaya zorlar
+viewer.clock.onTick.addEventListener(() => {
+    if (drone) {
+        // Uçak varsa varlığını her an teyit et
+        drone.isShowing = true;
+    }
+});
+
+
+
+
+
+    
 // CORE FUNCTIONS
 function updateManualAlt(val) {
     if(!val || !dronePos) return;
@@ -287,16 +310,21 @@ function resetSystem() {
         if (wp.anchor) viewer.entities.remove(wp.anchor); 
         viewer.entities.remove(wp.line); 
     });
+
     
-    // Aracı sahadan kaldır (Yeni tıkla oluşması için)
-    if (drone) {
-        viewer.entities.remove(drone);
-        drone = undefined;
-    }
 
     waypoints = []; 
     isLocked = false; 
     isFlying = false;
+
+
+    if (drone) {
+            // İsteğe bağlı: Uçağı ilk evine (Heliport) geri ışınla
+            // dronePos = initialHomePos; 
+            console.log("Mission Reset: Aircraft ready for new task.");
+        }
+
+    
     document.getElementById('start-btn').style.display = "none";
     document.getElementById('lock-btn').innerText = "🔒 LOCK MISSION";
     
@@ -630,5 +658,6 @@ function updateMissionStats() {
 </script>
 </body>
 </html>
+
 
 
