@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V17.27</title>
+    <title>NaviVortex V17.38</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -619,34 +619,37 @@ function changeVehicle(type) {
 
 
 window.onload = () => {
-    // 1. Önce modeli ayarla
+    // 1. Önce uçağı sisteme tanıt
     changeVehicle('heli'); 
     
-    // 2. 1 saniye bekle (Haritanın yüklenmesi için)
+    // 2. Harita motorunun oturması için kısa bir süre tanı
     setTimeout(() => {
-        // 3. Konumu bul ve uçağı oluştur
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition((pos) => {
-                dronePos = Cesium.Cartesian3.fromDegrees(pos.coords.longitude, pos.coords.latitude, 150);
+                const lon = pos.coords.longitude;
+                const lat = pos.coords.latitude;
                 
-                // --- KRİTİK ADIM: UÇAĞI BURADA YARATIYORUZ ---
-                createDrone(dronePos); 
+                // Koordinatı belirle
+                dronePos = Cesium.Cartesian3.fromDegrees(lon, lat, 150);
                 
-                viewer.trackedEntity = drone;
+                // --- KRİTİK SIRALAMA ---
+                createDrone(dronePos);     // 1. Uçağı yarat
+                viewer.trackedEntity = drone; // 2. Kamerayı ona bağla
+                
                 viewer.camera.flyTo({
-                    destination: Cesium.Cartesian3.fromDegrees(pos.coords.longitude, pos.coords.latitude, 1000),
+                    destination: Cesium.Cartesian3.fromDegrees(lon, lat, 1000),
                     duration: 3
                 });
+                console.log("System: Pilot located. Aircraft online.");
             }, (err) => {
-                // Konum izni verilmezse Bursa'ya odaklan
+                console.warn("System: GPS Timed out or denied. Moving to Bursa HQ.");
                 focusDefaultLocation();
             });
         } else {
             focusDefaultLocation();
         }
-    }, 1000);
+    }, 1500); // 1.5 saniye bekleme harita yüklenmesi için idealdir
 };
-
 
 
 
@@ -707,5 +710,6 @@ function updateMissionStats() {
 </script>
 </body>
 </html>
+
 
 
