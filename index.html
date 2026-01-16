@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V15.45</title>
+    <title>NaviVortex V15.59</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -129,6 +129,11 @@ const viewer = new Cesium.Viewer('cesiumContainer', {
     timeline: false, 
     baseLayerPicker: false
 });
+
+    viewer.clock.shouldAnimate = true; 
+viewer.scene.requestRenderMode = false;
+
+    
 
 // Derinlik testini kapatıyoruz ki araç binaların içinde kaybolmasın
 viewer.scene.globe.depthTestAgainstTerrain = false;
@@ -665,6 +670,7 @@ function updateMissionStats() {
 </script>
 </body>
 </html>
+
 
 
 
