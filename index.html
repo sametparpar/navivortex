@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V17.26</title>
+    <title>NaviVortex V17.27</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -613,17 +613,52 @@ function changeVehicle(type) {
     }
 }
 
-// SİSTEMİ DOĞRU SIRAYLA BAŞLAT
+
+
+
+
+
 window.onload = () => {
-    // 1. Önce modeli hazırla
-    changeVehicle('heli');
+    // 1. Önce modeli ayarla
+    changeVehicle('heli'); 
     
-    // 2. 1 saniye sonra konumu bul ve kamerayı odakla
+    // 2. 1 saniye bekle (Haritanın yüklenmesi için)
     setTimeout(() => {
-        autoStart();
+        // 3. Konumu bul ve uçağı oluştur
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition((pos) => {
+                dronePos = Cesium.Cartesian3.fromDegrees(pos.coords.longitude, pos.coords.latitude, 150);
+                
+                // --- KRİTİK ADIM: UÇAĞI BURADA YARATIYORUZ ---
+                createDrone(dronePos); 
+                
+                viewer.trackedEntity = drone;
+                viewer.camera.flyTo({
+                    destination: Cesium.Cartesian3.fromDegrees(pos.coords.longitude, pos.coords.latitude, 1000),
+                    duration: 3
+                });
+            }, (err) => {
+                // Konum izni verilmezse Bursa'ya odaklan
+                focusDefaultLocation();
+            });
+        } else {
+            focusDefaultLocation();
+        }
     }, 1000);
 };
 
+
+
+
+
+
+
+
+
+
+
+
+    
 
 
     
@@ -672,4 +707,5 @@ function updateMissionStats() {
 </script>
 </body>
 </html>
+
 
