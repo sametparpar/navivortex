@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex V60 | Universal Mission Planner</title>
+    <title>NaviVortex 16.17</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -61,6 +61,10 @@
     <button class="btn-export" onclick="exportMission('LITCHI')">EXPORT LITCHI (.CSV)</button>
     <button class="btn-export" onclick="exportMission('DJI')">EXPORT DJI PILOT (.KMZ)</button>
     <button class="btn-export" onclick="exportMission('ARDU')">EXPORT ARDUPILOT (.WAYPOINT)</button>
+    
+    <hr style="border:0; border-top:1px solid #334155; margin: 15px 0;">
+    <label>Mission Tools</label>
+    <button class="btn-export" style="background: #10b981;" onclick="generateSearchGrid()">GENERATE SEARCH GRID</button>
     
     <div id="energy-alert" class="energy-warn">⚠️ INSUFFICIENT ENERGY!</div>
 </div>
@@ -187,4 +191,5 @@ function exportMission(type) {
 </script>
 </body>
 </html>
+
 
