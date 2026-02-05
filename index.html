@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex 16.17</title>
+    <title>NaviVortex 16.24</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -194,8 +194,36 @@ function calculateLogistics() {
 
     
 function exportMission(type) {
-alert(type + " Export feature coming soon! This will download the converted file.");
+    if (waypoints.length === 0) {
+        alert("No mission data to export! Please add waypoints first.");
+        return;
+    }
+
+    let csvContent = "latitude,longitude,altitude(m),heading(deg),curvesize(m),rotationdir,poi_latitude,poi_longitude,poi_altitude(m),poi_headingmode\n";
+    
+    waypoints.forEach(wp => {
+        // Litchi CSV Format: lat, lon, alt, heading, curvesize, rotation, poi_lat, poi_lon, poi_alt, poi_mode
+        csvContent += `${wp.lat},${wp.lon},${wp.alt},0,0,0,0,0,0,0\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    
+    link.setAttribute("href", url);
+    link.setAttribute("download", `NaviVortex_Mission_${type}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    console.log("Mission exported as " + type);
 }
+
+
+
+    
 
 // --- NEW LOGIC START ---
 function generateSearchGrid() {
@@ -230,6 +258,7 @@ function generateSearchGrid() {
 </script>
 </body>
 </html>
+
 
 
 
