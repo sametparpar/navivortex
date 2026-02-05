@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex 16.24</title>
+    <title>NaviVortex 16.55</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -50,12 +50,18 @@
         <input type="number" id="uav-bat" value="5000" onchange="calculateLogistics()">
     </div>
 
-    <div class="input-group">
+<div class="input-group">
         <label>Cruise Speed (m/s)</label>
         <input type="number" id="uav-speed" value="15" onchange="calculateLogistics()">
     </div>
 
+    <div class="input-group">
+        <label>Wind Speed (m/s) - Headwind</label>
+        <input type="number" id="uav-wind" value="0" onchange="calculateLogistics()">
+    </div>
+
     <hr style="border:0; border-top:1px solid #334155;">
+    
     
     <label>Universal Export</label>
     <button class="btn-export" onclick="exportMission('LITCHI')">EXPORT LITCHI (.CSV)</button>
@@ -116,32 +122,48 @@ function addWaypoint(pos) {
     calculateLogistics();
 }
 
-function renderVisuals() {
-    // Mevcut rotayı temizle
+function renderVisuals(failIndex) {
     if (routeLine) viewer.entities.remove(routeLine);
+    if (window.failLine) viewer.entities.remove(window.failLine);
+
+    const positions = waypoints.map(w => w.cartesian);
     
-    // Noktaları Çiz
-    const positions = waypoints.map(w => Cesium.Cartesian3.fromDegrees(w.lon, w.lat, w.alt));
-    
-    // Çizgiyi Oluştur
     if (positions.length > 1) {
+        // Güvenli Rota (Mavi)
+        const safePath = failIndex === -1 ? positions : positions.slice(0, failIndex + 1);
         routeLine = viewer.entities.add({
             polyline: {
-                positions: positions,
-                width: 3,
+                positions: safePath,
+                width: 4,
                 material: Cesium.Color.fromCssColorString('#38bdf8'),
                 disableDepthTestDistance: Number.POSITIVE_INFINITY
             }
         });
-    }
 
-    // Pin Ekle
-    const lastWp = waypoints[waypoints.length - 1];
-    viewer.entities.add({
-        position: Cesium.Cartesian3.fromDegrees(lastWp.lon, lastWp.lat, lastWp.alt),
-        point: { pixelSize: 8, color: Cesium.Color.fromCssColorString('#10b981') }
-    });
+        // Tehlikeli Rota (Kırmızı)
+        if (failIndex !== -1) {
+            const dangerPath = positions.slice(failIndex);
+            window.failLine = viewer.entities.add({
+                polyline: {
+                    positions: dangerPath,
+                    width: 4,
+                    material: Cesium.Color.RED,
+                    dashLength: 16,
+                    disableDepthTestDistance: Number.POSITIVE_INFINITY
+                }
+            });
+        }
+    }
 }
+
+
+
+
+
+
+
+
+    
 
 function updateUI() {
     const list = document.getElementById('wp-list');
@@ -169,19 +191,44 @@ function updateUI() {
 }
 
 function calculateLogistics() {
-    // BASİT ENERJİ ANALİZİ (Örnek Algoritma)
+    if (waypoints.length < 2) return;
+
     const weight = parseFloat(document.getElementById('uav-weight').value);
     const capacity = parseFloat(document.getElementById('uav-bat').value);
-    const distMeters = (parseFloat(document.getElementById('total-stats').innerText.split(' ')[1]) * 1000) || 0;
+    const speed = parseFloat(document.getElementById('uav-speed').value);
+    const wind = parseFloat(document.getElementById('uav-wind').value);
     
-    // Tüketim tahmini (Uydurma fizik katsayısı: ağırlık * mesafe / 100)
-    const estConsumption = (weight * distMeters) / 10; 
-    
+    let currentEnergy = capacity;
+    let failPointIndex = -1;
+    let totalDist = 0;
+
+    // Basit Fizik Formülü: Tüketim = (Ağırlık * Mesafe) + (Zaman * (Hız + Rüzgar Direnci))
+    for (let i = 1; i < waypoints.length; i++) {
+        const p1 = waypoints[i-1].cartesian;
+        const p2 = waypoints[i].cartesian;
+        const dist = Cesium.Cartesian3.distance(p1, p2);
+        
+        // Rüzgara karşı uçuşta efektif hız düşer, tüketim artar
+        const effectiveSpeed = speed - wind;
+        const timeNeeded = dist / (effectiveSpeed > 0 ? effectiveSpeed : 0.1);
+        
+        // Sektör bazlı tüketim (mAh cinsinden basitleştirilmiş hesap)
+        const consumption = (weight * dist * 0.1) + (timeNeeded * 5);
+        currentEnergy -= consumption;
+
+        if (currentEnergy <= 0 && failPointIndex === -1) {
+            failPointIndex = i; // Enerjinin bittiği nokta
+        }
+    }
+
     const alertBox = document.getElementById('energy-alert');
-    if (estConsumption > capacity) {
+    if (failPointIndex !== -1) {
         alertBox.style.display = "block";
+        alertBox.innerText = "⚠️ BATTERY WILL FAIL AT WAYPOINT #" + (failPointIndex + 1);
+        renderVisuals(failPointIndex);
     } else {
         alertBox.style.display = "none";
+        renderVisuals(-1);
     }
 }
 
@@ -258,6 +305,7 @@ function generateSearchGrid() {
 </script>
 </body>
 </html>
+
 
 
 
