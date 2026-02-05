@@ -185,11 +185,51 @@ function calculateLogistics() {
     }
 }
 
+
+
+
+
+
+
+
+    
 function exportMission(type) {
-    alert(type + " Export feature coming soon! This will download the converted file.");
+alert(type + " Export feature coming soon! This will download the converted file.");
 }
+
+// --- NEW LOGIC START ---
+function generateSearchGrid() {
+    if (waypoints.length === 0) {
+        alert("Please click on the map first to set a starting point for the search!");
+        return;
+    }
+
+    const startWp = waypoints[0];
+    const spacing = 0.0015; // Distance between grid lines (approx 150m)
+    
+    // Generate a 4-point snake (S) pattern automatically
+    const gridPoints = [
+        { lat: startWp.lat, lon: startWp.lon + spacing, alt: startWp.alt },
+        { lat: startWp.lat + spacing, lon: startWp.lon + spacing, alt: startWp.alt },
+        { lat: startWp.lat + spacing, lon: startWp.lon, alt: startWp.alt },
+        { lat: startWp.lat + (spacing * 2), lon: startWp.lon, alt: startWp.alt }
+    ];
+
+    gridPoints.forEach(p => {
+        // Convert lat/lon back to Cesium Cartesian for rendering
+        p.cartesian = Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt);
+        waypoints.push(p);
+    });
+
+    renderVisuals();
+    updateUI();
+    calculateLogistics();
+    console.log("Search Grid Generated successfully.");
+}
+// --- NEW LOGIC END ---
 </script>
 </body>
 </html>
+
 
 
