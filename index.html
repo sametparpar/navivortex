@@ -2,20 +2,18 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex 08.19</title>
+    <title>NaviVortex 08.21</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
         body, html, #cesiumContainer { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #020617; }
         
-        /* SOL PANEL: PARAMETRELER */
         #params-panel {
             position: absolute; top: 20px; left: 20px; width: 280px;
             background: rgba(15, 23, 42, 0.95); padding: 20px; border-radius: 12px;
             border: 1px solid #38bdf8; color: white; font-family: sans-serif; z-index: 100;
         }
 
-        /* SAĞ PANEL: KOORDİNAT TABLOSU */
         #data-table {
             position: absolute; top: 20px; right: 20px; width: 320px;
             background: rgba(15, 23, 42, 0.95); padding: 15px; border-radius: 12px;
@@ -23,22 +21,23 @@
             max-height: 80vh; overflow-y: auto;
         }
 
-        .input-group { margin-bottom: 15px; }
-        label { display: block; font-size: 11px; color: #94a3b8; margin-bottom: 5px; text-transform: uppercase; }
-        input, select { width: 100%; padding: 8px; background: #1e293b; border: 1px solid #334155; color: #38bdf8; border-radius: 4px; }
+        .input-group { margin-bottom: 12px; }
+        label { display: block; font-size: 10px; color: #94a3b8; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; }
+        input, select { width: 100%; padding: 8px; background: #1e293b; border: 1px solid #334155; color: #38bdf8; border-radius: 4px; box-sizing: border-box; }
         
         .btn-export { background: #0ea5e9; color: white; border: none; padding: 10px; width: 100%; 
-                      border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+                      border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 8px; font-size: 11px; }
         .btn-export:hover { background: #0284c7; }
         
-        .waypoint-item { border-bottom: 1px solid #334155; padding: 8px 0; font-size: 12px; }
-        .energy-warn { color: #ef4444; font-weight: bold; font-size: 12px; margin-top: 10px; display:none; }
+        .waypoint-item { border-bottom: 1px solid #334155; padding: 8px 0; font-size: 11px; }
+        .energy-warn { color: #ef4444; background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 6px; 
+                       border: 1px solid #ef4444; font-weight: bold; font-size: 11px; margin-top: 15px; display:none; }
     </style>
 </head>
 <body>
 
 <div id="params-panel">
-    <h2 style="color:#38bdf8; margin-top:0;">NAVIVORTEX V60</h2>
+    <h2 style="color:#38bdf8; margin:0 0 15px 0; font-size: 18px;">NAVIVORTEX V60</h2>
     
     <div class="input-group">
         <label>Vehicle Category</label>
@@ -60,23 +59,6 @@
     </div>
 
     <div class="input-group">
-        <label>Target Cruise Speed (m/s)</label>
-        <input type="number" id="uav-speed" value="15" onchange="calculateLogistics()">
-    </div>
-    
-    </div>
-    
-    <div class="input-group">
-        <label>Drone Weight (kg)</label>
-        <input type="number" id="uav-weight" value="1.5" step="0.1" onchange="calculateLogistics()">
-    </div>
-    
-    <div class="input-group">
-        <label>Battery Capacity (mAh)</label>
-        <input type="number" id="uav-bat" value="5000" onchange="calculateLogistics()">
-    </div>
-
-<div class="input-group">
         <label>Cruise Speed (m/s)</label>
         <input type="number" id="uav-speed" value="15" onchange="calculateLogistics()">
     </div>
@@ -86,13 +68,12 @@
         <input type="number" id="uav-wind" value="0" onchange="calculateLogistics()">
     </div>
 
-    <hr style="border:0; border-top:1px solid #334155;">
+    <hr style="border:0; border-top:1px solid #334155; margin: 15px 0;">
     
-    
-    <label>Universal Export</label>
-    <button class="btn-export" onclick="exportMission('LITCHI')">EXPORT LITCHI (.CSV)</button>
-    <button class="btn-export" onclick="exportMission('DJI')">EXPORT DJI PILOT (.KMZ)</button>
-    <button class="btn-export" onclick="exportMission('ARDU')">EXPORT ARDUPILOT (.WAYPOINT)</button>
+    <label>Mission Export</label>
+    <button class="btn-export" onclick="exportMission('LITCHI')">LITCHI CSV</button>
+    <button class="btn-export" onclick="exportMission('DJI')">DJI PILOT KMZ</button>
+    <button class="btn-export" onclick="exportMission('ARDU')">ARDUPILOT WP</button>
     
     <hr style="border:0; border-top:1px solid #334155; margin: 15px 0;">
     <label>Mission Tools</label>
@@ -102,11 +83,11 @@
 </div>
 
 <div id="data-table">
-    <div style="font-weight:bold; border-bottom:1px solid #10b981; padding-bottom:5px; margin-bottom:10px;">MISSION LOGBOOK</div>
+    <div style="font-weight:bold; border-bottom:1px solid #10b981; padding-bottom:5px; margin-bottom:10px; color:#10b981;">MISSION LOGBOOK</div>
     <div id="wp-list">
         <div style="color:#94a3b8; font-style:italic;">Click map to add waypoints...</div>
     </div>
-    <div id="total-stats" style="margin-top:15px; padding-top:10px; border-top:1px dashed #334155;">
+    <div id="total-stats" style="margin-top:15px; padding-top:10px; border-top:1px dashed #334155; font-size: 12px; color:#38bdf8;">
         Dist: 0.00 km | Time: 0.0 min
     </div>
 </div>
@@ -114,7 +95,7 @@
 <div id="cesiumContainer"></div>
 
 <script>
-Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzMzEyYzc1OS03OTY0LTQ5MGYtODcwMi0zMGNiYmZjNGIxMTkiLCJpZCI6Mzc2MTk2LCJpYXQiOjE3Njc4NjA4NjJ9.aZRZorILCG4gIlzwCnm1L2SCp58z-TCg6yNaDbPLxnU'; // Buraya kendi token'ını koy
+Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzMzEyYzc1OS03OTY0LTQ5MGYtODcwMi0zMGNiYmZjNGIxMTkiLCJpZCI6Mzc2MTk2LCJpYXQiOjE3Njc4NjA4NjJ9.aZRZorILCG4gIlzwCnm1L2SCp58z-TCg6yNaDbPLxnU';
 
 const viewer = new Cesium.Viewer('cesiumContainer', {
     terrain: Cesium.Terrain.fromWorldTerrain(),
@@ -123,8 +104,9 @@ const viewer = new Cesium.Viewer('cesiumContainer', {
 
 let waypoints = [];
 let routeLine = null;
+let failLine = null;
+let pinEntities = [];
 
-// TIKLAMA İLE NOKTA EKLEME
 const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 handler.setInputAction((click) => {
     const picked = viewer.scene.pickPosition(click.position);
@@ -138,24 +120,23 @@ function addWaypoint(pos) {
     const wp = {
         lat: Cesium.Math.toDegrees(carto.latitude),
         lon: Cesium.Math.toDegrees(carto.longitude),
-        alt: Math.round(carto.height + 50), // Varsayılan 50m AGL
+        alt: Math.round(carto.height + 50),
         cartesian: pos
     };
-    
     waypoints.push(wp);
-    renderVisuals();
-    updateUI();
     calculateLogistics();
+    updateUI();
 }
 
 function renderVisuals(failIndex) {
     if (routeLine) viewer.entities.remove(routeLine);
-    if (window.failLine) viewer.entities.remove(window.failLine);
+    if (failLine) viewer.entities.remove(failLine);
+    pinEntities.forEach(e => viewer.entities.remove(e));
+    pinEntities = [];
 
     const positions = waypoints.map(w => w.cartesian);
     
     if (positions.length > 1) {
-        // Güvenli Rota (Mavi)
         const safePath = failIndex === -1 ? positions : positions.slice(0, failIndex + 1);
         routeLine = viewer.entities.add({
             polyline: {
@@ -166,30 +147,36 @@ function renderVisuals(failIndex) {
             }
         });
 
-        // Tehlikeli Rota (Kırmızı)
         if (failIndex !== -1) {
             const dangerPath = positions.slice(failIndex);
-            window.failLine = viewer.entities.add({
+            failLine = viewer.entities.add({
                 polyline: {
                     positions: dangerPath,
                     width: 4,
-                    material: Cesium.Color.RED,
-                    dashLength: 16,
+                    material: new Cesium.PolylineDashMaterialProperty({
+                        color: Cesium.Color.RED,
+                        dashLength: 16
+                    }),
                     disableDepthTestDistance: Number.POSITIVE_INFINITY
                 }
             });
         }
     }
+
+    waypoints.forEach((wp, index) => {
+        const isSafe = (failIndex === -1 || index <= failIndex);
+        const pin = viewer.entities.add({
+            position: wp.cartesian,
+            point: { 
+                pixelSize: 8, 
+                color: isSafe ? Cesium.Color.fromCssColorString('#10b981') : Cesium.Color.RED,
+                outlineColor: Cesium.Color.WHITE,
+                outlineWidth: 1
+            }
+        });
+        pinEntities.push(pin);
+    });
 }
-
-
-
-
-
-
-
-
-    
 
 function updateUI() {
     const list = document.getElementById('wp-list');
@@ -198,11 +185,8 @@ function updateUI() {
 
     waypoints.forEach((wp, i) => {
         if (i > 0) {
-            const p1 = Cesium.Cartesian3.fromDegrees(waypoints[i-1].lon, waypoints[i-1].lat, waypoints[i-1].alt);
-            const p2 = Cesium.Cartesian3.fromDegrees(wp.lon, wp.lat, wp.alt);
-            totalDist += Cesium.Cartesian3.distance(p1, p2);
+            totalDist += Cesium.Cartesian3.distance(waypoints[i-1].cartesian, wp.cartesian);
         }
-
         list.innerHTML += `
             <div class="waypoint-item">
                 <b>#${i+1}</b> - LAT: ${wp.lat.toFixed(5)}<br>
@@ -212,31 +196,13 @@ function updateUI() {
     });
 
     const speed = parseFloat(document.getElementById('uav-speed').value);
-    const time = (totalDist / speed) / 60;
+    const time = (totalDist / (speed || 1)) / 60;
     document.getElementById('total-stats').innerText = `Dist: ${(totalDist/1000).toFixed(2)} km | Time: ${time.toFixed(1)} min`;
 }
 
-
-
-function updateEnergyLabel() {
-    const category = document.getElementById('vehicle-category').selectedOptions[0].text;
-    const label = document.getElementById('energy-label');
-    
-    if (category.includes("Drone")) {
-        label.innerText = "Battery Capacity (mAh)";
-    } else if (category.includes("Fixed Wing")) {
-        label.innerText = "Fuel Capacity (Liters)";
-    } else {
-        label.innerText = "Fuel Capacity (Liters/kg)";
-    }
-}
-
-
-    
 function calculateLogistics() {
-    if (waypoints.length < 2) return;
+    if (waypoints.length < 1) return;
 
-    // Elementleri al
     const weight = parseFloat(document.getElementById('uav-weight').value);
     const capacity = parseFloat(document.getElementById('uav-bat').value);
     const speed = parseFloat(document.getElementById('uav-speed').value);
@@ -246,40 +212,29 @@ function calculateLogistics() {
     const energyLabel = document.getElementById('energy-label');
     const alertBox = document.getElementById('energy-alert');
 
-    // UI Güncelleme: Seçilen araca göre etiketi değiştir (Sanal Havacılık Standardı)
     const categoryName = vehicleCat.selectedOptions[0].text;
-    if (categoryName.includes("Drone")) {
-        energyLabel.innerText = "Battery Capacity (mAh)";
-    } else {
-        energyLabel.innerText = "Fuel Capacity (Liters)";
-    }
+    energyLabel.innerText = categoryName.includes("Drone") ? "Battery Capacity (mAh)" : "Fuel Capacity (Liters)";
     
     let currentEnergy = capacity;
     let failPointIndex = -1;
     let accumulatedDist = 0;
 
     for (let i = 1; i < waypoints.length; i++) {
-        const p1 = waypoints[i-1].cartesian;
-        const p2 = waypoints[i].cartesian;
-        const dist = Cesium.Cartesian3.distance(p1, p2);
+        const dist = Cesium.Cartesian3.distance(waypoints[i-1].cartesian, waypoints[i].cartesian);
         accumulatedDist += dist;
         
         const effectiveSpeed = speed - wind;
         const timeNeeded = dist / (effectiveSpeed > 0 ? effectiveSpeed : 0.1);
         
         let consumption;
-        // Dinamik Fizik Motoru
         if (vehicleCoefficient < 0.5) { 
-            // FIXED WING/AIRPLANE: Yakıt tükendikçe araç hafifler (Yakıt yanma fiziği)
             const fuelBurnEffect = weight * (1 - (accumulatedDist / 150000)); 
             consumption = (fuelBurnEffect * dist * vehicleCoefficient) + (timeNeeded * 2);
         } else {
-            // ELECTRIC DRONE/HELICOPTER: Sabit ağırlık, yüksek hover/rotor direnci
             consumption = (weight * dist * vehicleCoefficient) + (timeNeeded * 5);
         }
 
         currentEnergy -= consumption;
-
         if (currentEnergy <= 0 && failPointIndex === -1) {
             failPointIndex = i;
         }
@@ -289,89 +244,49 @@ function calculateLogistics() {
         alertBox.style.display = "block";
         const msg = categoryName.includes("Drone") ? "BATTERY WILL FAIL" : "FUEL EXHAUSTION";
         alertBox.innerText = `⚠️ ${msg} AT WAYPOINT #${failPointIndex + 1}`;
-        renderVisuals(failPointIndex);
     } else {
         alertBox.style.display = "none";
-        renderVisuals(-1);
     }
+    renderVisuals(failPointIndex);
 }
 
-
-
-
-
-
-
-
-    
 function exportMission(type) {
     if (waypoints.length === 0) {
-        alert("No mission data to export! Please add waypoints first.");
+        alert("No mission data to export!");
         return;
     }
-
     let csvContent = "latitude,longitude,altitude(m),heading(deg),curvesize(m),rotationdir,poi_latitude,poi_longitude,poi_altitude(m),poi_headingmode\n";
-    
     waypoints.forEach(wp => {
-        // Litchi CSV Format: lat, lon, alt, heading, curvesize, rotation, poi_lat, poi_lon, poi_alt, poi_mode
         csvContent += `${wp.lat},${wp.lon},${wp.alt},0,0,0,0,0,0,0\n`;
     });
-
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    
     link.setAttribute("href", url);
     link.setAttribute("download", `NaviVortex_Mission_${type}.csv`);
-    link.style.visibility = 'hidden';
-    
-    document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
-    
-    console.log("Mission exported as " + type);
 }
 
-
-
-    
-
-// --- NEW LOGIC START ---
 function generateSearchGrid() {
     if (waypoints.length === 0) {
-        alert("Please click on the map first to set a starting point for the search!");
+        alert("Click map first to set start point!");
         return;
     }
-
-    const startWp = waypoints[0];
-    const spacing = 0.0015; // Distance between grid lines (approx 150m)
-    
-    // Generate a 4-point snake (S) pattern automatically
+    const startWp = waypoints[waypoints.length - 1];
+    const spacing = 0.0015;
     const gridPoints = [
         { lat: startWp.lat, lon: startWp.lon + spacing, alt: startWp.alt },
         { lat: startWp.lat + spacing, lon: startWp.lon + spacing, alt: startWp.alt },
         { lat: startWp.lat + spacing, lon: startWp.lon, alt: startWp.alt },
         { lat: startWp.lat + (spacing * 2), lon: startWp.lon, alt: startWp.alt }
     ];
-
     gridPoints.forEach(p => {
-        // Convert lat/lon back to Cesium Cartesian for rendering
         p.cartesian = Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt);
         waypoints.push(p);
     });
-
-    renderVisuals();
-    updateUI();
     calculateLogistics();
-    console.log("Search Grid Generated successfully.");
+    updateUI();
 }
-// --- NEW LOGIC END ---
 </script>
 </body>
 </html>
-
-
-
-
-
-
