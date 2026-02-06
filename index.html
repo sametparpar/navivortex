@@ -2,431 +2,55 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex 08.36</title>
+    <title>NaviVortex V60 | Universal Flight Planner</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
-    <style>
-        body, html, #cesiumContainer { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #020617; }
-        
-        #params-panel {
-            position: absolute; top: 20px; left: 20px; width: 280px;
-            background: rgba(15, 23, 42, 0.95); padding: 20px; border-radius: 12px;
-            border: 1px solid #38bdf8; color: white; font-family: sans-serif; z-index: 100;
-        }
-
-        #data-table {
-            position: absolute; top: 20px; right: 20px; width: 320px;
-            background: rgba(15, 23, 42, 0.95); padding: 15px; border-radius: 12px;
-            border: 1px solid #10b981; color: white; font-family: monospace; z-index: 100;
-            max-height: 80vh; overflow-y: auto;
-        }
-
-        .input-group { margin-bottom: 12px; }
-        label { display: block; font-size: 10px; color: #94a3b8; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; }
-        input, select { width: 100%; padding: 8px; background: #1e293b; border: 1px solid #334155; color: #38bdf8; border-radius: 4px; box-sizing: border-box; }
-        
-        .btn-export { background: #0ea5e9; color: white; border: none; padding: 10px; width: 100%; 
-                      border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 8px; font-size: 11px; }
-        .btn-export:hover { background: #0284c7; }
-        
-        .waypoint-item { border-bottom: 1px solid #334155; padding: 8px 0; font-size: 11px; }
-        .energy-warn { color: #ef4444; background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 6px; 
-                       border: 1px solid #ef4444; font-weight: bold; font-size: 11px; margin-top: 15px; display:none; }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-
-
-
-
-    
-<div id="params-panel">
-    <h2 style="color:#38bdf8; margin:0 0 15px 0; font-size: 18px;">NAVIVORTEX V60</h2>
-    
-    <div class="input-group">
-        <label>Select Mission Vehicle</label>
-        <select id="vehicle-category" onchange="toggleVehicleMenus()">
-            <option value="electric_drone">Electric Drone (Battery)</option>
-            <option value="light_aircraft">Light Aircraft (Fuel/Gas)</option>
-            <option value="helicopter">Helicopter (Fuel/Gas)</option>
-        </select>
-    </div>
-
-    <hr style="border:0; border-top:1px solid #334155; margin: 15px 0;">
-
-    <div id="drone-settings">
-        <div class="input-group">
-            <label>Take-off Weight (kg)</label>
-            <input type="number" id="drone-weight" value="1.5" step="0.1" onchange="calculateLogistics()">
-        </div>
-        <div class="input-group">
-            <label>Battery Capacity (mAh)</label>
-            <input type="number" id="drone-bat" value="5000" onchange="calculateLogistics()">
-        </div>
-        <div class="input-group">
-            <label>Cruise Speed (m/s)</label>
-            <input type="number" id="drone-speed" value="15" onchange="calculateLogistics()">
-        </div>
-    </div>
-
-    <div id="aircraft-settings" style="display:none;">
-        <div class="input-group">
-            <label>Total Fuel Capacity (Liters)</label>
-            <input type="number" id="fuel-cap" value="150" onchange="calculateLogistics()">
-        </div>
-        <div class="input-group">
-            <label>Target Ground Speed (knots/h)</label>
-            <input type="number" id="fuel-speed" value="110" onchange="calculateLogistics()">
-        </div>
-        <div class="input-group">
-            <label>Est. Fuel Flow (Liters/Hour)</label>
-            <input type="number" id="fuel-rate" value="35" onchange="calculateLogistics()">
-        </div>
-    </div>
-
-    <div class="input-group">
-        <label>Headwind Component (knots / m/s)</label>
-        <input type="number" id="uav-wind" value="0" onchange="calculateLogistics()">
-    </div>
-    
-    ... (Export ve Mission Tools butonları buraya gelecek)
-
-
-
-
-    
-
-    <hr style="border:0; border-top:1px solid #334155; margin: 15px 0;">
-    
-    <label>Mission Export</label>
-    <button class="btn-export" onclick="exportMission('LITCHI')">LITCHI CSV</button>
-    <button class="btn-export" onclick="exportMission('DJI')">DJI PILOT KMZ</button>
-    <button class="btn-export" onclick="exportMission('ARDU')">ARDUPILOT WP</button>
-    
-    <hr style="border:0; border-top:1px solid #334155; margin: 15px 0;">
-    <label>Mission Tools</label>
-    <button class="btn-export" style="background: #10b981;" onclick="generateSearchGrid()">GENERATE SEARCH GRID</button>
-    
-    <div id="energy-alert" class="energy-warn">⚠️ INSUFFICIENT ENERGY!</div>
-</div>
-
-<div id="data-table">
-    <div style="font-weight:bold; border-bottom:1px solid #10b981; padding-bottom:5px; margin-bottom:10px; color:#10b981;">MISSION LOGBOOK</div>
-    <div id="wp-list">
-        <div style="color:#94a3b8; font-style:italic;">Click map to add waypoints...</div>
-    </div>
-    <div id="total-stats" style="margin-top:15px; padding-top:10px; border-top:1px dashed #334155; font-size: 12px; color:#38bdf8;">
-        Dist: 0.00 km | Time: 0.0 min
-    </div>
-</div>
-
-<div id="cesiumContainer"></div>
-
-<script>
-Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzMzEyYzc1OS03OTY0LTQ5MGYtODcwMi0zMGNiYmZjNGIxMTkiLCJpZCI6Mzc2MTk2LCJpYXQiOjE3Njc4NjA4NjJ9.aZRZorILCG4gIlzwCnm1L2SCp58z-TCg6yNaDbPLxnU';
-
-const viewer = new Cesium.Viewer('cesiumContainer', {
-    terrain: Cesium.Terrain.fromWorldTerrain(),
-    animation: false, timeline: false, baseLayerPicker: false, infoBox: false
-});
-
-let waypoints = [];
-let routeLine = null;
-let failLine = null;
-let pinEntities = [];
-
-const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-handler.setInputAction((click) => {
-    const picked = viewer.scene.pickPosition(click.position);
-    if (Cesium.defined(picked)) {
-        addWaypoint(picked);
-    }
-}, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-
-
-
-
-
-
-
-
-
-    function toggleVehicleMenus() {
-    const category = document.getElementById('vehicle-category').value;
-    const droneMenu = document.getElementById('drone-settings');
-    const aircraftMenu = document.getElementById('aircraft-settings');
-
-    if (category === 'electric_drone') {
-        droneMenu.style.display = 'block';
-        aircraftMenu.style.display = 'none';
-    } else {
-        droneMenu.style.display = 'none';
-        aircraftMenu.style.display = 'block';
-    }
-    // Menü değişince hesaplamayı tekrar tetikle
-    calculateLogistics();
-}
-
-
-    
-
-
-
-
-    
-
-function addWaypoint(pos) {
-    const carto = Cesium.Cartographic.fromCartesian(pos);
-    const wp = {
-        lat: Cesium.Math.toDegrees(carto.latitude),
-        lon: Cesium.Math.toDegrees(carto.longitude),
-        alt: Math.round(carto.height + 50),
-        cartesian: pos
-    };
-    waypoints.push(wp);
-    calculateLogistics();
-    updateUI();
-}
-
-
-
-
-
-
-
-
-function toggleVehicleMenus() {
-    const category = document.getElementById('vehicle-category').value;
-    const droneMenu = document.getElementById('drone-settings');
-    const aircraftMenu = document.getElementById('aircraft-settings');
-
-    if (category === 'electric_drone') {
-        droneMenu.style.display = 'block';
-        aircraftMenu.style.display = 'none';
-    } else {
-        droneMenu.style.display = 'none';
-        aircraftMenu.style.display = 'block';
-    }
-    // Menü değişince hesaplamayı tekrar tetikle
-    calculateLogistics();
-}
-
-
-
-
-
-
-
-    
-
-function renderVisuals(failIndex) {
-    if (routeLine) viewer.entities.remove(routeLine);
-    if (failLine) viewer.entities.remove(failLine);
-    pinEntities.forEach(e => viewer.entities.remove(e));
-    pinEntities = [];
-
-    const positions = waypoints.map(w => w.cartesian);
-    
-    if (positions.length > 1) {
-        const safePath = failIndex === -1 ? positions : positions.slice(0, failIndex + 1);
-        routeLine = viewer.entities.add({
-            polyline: {
-                positions: safePath,
-                width: 4,
-                material: Cesium.Color.fromCssColorString('#38bdf8'),
-                disableDepthTestDistance: Number.POSITIVE_INFINITY
-            }
-        });
-
-        if (failIndex !== -1) {
-            const dangerPath = positions.slice(failIndex);
-            failLine = viewer.entities.add({
-                polyline: {
-                    positions: dangerPath,
-                    width: 4,
-                    material: new Cesium.PolylineDashMaterialProperty({
-                        color: Cesium.Color.RED,
-                        dashLength: 16
-                    }),
-                    disableDepthTestDistance: Number.POSITIVE_INFINITY
-                }
-            });
-        }
-    }
-
-    waypoints.forEach((wp, index) => {
-        const isSafe = (failIndex === -1 || index <= failIndex);
-        const pin = viewer.entities.add({
-            position: wp.cartesian,
-            point: { 
-                pixelSize: 8, 
-                color: isSafe ? Cesium.Color.fromCssColorString('#10b981') : Cesium.Color.RED,
-                outlineColor: Cesium.Color.WHITE,
-                outlineWidth: 1
-            }
-        });
-        pinEntities.push(pin);
-    });
-}
-
-function updateUI() {
-    const list = document.getElementById('wp-list');
-    list.innerHTML = "";
-    let totalDist = 0;
-
-    waypoints.forEach((wp, i) => {
-        if (i > 0) {
-            totalDist += Cesium.Cartesian3.distance(waypoints[i-1].cartesian, wp.cartesian);
-        }
-        list.innerHTML += `
-            <div class="waypoint-item">
-                <b>#${i+1}</b> - LAT: ${wp.lat.toFixed(5)}<br>
-                LON: ${wp.lon.toFixed(5)} | ALT: ${wp.alt}m
-            </div>
-        `;
-    });
-
-const groundSpeed = parseFloat(document.getElementById('uav-speed').value);
-    // Logic is handled directly inside calculateLogistics to maintain sync with Fuel Flow
-    
-}
-
-
-
-
-
-
-
-
-
-function calculateLogistics() {
-    if (waypoints.length < 1) return;
-
-    const category = document.getElementById('vehicle-category').value;
-    const alertBox = document.getElementById('energy-alert');
-    const headwind = parseFloat(document.getElementById('uav-wind').value);
-    
-    let totalCapacity, groundSpeed, hourlyRate, isElectric;
-
-    // Hangi menü açıksa veriyi oradaki kutulardan çekiyoruz
-    if (category === 'electric_drone') {
-        totalCapacity = parseFloat(document.getElementById('drone-bat').value);
-        groundSpeed = parseFloat(document.getElementById('drone-speed').value);
-        isElectric = true;
-    } else {
-        totalCapacity = parseFloat(document.getElementById('fuel-cap').value);
-        groundSpeed = parseFloat(document.getElementById('fuel-speed').value);
-        hourlyRate = parseFloat(document.getElementById('fuel-rate').value);
-        isElectric = false;
-    }
-    
-    let currentEnergy = totalCapacity;
-    let failPointIndex = -1;
-    let accumulatedTime = 0; 
-
-    for (let i = 1; i < waypoints.length; i++) {
-        const distMeters = Cesium.Cartesian3.distance(waypoints[i-1].cartesian, waypoints[i].cartesian);
+    <div id="params-panel">
+        <h2 class="panel-title">NAVIVORTEX V60</h2>
         
-        const effectiveSpeed = groundSpeed - headwind;
-        let legTime, consumption;
+        <div class="input-group">
+            <label>Mission Vehicle</label>
+            <select id="vehicle-category" onchange="buildDynamicMenu()">
+                <option value="electric_drone">Electric Drone</option>
+                <option value="light_aircraft">Light Aircraft (General Aviation)</option>
+                <option value="helicopter">Helicopter (Rotary Wing)</option>
+            </select>
+        </div>
 
-        if (isElectric) {
-            // Drone için saniye/metre hesabı
-            legTime = distMeters / (effectiveSpeed > 0 ? effectiveSpeed : 1);
-            const weight = parseFloat(document.getElementById('drone-weight').value);
-            consumption = (weight * distMeters * 0.0008) + (legTime / 60 * 5);
-        } else {
-            // Uçak/Heli için deniz mili/saat hesabı
-            const distNM = distMeters * 0.000539957;
-            legTime = distNM / (effectiveSpeed > 0 ? effectiveSpeed : 1);
-            consumption = hourlyRate * legTime;
-        }
+        <hr class="separator">
+        <div id="dynamic-inputs-container"></div>
 
-        accumulatedTime += legTime;
-        currentEnergy -= consumption;
+        <div class="input-group">
+            <label>Headwind (Knots / m/s)</label>
+            <input type="number" id="uav-wind" value="0" onchange="calculateLogistics()">
+        </div>
 
-        if (currentEnergy <= 0 && failPointIndex === -1) {
-            failPointIndex = i;
-        }
-    }
+        <div class="ad-container sidebar-ad">
+            <span class="ad-tag">SPONSORED</span>
+            </div>
 
-    if (failPointIndex !== -1) {
-        alertBox.style.display = "block";
-        alertBox.innerText = `⚠️ ${isElectric ? 'BATTERY' : 'FUEL'} EXHAUSTION AT WAYPOINT #${failPointIndex + 1}`;
-    } else {
-        alertBox.style.display = "none";
-    }
-    
-    renderVisuals(failPointIndex);
-    
-    // İstatistik birimlerini ayarla
-    const distText = isElectric 
-        ? `${((accumulatedTime * groundSpeed) / 1000).toFixed(2)} km` 
-        : `${(accumulatedTime * groundSpeed).toFixed(1)} NM`;
-    
-    const timeText = isElectric 
-        ? `${(accumulatedTime / 60).toFixed(1)} min` 
-        : `${(accumulatedTime * 60).toFixed(1)} min`;
+        <button class="btn-primary" onclick="generateSearchGrid()">GENERATE SEARCH GRID</button>
+        <button class="btn-export" onclick="exportMission('LITCHI')">EXPORT FOR DRONE (CSV)</button>
+        <div id="energy-alert" class="energy-warn"></div>
+    </div>
 
-    document.getElementById('total-stats').innerText = `Dist: ${distText} | ETE: ${timeText}`;
-}
+    <div id="data-table">
+        <div class="table-title">NAV LOG & MISSION DATA</div>
+        <div id="wp-list"></div>
+        <div id="total-stats"></div>
+    </div>
 
+    <div class="bottom-ad-bar">
+        <span class="ad-tag">ADVERTISEMENT</span>
+        </div>
 
+    <div id="cesiumContainer"></div>
 
-
-
-    
-
-    
-    
-
-
-
-
-
-
-    
-
-function exportMission(type) {
-    if (waypoints.length === 0) {
-        alert("No mission data to export!");
-        return;
-    }
-    let csvContent = "latitude,longitude,altitude(m),heading(deg),curvesize(m),rotationdir,poi_latitude,poi_longitude,poi_altitude(m),poi_headingmode\n";
-    waypoints.forEach(wp => {
-        csvContent += `${wp.lat},${wp.lon},${wp.alt},0,0,0,0,0,0,0\n`;
-    });
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `NaviVortex_Mission_${type}.csv`);
-    link.click();
-}
-
-function generateSearchGrid() {
-    if (waypoints.length === 0) {
-        alert("Click map first to set start point!");
-        return;
-    }
-    const startWp = waypoints[waypoints.length - 1];
-    const spacing = 0.0015;
-    const gridPoints = [
-        { lat: startWp.lat, lon: startWp.lon + spacing, alt: startWp.alt },
-        { lat: startWp.lat + spacing, lon: startWp.lon + spacing, alt: startWp.alt },
-        { lat: startWp.lat + spacing, lon: startWp.lon, alt: startWp.alt },
-        { lat: startWp.lat + (spacing * 2), lon: startWp.lon, alt: startWp.alt }
-    ];
-    gridPoints.forEach(p => {
-        p.cartesian = Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt);
-        waypoints.push(p);
-    });
-    calculateLogistics();
-    updateUI();
-}
-</script>
+    <script src="config.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
-
-
