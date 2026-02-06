@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex 08.21</title>
+    <title>NaviVortex 08.27</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -36,37 +36,52 @@
 </head>
 <body>
 
+
+
+
+
+    
 <div id="params-panel">
     <h2 style="color:#38bdf8; margin:0 0 15px 0; font-size: 18px;">NAVIVORTEX V60</h2>
     
     <div class="input-group">
-        <label>Vehicle Category</label>
+        <label>Aircraft Category</label>
         <select id="vehicle-category" onchange="calculateLogistics()">
-            <option value="0.8">Drone (Battery-Electric)</option>
-            <option value="0.3">Fixed Wing (High Efficiency)</option>
-            <option value="1.2">Helicopter (Fuel/High Power)</option>
+            <option value="electric_drone">Drone (Electric/mAh)</option>
+            <option value="light_aircraft">Light Aircraft (Fuel/Liters)</option>
+            <option value="helicopter">Helicopter (Fuel/Liters)</option>
         </select>
     </div>
     
     <div class="input-group">
-        <label>Total Take-off Weight (kg)</label>
-        <input type="number" id="uav-weight" value="1.5" step="0.1" onchange="calculateLogistics()">
+        <label>Cruise Power (Weight/Payload kg)</label>
+        <input type="number" id="uav-weight" value="1100" step="10" onchange="calculateLogistics()">
     </div>
     
     <div class="input-group">
-        <label id="energy-label">Battery Capacity (mAh)</label>
-        <input type="number" id="uav-bat" value="5000" onchange="calculateLogistics()">
+        <label id="energy-label">Total Fuel Capacity (Liters)</label>
+        <input type="number" id="uav-bat" value="150" onchange="calculateLogistics()">
     </div>
 
     <div class="input-group">
-        <label>Cruise Speed (m/s)</label>
-        <input type="number" id="uav-speed" value="15" onchange="calculateLogistics()">
+        <label>Target Ground Speed (knots/h)</label>
+        <input type="number" id="uav-speed" value="110" onchange="calculateLogistics()">
     </div>
 
     <div class="input-group">
-        <label>Wind Speed (m/s) - Headwind</label>
+        <label>Est. Fuel Flow (Liters/Hour)</label>
+        <input type="number" id="uav-consumption-rate" value="35" onchange="calculateLogistics()">
+    </div>
+
+    <div class="input-group">
+        <label>Headwind Component (knots)</label>
         <input type="number" id="uav-wind" value="0" onchange="calculateLogistics()">
     </div>
+
+
+
+
+    
 
     <hr style="border:0; border-top:1px solid #334155; margin: 15px 0;">
     
@@ -195,46 +210,57 @@ function updateUI() {
         `;
     });
 
-    const speed = parseFloat(document.getElementById('uav-speed').value);
-    const time = (totalDist / (speed || 1)) / 60;
-    document.getElementById('total-stats').innerText = `Dist: ${(totalDist/1000).toFixed(2)} km | Time: ${time.toFixed(1)} min`;
+const groundSpeed = parseFloat(document.getElementById('uav-speed').value);
+    // Logic is handled directly inside calculateLogistics to maintain sync with Fuel Flow
+    
 }
+
+
+
+
+
+
+
+
 
 function calculateLogistics() {
     if (waypoints.length < 1) return;
 
-    const weight = parseFloat(document.getElementById('uav-weight').value);
-    const capacity = parseFloat(document.getElementById('uav-bat').value);
-    const speed = parseFloat(document.getElementById('uav-speed').value);
-    const wind = parseFloat(document.getElementById('uav-wind').value);
-    const vehicleCat = document.getElementById('vehicle-category');
-    const vehicleCoefficient = parseFloat(vehicleCat.value);
+    const category = document.getElementById('vehicle-category').value;
+    const totalCapacity = parseFloat(document.getElementById('uav-bat').value);
+    const groundSpeed = parseFloat(document.getElementById('uav-speed').value);
+    const headwind = parseFloat(document.getElementById('uav-wind').value);
+    const hourlyRate = parseFloat(document.getElementById('uav-consumption-rate').value);
     const energyLabel = document.getElementById('energy-label');
     const alertBox = document.getElementById('energy-alert');
 
-    const categoryName = vehicleCat.selectedOptions[0].text;
-    energyLabel.innerText = categoryName.includes("Drone") ? "Battery Capacity (mAh)" : "Fuel Capacity (Liters)";
+    // Unit Labels
+    energyLabel.innerText = (category === "electric_drone") ? "Battery Capacity (mAh)" : "Fuel Capacity (Liters)";
     
-    let currentEnergy = capacity;
+    let currentEnergy = totalCapacity;
     let failPointIndex = -1;
-    let accumulatedDist = 0;
+    let accumulatedTime = 0; 
 
     for (let i = 1; i < waypoints.length; i++) {
-        const dist = Cesium.Cartesian3.distance(waypoints[i-1].cartesian, waypoints[i].cartesian);
-        accumulatedDist += dist;
-        
-        const effectiveSpeed = speed - wind;
-        const timeNeeded = dist / (effectiveSpeed > 0 ? effectiveSpeed : 0.1);
-        
+        const distMeters = Cesium.Cartesian3.distance(waypoints[i-1].cartesian, waypoints[i].cartesian);
+        const distNM = distMeters * 0.000539957; // Meters to Nautical Miles
+
+        const effectiveSpeed = groundSpeed - headwind;
+        const legTime = distNM / (effectiveSpeed > 0 ? effectiveSpeed : 1);
+        accumulatedTime += legTime;
+
         let consumption;
-        if (vehicleCoefficient < 0.5) { 
-            const fuelBurnEffect = weight * (1 - (accumulatedDist / 150000)); 
-            consumption = (fuelBurnEffect * dist * vehicleCoefficient) + (timeNeeded * 2);
+        if (category === "electric_drone") {
+            const weight = parseFloat(document.getElementById('uav-weight').value);
+            consumption = (weight * distMeters * 0.0008) + (legTime * 60 * 5);
         } else {
-            consumption = (weight * dist * vehicleCoefficient) + (timeNeeded * 5);
+            // Aviation Fuel Physics
+            const burnEfficiency = (category === "light_aircraft") ? 0.95 : 1.0;
+            consumption = (hourlyRate * legTime) * burnEfficiency;
         }
 
         currentEnergy -= consumption;
+
         if (currentEnergy <= 0 && failPointIndex === -1) {
             failPointIndex = i;
         }
@@ -242,13 +268,29 @@ function calculateLogistics() {
 
     if (failPointIndex !== -1) {
         alertBox.style.display = "block";
-        const msg = categoryName.includes("Drone") ? "BATTERY WILL FAIL" : "FUEL EXHAUSTION";
-        alertBox.innerText = `⚠️ ${msg} AT WAYPOINT #${failPointIndex + 1}`;
+        const unit = (category === "electric_drone") ? "BATTERY" : "FUEL";
+        alertBox.innerText = `⚠️ ${unit} EXHAUSTION AT WAYPOINT #${failPointIndex + 1}`;
     } else {
         alertBox.style.display = "none";
     }
+    
     renderVisuals(failPointIndex);
+    
+    // Update UI Stats with NM and Min
+    const totalDistNM = (accumulatedTime * groundSpeed).toFixed(1);
+    document.getElementById('total-stats').innerText = `Dist: ${totalDistNM} NM | ETE: ${(accumulatedTime * 60).toFixed(1)} min`;
 }
+
+
+    
+    
+
+
+
+
+
+
+    
 
 function exportMission(type) {
     if (waypoints.length === 0) {
@@ -290,3 +332,4 @@ function generateSearchGrid() {
 </script>
 </body>
 </html>
+
