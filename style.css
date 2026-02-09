@@ -1,15 +1,15 @@
 /* Temel Sayfa Ayarları */
 body, html { 
     width: 100%; height: 100%; margin: 0; padding: 0; 
-    overflow: hidden; background: #020617; 
+    overflow: hidden; background: #000; 
 }
 
-/* Harita Taşıyıcısı (Tam Ekran ve En Altta) */
+/* Harita Taşıyıcısı (En Arkada) */
 #cesiumContainer { 
     position: absolute; 
     top: 0; left: 0; 
     width: 100%; height: 100%; 
-    z-index: 1; /* Harita en alt katmanda */
+    z-index: 1; 
 }
 
 /* Paneller (Haritanın Üstünde) */
@@ -20,33 +20,30 @@ body, html {
     border-radius: 12px;
     color: white; 
     font-family: 'Segoe UI', sans-serif; 
-    z-index: 100; /* Paneller haritanın üstünde */
+    z-index: 100;
 }
 
 #params-panel { top: 20px; left: 20px; width: 280px; padding: 20px; border: 1px solid #38bdf8; }
 #data-table { top: 20px; right: 20px; width: 320px; padding: 15px; border: 1px solid #10b981; }
 
-/* Input ve Yazı Stilleri */
 .input-group { margin-bottom: 12px; }
 label { display: block; font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
 input, select { 
     width: 100%; padding: 8px; background: #1e293b; 
     border: 1px solid #334155; color: #38bdf8; border-radius: 4px; 
-    box-sizing: border-box; /* Padding'in kutu dışına taşmasını engeller */
+    box-sizing: border-box;
 }
 
-/* Buton Stilleri */
 button {
     width: 100%; padding: 10px; border-radius: 6px; 
     font-weight: bold; cursor: pointer; margin-top: 8px; 
     border: none; color: white; transition: 0.3s;
 }
-.btn-primary { background: #10b981; } /* Yeşil */
+.btn-primary { background: #10b981; }
 .btn-primary:hover { background: #059669; }
-.btn-export { background: #0ea5e9; } /* Mavi */
+.btn-export { background: #0ea5e9; }
 .btn-export:hover { background: #0284c7; }
 
-/* Reklam Alanları */
 .ad-container { background: rgba(255, 255, 255, 0.05); border: 1px dashed #475569; text-align: center; margin: 15px 0; padding: 10px; }
 .ad-tag { font-size: 8px; color: #64748b; display: block; margin-bottom: 5px; }
 
@@ -56,37 +53,9 @@ button {
     border: 1px solid #334155; z-index: 100; text-align: center;
 }
 
-/* Uyarı Mesajı */
 .energy-warn { 
     color: #ef4444; background: rgba(239, 68, 68, 0.1); 
     padding: 10px; border-radius: 6px; margin-top: 10px; 
     border: 1px solid #ef4444; font-size: 11px; font-weight: bold; 
     display: none; 
 }
-
-
-
-
-
-
-
-
-
-
-#params-panel { top: 20px; left: 20px; width: 280px; padding: 20px; border: 1px solid #38bdf8; }
-#data-table { top: 20px; right: 20px; width: 320px; padding: 15px; border: 1px solid #10b981; }
-
-.input-group { margin-bottom: 12px; }
-label { display: block; font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
-input, select { width: 100%; padding: 8px; background: #1e293b; border: 1px solid #334155; color: #38bdf8; border-radius: 4px; }
-
-.ad-container { background: rgba(255, 255, 255, 0.05); border: 1px dashed #475569; text-align: center; margin: 15px 0; padding: 10px; }
-.ad-tag { font-size: 8px; color: #64748b; display: block; margin-bottom: 5px; }
-
-.bottom-ad-bar {
-    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-    width: 728px; height: 90px; background: rgba(15, 23, 42, 0.8);
-    border: 1px solid #334155; z-index: 100; text-align: center;
-}
-
-.energy-warn { color: #ef4444; background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 6px; margin-top: 10px; display:none; }
