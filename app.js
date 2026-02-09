@@ -197,31 +197,50 @@ function renderVisuals(failIndex) {
 // 7. UI Güncellemeleri
 function updateUI() {
     const list = document.getElementById('wp-list');
+    const vehicleId = document.getElementById('vehicle-category').value;
+    const config = VEHICLE_CONFIGS[vehicleId];
+    
     let tableHTML = `
-        <table class="nav-log-table">
+        <table class="nav-log-table" style="width:100%; border-collapse:collapse; font-size:10px;">
             <thead>
-                <tr>
-                    <th>WP</th>
-                    <th>Coordinates</th>
-                    <th>Alt</th>
+                <tr style="border-bottom:1px solid #10b981; color:#10b981;">
+                    <th>LEG</th>
+                    <th>DIST</th>
+                    <th>ETE</th>
+                    <th>CONS.</th>
                 </tr>
             </thead>
             <tbody>
     `;
 
-    waypoints.forEach((wp, i) => {
+    for (let i = 1; i < waypoints.length; i++) {
+        const d = Cesium.Cartesian3.distance(waypoints[i-1].cartesian, waypoints[i].cartesian);
+        const distText = config.isElectric ? `${(d/1000).toFixed(2)}km` : `${(d * 0.000539).toFixed(1)}NM`;
+        
+        // Basit süre tahmini (Rüzgarsız)
+        const speed = parseFloat(document.querySelector('[id*="speed"]').value || 1);
+        const time = (config.isElectric ? (d/speed) : (d * 0.000539 / speed) * 3600);
+        const timeText = config.isElectric ? `${(time/60).toFixed(1)}m` : `${(time/60).toFixed(1)}m`;
+
         tableHTML += `
-            <tr>
-                <td><b>#${i+1}</b></td>
-                <td>${wp.lat.toFixed(4)}, ${wp.lon.toFixed(4)}</td>
-                <td>${wp.alt}m</td>
+            <tr style="border-bottom:1px solid #1e293b;">
+                <td>WP${i}➔${i+1}</td>
+                <td>${distText}</td>
+                <td>${timeText}</td>
+                <td>--</td>
             </tr>
         `;
-    });
+    }
 
     tableHTML += `</tbody></table>`;
     list.innerHTML = tableHTML;
 }
+
+
+
+
+
+
 
 
 
