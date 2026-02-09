@@ -216,6 +216,53 @@ function addGridPoint(lat, lon, array) {
 
 
 
+
+
+
+
+
+
+
+
+// 10. Görev Verisini Dışa Aktarma (Export)
+function exportMission(type) {
+    if (waypoints.length === 0) {
+        alert("Dışa aktarılacak rota bulunamadı!");
+        return;
+    }
+
+    let content = "";
+    let fileName = `NaviVortex_Mission_${type}`;
+
+    if (type === 'LITCHI') {
+        content = "latitude,longitude,altitude(m),heading(deg),curvesize(m),rotationdir,poi_latitude,poi_longitude,poi_altitude(m),poi_headingmode\n";
+        waypoints.forEach(wp => {
+            content += `${wp.lat},${wp.lon},${wp.alt},0,0,0,0,0,0,0\n`;
+        });
+        fileName += ".csv";
+    }
+
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", fileName);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+
+
+
+
+
+
+
+
+
+
+
 // 8. Başlatıcı
 window.onload = () => {
     initCesium();
