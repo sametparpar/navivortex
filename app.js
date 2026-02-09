@@ -13,7 +13,6 @@ let waypointEntities = [];
 
 
 
-// 2. Haritayı Başlat ve Konuma Odaklan
 function initCesium() {
     viewer = new Cesium.Viewer('cesiumContainer', {
         terrain: Cesium.Terrain.fromWorldTerrain(),
@@ -21,35 +20,37 @@ function initCesium() {
         animation: false,
         timeline: false,
         infoBox: false,
-        selectionIndicator: false
+        selectionIndicator: false,
+        geocoder: true // Üst sağa dünya çapında arama kutusu ekler
     });
 
-    // Otomatik Konum Algılama
+    // Sadece izin varsa ve konum alınabiliyorsa git, yoksa sessizce kal
     if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition((position) => {
-            const lat = position.coords.latitude;
-            const lon = position.coords.longitude;
-
-            // Haritayı kullanıcının konumuna uçur
-            viewer.camera.flyTo({
-                destination: Cesium.Cartesian3.fromDegrees(lon, lat, 5000), // 5km yükseklikten bakış
-                orientation: {
-                    heading: Cesium.Math.toRadians(0),
-                    pitch: Cesium.Math.toRadians(-90),
-                    roll: 0
-                }
-            });
-        }, (error) => {
-            console.warn("Konum izni reddedildi veya alınamadı:", error);
-            // Hata durumunda varsayılan bir merkeze gidebilir (Örn: Türkiye merkezi)
-            viewer.camera.setView({
-                destination: Cesium.Cartesian3.fromDegrees(35.2433, 38.9637, 5000000)
-            });
-        });
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+                
+                viewer.camera.flyTo({
+                    destination: Cesium.Cartesian3.fromDegrees(lon, lat, 5000),
+                    duration: 3
+                });
+            },
+            (error) => {
+                console.log("Auto-location skipped: User choice or secure connection required.");
+                // Bir yere odaklanma, harita global kalsın
+            }
+        );
     }
 
     setupHandler();
 }
+
+
+
+
+
+
 
 
 
