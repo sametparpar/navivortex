@@ -24,7 +24,32 @@ body, html {
 }
 
 #params-panel { top: 20px; left: 20px; width: 280px; padding: 20px; border: 1px solid #38bdf8; }
-#data-table { top: 20px; right: 20px; width: 320px; padding: 15px; border: 1px solid #10b981; }
+#data-table { 
+    top: 100px; /* Üstten 100px boşluk bıraktık, butonlar kurtuldu */
+    right: 20px; 
+    width: 320px; 
+    padding: 15px; 
+    border: 1px solid #10b981; 
+    max-height: 70vh; /* Çok uzayıp reklamı kapatmasın diye sınırladık */
+    overflow-y: auto;
+    font-size: 11px;
+}
+
+/* Tablo görünümü için ekleme */
+.nav-log-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+.nav-log-table th { color: #10b981; text-align: left; border-bottom: 1px solid #334155; padding: 4px; }
+.nav-log-table td { padding: 4px; border-bottom: 1px solid #1e293b; color: #cbd5e1; }
+
+
+
+
+
+
+
 
 .input-group { margin-bottom: 12px; }
 label { display: block; font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
