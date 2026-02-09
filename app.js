@@ -159,7 +159,14 @@ function calculateLogistics() {
     updateStatsUI(config.isElectric, accumulatedTime, groundSpeed);
 }
 
-// 6. Görselleştirme (Çizgi ve Noktalar)
+
+
+
+
+
+
+
+// 6. Görselleştirme (Derinlik Hatası Düzeltildi)
 function renderVisuals(failIndex) {
     if (routeLineEntity) viewer.entities.remove(routeLineEntity);
     waypointEntities.forEach(e => viewer.entities.remove(e));
@@ -170,13 +177,12 @@ function renderVisuals(failIndex) {
     if (positions.length > 1) {
         routeLineEntity = viewer.entities.add({
             polyline: {
-    positions: positions,
-    width: 4,
-    material: Cesium.Color.fromCssColorString('#38bdf8'),
-    clampToGround: true, // Çizgiyi araziye yapıştırır, binaların içinde kaybolmaz
-    classificationType: Cesium.ClassificationType.TERRAIN
-}
-            
+                positions: positions,
+                width: 4,
+                material: Cesium.Color.fromCssColorString('#38bdf8'),
+                clampToGround: true, // Çizgiyi araziye yapıştırır
+                classificationType: Cesium.ClassificationType.TERRAIN
+            }
         });
     }
 
@@ -187,27 +193,32 @@ function renderVisuals(failIndex) {
                 pixelSize: 10,
                 color: (failIndex !== -1 && index >= failIndex) ? Cesium.Color.RED : Cesium.Color.fromCssColorString('#10b981'),
                 outlineColor: Cesium.Color.WHITE,
-                outlineWidth: 2
+                outlineWidth: 2,
+                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND // Noktayı yüzeye sabitler
             }
         });
         waypointEntities.push(pin);
     });
 }
 
-// 7. UI Güncellemeleri
+// 7. Profesyonel Nav Log Tablosu
 function updateUI() {
     const list = document.getElementById('wp-list');
     const vehicleId = document.getElementById('vehicle-category').value;
     const config = VEHICLE_CONFIGS[vehicleId];
     
+    if (waypoints.length < 1) {
+        list.innerHTML = "<p style='color:#64748b'>Rota noktası seçilmedi.</p>";
+        return;
+    }
+
     let tableHTML = `
-        <table class="nav-log-table" style="width:100%; border-collapse:collapse; font-size:10px;">
+        <table class="nav-log-table">
             <thead>
-                <tr style="border-bottom:1px solid #10b981; color:#10b981;">
-                    <th>LEG</th>
-                    <th>DIST</th>
-                    <th>ETE</th>
-                    <th>CONS.</th>
+                <tr>
+                    <th>BACAK</th>
+                    <th>MESAFE</th>
+                    <th>SÜRE</th>
                 </tr>
             </thead>
             <tbody>
@@ -215,19 +226,25 @@ function updateUI() {
 
     for (let i = 1; i < waypoints.length; i++) {
         const d = Cesium.Cartesian3.distance(waypoints[i-1].cartesian, waypoints[i].cartesian);
-        const distText = config.isElectric ? `${(d/1000).toFixed(2)}km` : `${(d * 0.000539).toFixed(1)}NM`;
         
-        // Basit süre tahmini (Rüzgarsız)
+        // Birim Dönüşümü
+        let distDisplay, timeDisplay;
         const speed = parseFloat(document.querySelector('[id*="speed"]').value || 1);
-        const time = (config.isElectric ? (d/speed) : (d * 0.000539 / speed) * 3600);
-        const timeText = config.isElectric ? `${(time/60).toFixed(1)}m` : `${(time/60).toFixed(1)}m`;
+
+        if (config.unitSystem === "metric") {
+            distDisplay = `${(d/1000).toFixed(2)} km`;
+            timeDisplay = `${(d / speed / 60).toFixed(1)} dk`;
+        } else {
+            const distNM = d * 0.000539957;
+            distDisplay = `${distNM.toFixed(1)} NM`;
+            timeDisplay = `${(distNM / speed * 60).toFixed(1)} dk`;
+        }
 
         tableHTML += `
-            <tr style="border-bottom:1px solid #1e293b;">
+            <tr>
                 <td>WP${i}➔${i+1}</td>
-                <td>${distText}</td>
-                <td>${timeText}</td>
-                <td>--</td>
+                <td>${distDisplay}</td>
+                <td>${timeDisplay}</td>
             </tr>
         `;
     }
@@ -235,6 +252,9 @@ function updateUI() {
     tableHTML += `</tbody></table>`;
     list.innerHTML = tableHTML;
 }
+
+
+
 
 
 
