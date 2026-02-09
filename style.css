@@ -25,24 +25,47 @@ body, html {
 
 #params-panel { top: 20px; left: 20px; width: 280px; padding: 20px; border: 1px solid #38bdf8; }
 #data-table { 
-    top: 100px; /* Üstten 100px boşluk bıraktık, butonlar kurtuldu */
-    right: 20px; 
-    width: 320px; 
-    padding: 15px; 
+    position: absolute;
+    top: 80px;      /* Cesium butonlarının (arama kutusu vb.) altına iner */
+    right: 15px; 
+    width: 280px;   /* Biraz daha daraltarak haritaya yer açtık */
+    max-height: 60vh; /* Panelin ekranın altına kadar uzayıp reklamı ezmesini engeller */
+    overflow-y: auto; /* WP sayısı artarsa kutu içinde kaydırma çubuğu çıkar */
+    background: rgba(15, 23, 42, 0.9); 
+    backdrop-filter: blur(10px); 
+    border-radius: 12px;
+    padding: 12px; 
     border: 1px solid #10b981; 
-    max-height: 70vh; /* Çok uzayıp reklamı kapatmasın diye sınırladık */
-    overflow-y: auto;
-    font-size: 11px;
+    z-index: 100;
+    font-family: 'Segoe UI', sans-serif;
+    color: white;
 }
 
-/* Tablo görünümü için ekleme */
-.nav-log-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 10px;
+/* Tabloyu daha okunaklı yapan ek stiller */
+.nav-log-table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    font-size: 10px; /* Daha teknik ve kompakt görünüm */
+    margin-top: 10px; 
 }
-.nav-log-table th { color: #10b981; text-align: left; border-bottom: 1px solid #334155; padding: 4px; }
-.nav-log-table td { padding: 4px; border-bottom: 1px solid #1e293b; color: #cbd5e1; }
+.nav-log-table th { 
+    color: #10b981; 
+    text-align: left; 
+    border-bottom: 1px solid #334155; 
+    padding: 4px; 
+    font-weight: bold;
+}
+.nav-log-table td { 
+    padding: 6px 4px; 
+    border-bottom: 1px solid #1e293b; 
+    color: #cbd5e1; 
+}
+
+
+
+
+
+
 
 
 
