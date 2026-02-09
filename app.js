@@ -170,11 +170,13 @@ function renderVisuals(failIndex) {
     if (positions.length > 1) {
         routeLineEntity = viewer.entities.add({
             polyline: {
-                positions: positions,
-                width: 4,
-                material: Cesium.Color.fromCssColorString('#38bdf8'),
-                disableDepthTestDistance: Number.POSITIVE_INFINITY
-            }
+    positions: positions,
+    width: 4,
+    material: Cesium.Color.fromCssColorString('#38bdf8'),
+    clampToGround: true, // Çizgiyi araziye yapıştırır, binaların içinde kaybolmaz
+    classificationType: Cesium.ClassificationType.TERRAIN
+}
+            
         });
     }
 
@@ -195,12 +197,35 @@ function renderVisuals(failIndex) {
 // 7. UI Güncellemeleri
 function updateUI() {
     const list = document.getElementById('wp-list');
-    list.innerHTML = waypoints.map((wp, i) => `
-        <div class="waypoint-item">
-            <b>WP #${i + 1}</b> - LAT: ${wp.lat.toFixed(4)} LON: ${wp.lon.toFixed(4)}
-        </div>
-    `).join('');
+    let tableHTML = `
+        <table class="nav-log-table">
+            <thead>
+                <tr>
+                    <th>WP</th>
+                    <th>Coordinates</th>
+                    <th>Alt</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    waypoints.forEach((wp, i) => {
+        tableHTML += `
+            <tr>
+                <td><b>#${i+1}</b></td>
+                <td>${wp.lat.toFixed(4)}, ${wp.lon.toFixed(4)}</td>
+                <td>${wp.alt}m</td>
+            </tr>
+        `;
+    });
+
+    tableHTML += `</tbody></table>`;
+    list.innerHTML = tableHTML;
 }
+
+
+
+
 
 function updateStatsUI(isElectric, accumulatedTime, groundSpeed) {
     const distText = isElectric ? `${((accumulatedTime * groundSpeed) / 1000).toFixed(2)} km` : `${(accumulatedTime * groundSpeed).toFixed(1)} NM`;
