@@ -1,11 +1,46 @@
 // 1. CesiumJS Haritasını Başlat
-const viewer = new Cesium.Viewer('cesiumContainer', {
-    terrainProvider: Cesium.createWorldTerrain(),
-    baseLayerPicker: false,
-    navigationHelpButton: false,
-    homeButton: false,
-    sceneModePicker: true
-});
+let viewer; // Global değişken olarak tanımla
+
+function initCesium() {
+    viewer = new Cesium.Viewer('cesiumContainer', {
+        terrainProvider: Cesium.createWorldTerrain(),
+        baseLayerPicker: false,
+        navigationHelpButton: false,
+        homeButton: false,
+        sceneModePicker: true
+    });
+    
+    // Tıklama event'ini harita oluştuktan sonra bağla
+    setupHandler();
+}
+
+// Mevcut handler kodunu bir fonksiyona saralım
+function setupHandler() {
+    const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+    handler.setInputAction((click) => {
+        const pickedPosition = viewer.scene.pickPosition(click.position);
+        if (Cesium.defined(pickedPosition)) {
+            const cartographic = Cesium.Cartographic.fromCartesian(pickedPosition);
+            const lat = Cesium.Math.toDegrees(cartographic.latitude);
+            const lon = Cesium.Math.toDegrees(cartographic.longitude);
+            const alt = Math.round(cartographic.height + 50);
+
+            waypoints.push({
+                lat: lat,
+                lon: lon,
+                alt: alt,
+                cartesian: pickedPosition
+            });
+
+            renderVisuals(-1);
+            updateUI();
+            calculateLogistics();
+        }
+    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+}
+
+
+
 
 let waypoints = []; // Rota noktalarını tutacak dizi
 
@@ -116,8 +151,10 @@ function updateStatsUI(isElectric, accumulatedTime, groundSpeed) {
     document.getElementById('total-stats').innerText = `Mesafe: ${distText} | Tahmini Süre: ${timeText}`;
 }
 
-// Sayfa yüklendiğinde varsayılan menüyü kur
-window.onload = buildDynamicMenu;
+
+
+
+
 
 
 
@@ -262,3 +299,13 @@ function addGridPoint(lat, lon, array) {
         cartesian: cartesian
     });
 }
+
+
+
+
+
+// Sayfa yüklendiğinde varsayılan menüyü kur
+window.onload = () => {
+    initCesium();      // Haritayı başlat
+    buildDynamicMenu(); // Menüyü oluştur
+};
