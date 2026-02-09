@@ -10,17 +10,22 @@ Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOi
 let viewer; // Global değişken olarak tanımla
 
 function initCesium() {
+    // Viewer'ı daha basit ve hata vermeyecek şekilde başlatalım
     viewer = new Cesium.Viewer('cesiumContainer', {
-        terrainProvider: Cesium.createWorldTerrain(),
-        baseLayerPicker: false,
-        navigationHelpButton: false,
-        homeButton: false,
-        sceneModePicker: true
+        terrain: Cesium.Terrain.fromWorldTerrain(), // Yeni sürüm terrain kullanımı
+        baseLayerPicker: true, // Sorun olursa haritayı manuel seçebilmen için şimdilik true yapalım
+        animation: false,
+        timeline: false,
+        infoBox: false,
+        selectionIndicator: false
     });
     
-    // Tıklama event'ini harita oluştuktan sonra bağla
     setupHandler();
 }
+
+
+
+
 
 // Mevcut handler kodunu bir fonksiyona saralım
 function setupHandler() {
