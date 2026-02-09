@@ -118,3 +118,90 @@ function updateStatsUI(isElectric, accumulatedTime, groundSpeed) {
 
 // Sayfa yüklendiğinde varsayılan menüyü kur
 window.onload = buildDynamicMenu;
+
+
+
+// 5. Haritaya Tıklama Olayını Tanımla
+const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+
+handler.setInputAction((click) => {
+    // Tıklanan koordinatı 3D uzayda yakala
+    const pickedPosition = viewer.scene.pickPosition(click.position);
+    
+    if (Cesium.defined(pickedPosition)) {
+        // Koordinatı Enlem/Boylam formatına çevir
+        const cartographic = Cesium.Cartographic.fromCartesian(pickedPosition);
+        const lat = Cesium.Math.toDegrees(cartographic.latitude);
+        const lon = Cesium.Math.toDegrees(cartographic.longitude);
+        const alt = Math.round(cartographic.height + 50); // Varsayılan 50m yükseklik
+
+        // Listeye ekle
+        waypoints.push({
+            lat: lat,
+            lon: lon,
+            alt: alt,
+            cartesian: pickedPosition
+        });
+
+        // Görselleri ve UI'ı güncelle
+        renderVisuals(-1); // Henüz hata yoksa -1 pasla
+        updateUI();
+        calculateLogistics();
+    }
+}, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+// 6. Rota Çizgilerini ve Noktaları Haritada Göster
+let routeLineEntity = null;
+let waypointEntities = [];
+
+function renderVisuals(failIndex) {
+    // Eskileri temizle
+    if (routeLineEntity) viewer.entities.remove(routeLineEntity);
+    waypointEntities.forEach(entity => viewer.entities.remove(entity));
+    waypointEntities = [];
+
+    const positions = waypoints.map(wp => wp.cartesian);
+
+    if (positions.length > 1) {
+        // Çizgiyi oluştur
+        routeLineEntity = viewer.entities.add({
+            polyline: {
+                positions: positions,
+                width: 4,
+                material: Cesium.Color.fromCssColorString('#38bdf8'),
+                disableDepthTestDistance: Number.POSITIVE_INFINITY
+            }
+        });
+    }
+
+    // Noktaları (Pin) oluştur
+    waypoints.forEach((wp, index) => {
+        const pin = viewer.entities.add({
+            position: wp.cartesian,
+            point: {
+                pixelSize: 10,
+                color: (failIndex !== -1 && index >= failIndex) ? Cesium.Color.RED : Cesium.Color.fromCssColorString('#10b981'),
+                outlineColor: Cesium.Color.WHITE,
+                outlineWidth: 2
+            }
+        });
+        waypointEntities.push(pin);
+    });
+}
+
+// 7. Sağ Paneldeki Tabloyu Güncelle (Nav Log)
+function updateUI() {
+    const listContainer = document.getElementById('wp-list');
+    listContainer.innerHTML = ""; // Temizle
+
+    waypoints.forEach((wp, i) => {
+        const item = document.createElement('div');
+        item.className = 'waypoint-item';
+        item.innerHTML = `
+            <b>WP #${i + 1}</b><br>
+            LAT: ${wp.lat.toFixed(5)} | LON: ${wp.lon.toFixed(5)}<br>
+            ALT: ${wp.alt}m
+        `;
+        listContainer.appendChild(item);
+    });
+}
