@@ -1,3 +1,11 @@
+// Cesium ION Access Token - Harita verileri için zorunludur
+Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzMzEyYzc1OS03OTY0LTQ5MGYtODcwMi0zMGNiYmZjNGIxMTkiLCJpZCI6Mzc2MTk2LCJpYXQiOjE3Njc4NjA4NjJ9.aZRZorILCG4gIlzwCnm1L2SCp58z-TCg6yNaDbPLxnU';
+
+
+
+
+
+
 // 1. CesiumJS Haritasını Başlat
 let viewer; // Global değişken olarak tanımla
 
