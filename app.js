@@ -205,3 +205,60 @@ function updateUI() {
         listContainer.appendChild(item);
     });
 }
+
+
+// 8. Arama Izgarası Oluşturma (Search Grid)
+function generateSearchGrid() {
+    // Izgara oluşturmak için en az 2 nokta (başlangıç ve bitiş köşeleri) gerekli
+    if (waypoints.length < 2) {
+        alert("Izgara oluşturmak için haritada en az iki nokta (köşeler) belirleyin.");
+        return;
+    }
+
+    const startWP = waypoints[0];
+    const endWP = waypoints[waypoints.length - 1];
+
+    const latMin = Math.min(startWP.lat, endWP.lat);
+    const latMax = Math.max(startWP.lat, endWP.lat);
+    const lonMin = Math.min(startWP.lon, endWP.lon);
+    const lonMax = Math.max(startWP.lon, endWP.lon);
+
+    // Izgara aralığı (Dronelar için yaklaşık 30-50 metre idealdir)
+    const step = 0.0005; // Derece cinsinden yaklaşık mesafe
+    const newWaypoints = [];
+    let zigZag = true;
+
+    for (let lat = latMin; lat <= latMax; lat += step) {
+        if (zigZag) {
+            // Soldan sağa
+            for (let lon = lonMin; lon <= lonMax; lon += step) {
+                addGridPoint(lat, lon, newWaypoints);
+            }
+        } else {
+            // Sağdan sola (Yılanvari dönüş için)
+            for (let lon = lonMax; lon >= lonMin; lon -= step) {
+                addGridPoint(lat, lon, newWaypoints);
+            }
+        }
+        zigZag = !zigZag;
+    }
+
+    // Mevcut rotayı sil ve yeni ızgarayı ata
+    waypoints = newWaypoints;
+    
+    // Görselleri ve UI'ı güncelle
+    renderVisuals(-1);
+    updateUI();
+    calculateLogistics();
+}
+
+// Yardımcı Fonksiyon: Izgara noktalarını koordinata çevir
+function addGridPoint(lat, lon, array) {
+    const cartesian = Cesium.Cartesian3.fromDegrees(lon, lat, 100); // 100m sabit yükseklik
+    array.push({
+        lat: lat,
+        lon: lon,
+        alt: 100,
+        cartesian: cartesian
+    });
+}
