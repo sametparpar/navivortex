@@ -295,6 +295,78 @@ function renderVisuals(failIndex) {
     });
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+// 3. Dynamic Vehicle Inputs (Araç Tipine Göre Inputları Değiştir)
+function updateVehicleParams() {
+    const category = document.getElementById('vehicle-category').value;
+    const container = document.getElementById('dynamic-inputs');
+    let html = '';
+
+    if (category === 'electric_drone') {
+        // --- DRONE AYARLARI ---
+        html = `
+            <div class="input-group" style="margin-top:10px;">
+                <label style="color:#94a3b8; font-size:10px;">CRUISE SPEED (m/s)</label>
+                <input type="number" id="drone-speed" value="15" oninput="updateUI()" style="background:#0f172a; border:1px solid #334155; color:white; width:100%; padding:5px; border-radius:4px;">
+            </div>
+            <div class="input-group" style="margin-top:5px;">
+                <label style="color:#94a3b8; font-size:10px;">BATTERY CAPACITY (mAh)</label>
+                <input type="number" id="drone-bat" value="5200" oninput="updateUI()" style="background:#0f172a; border:1px solid #334155; color:white; width:100%; padding:5px; border-radius:4px;">
+            </div>
+        `;
+    } else {
+        // --- UÇAK (C172) AYARLARI ---
+        html = `
+            <div class="input-group" style="margin-top:10px;">
+                <label style="color:#94a3b8; font-size:10px;">TRUE AIRSPEED (TAS - kts)</label>
+                <input type="number" id="fuel-speed" value="110" oninput="updateUI()" style="background:#0f172a; border:1px solid #334155; color:white; width:100%; padding:5px; border-radius:4px;">
+            </div>
+            <div class="input-group" style="margin-top:5px;">
+                <label style="color:#94a3b8; font-size:10px;">FUEL BURN (Gal/hr)</label>
+                <input type="number" id="fuel-rate" value="9" oninput="updateUI()" style="background:#0f172a; border:1px solid #334155; color:white; width:100%; padding:5px; border-radius:4px;">
+            </div>
+        `;
+    }
+
+    // HTML'i içeri bas
+    container.innerHTML = html;
+    
+    // Değerler değiştiği için hesaplamayı hemen güncelle
+    updateUI();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // 7. Professional Nav Log Table (With Wind Triangle Physics 🌪️)
 function updateUI() {
     const list = document.getElementById('wp-list');
@@ -873,3 +945,10 @@ window.onload = () => {
     initCesium();
     buildDynamicMenu();
 };
+
+
+
+
+
+// Sayfa yüklendiğinde varsayılan araç ayarlarını getir:
+updateVehicleParams();
