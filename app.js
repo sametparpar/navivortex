@@ -703,6 +703,7 @@ function generateMissionBriefing() {
 
 
 // 17. Tab Switching Logic (Sağ Panel)
+// 17. Tab Switching Logic (GÜNCELLENMİŞ - Grafik Tetikleyicili)
 function openTab(tabName) {
     // Tüm içerikleri gizle
     const contents = document.getElementsByClassName('tab-content');
@@ -720,13 +721,34 @@ function openTab(tabName) {
     document.getElementById(tabName).style.display = 'block';
     
     // Tıklanan butonu aktif yap
-    event.currentTarget.className += " active";
+    if (event && event.currentTarget) {
+        event.currentTarget.className += " active";
+    }
 
-    // Eğer Library sekmesi açıldıysa ve liste boşsa, otomatik yükle
+    // 1. Library açıldıysa listeyi yükle
     if (tabName === 'tab-library' && document.getElementById('mission-list-container').children.length <= 1) {
         loadMyMissions();
     }
+
+    // 2. Profile açıldıysa grafiği çiz (YENİ EKLENEN KISIM) 🏔️
+    if (tabName === 'tab-profile') {
+        // Grafiği çizdir (Henüz fonksiyonu eklemediysen hata vermesin diye kontrol ediyoruz)
+        if (typeof updateElevationProfile === "function") {
+            updateElevationProfile();
+        }
+    }
 }
+
+
+
+
+
+
+
+
+
+
+
 
 // 18. Filter Missions (Arama Kutusu İçin) 🔍
 function filterMissions() {
@@ -972,6 +994,142 @@ async function getLiveWeather() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+// 20. Elevation Profile Generator (Chart.js Entegrasyonu) 🏔️
+let elevationChart = null;
+
+async function updateElevationProfile() {
+    // Sadece PROFILE sekmesi açıksa ve en az 2 nokta varsa çalıştır (Performans için)
+    const tabProfile = document.getElementById('tab-profile');
+    if (tabProfile.style.display === 'none' || waypoints.length < 2) return;
+
+    document.getElementById('profile-loading').style.display = 'block';
+
+    // 1. Rota boyunca örnekleme noktaları oluştur
+    const terrainSamplePositions = [];
+    const flightAltitudes = [];
+    const distances = [];
+    let totalDist = 0;
+
+    for (let i = 0; i < waypoints.length - 1; i++) {
+        const start = waypoints[i];
+        const end = waypoints[i+1];
+        
+        // Her bacak için 10 örnek nokta al (Daha hassas grafik için artırılabilir)
+        const samples = 10; 
+        for (let j = 0; j <= samples; j++) {
+            const factor = j / samples;
+            const lon = Cesium.Math.lerp(start.lon, end.lon, factor);
+            const lat = Cesium.Math.lerp(start.lat, end.lat, factor);
+            const alt = Cesium.Math.lerp(start.alt, end.alt, factor);
+            
+            terrainSamplePositions.push(Cesium.Cartographic.fromDegrees(lon, lat));
+            flightAltitudes.push(alt); // Uçuş irtifası
+            
+            // Mesafeyi hesapla (X ekseni için)
+            if (j > 0 || i > 0) {
+                // Basit mesafe hesabı (Chart X ekseni için yaklaşık değer yeterli)
+                totalDist += Cesium.Cartesian3.distance(
+                    Cesium.Cartesian3.fromDegrees(lon, lat),
+                    Cesium.Cartesian3.fromDegrees(terrainSamplePositions[terrainSamplePositions.length-2].longitude * 180/Math.PI, terrainSamplePositions[terrainSamplePositions.length-2].latitude * 180/Math.PI)
+                );
+            }
+            distances.push((totalDist / 1000).toFixed(1)); // km cinsinden
+        }
+    }
+
+    try {
+        // 2. Cesium'dan Arazi Yüksekliklerini İste (Async)
+        const updatedPositions = await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, terrainSamplePositions);
+        const terrainHeights = updatedPositions.map(p => p.height || 0);
+
+        // 3. Grafiği Çiz
+        renderChart(distances, terrainHeights, flightAltitudes);
+    } catch (error) {
+        console.error("Terrain sampling failed:", error);
+    } finally {
+        document.getElementById('profile-loading').style.display = 'none';
+    }
+}
+
+function renderChart(labels, terrainData, flightData) {
+    const ctx = document.getElementById('elevationChart').getContext('2d');
+
+    // Eğer eski grafik varsa yok et (Yenisini çizmek için)
+    if (elevationChart) {
+        elevationChart.destroy();
+    }
+
+    // Güvenlik Kontrolü: Çarpışma var mı?
+    // Uçuş çizgisi rengi: Güvenli ise YEŞİL, Çarpışma varsa KIRMIZI
+    const flightColor = flightData.map((alt, index) => {
+        return alt < terrainData[index] ? 'red' : '#4ade80'; // Tehlike / Güvenli
+    });
+
+    elevationChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels, // X Ekseni (Mesafe)
+            datasets: [
+                {
+                    label: 'Terrain (Ground)',
+                    data: terrainData,
+                    borderColor: '#94a3b8',
+                    backgroundColor: 'rgba(148, 163, 184, 0.5)',
+                    fill: true,
+                    pointRadius: 0,
+                    borderWidth: 1
+                },
+                {
+                    label: 'Flight Path',
+                    data: flightData,
+                    borderColor: '#38bdf8', // Varsayılan Mavi
+                    segment: {
+                        borderColor: ctx => {
+                            // Çizgi segmenti rengi (Çarpışma kontrolü)
+                            const i = ctx.p0DataIndex;
+                            return flightData[i] < terrainData[i] ? '#ef4444' : '#4ade80';
+                        }
+                    },
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { 
+                    display: true, 
+                    title: { display: true, text: 'Distance (km)', color:'#64748b' },
+                    ticks: { color: '#64748b', maxTicksLimit: 5 }
+                },
+                y: { 
+                    display: true, 
+                    title: { display: true, text: 'Altitude (m)', color:'#64748b' },
+                    ticks: { color: '#64748b' },
+                    grid: { color: '#334155' }
+                }
+            },
+            plugins: {
+                legend: { labels: { color: '#cbd5e1', font: {size: 10} } }
+            }
+        }
+    });
+}
 
 
 
