@@ -295,26 +295,29 @@ function renderVisuals(failIndex) {
     });
 }
 
-// 7. Profesyonel Nav Log Tablosu
-// 7. Professional Nav Log Table (English Interface)
+// 7. Professional Nav Log Table (With Wind Triangle Physics 🌪️)
 function updateUI() {
     const list = document.getElementById('wp-list');
     const vehicleId = document.getElementById('vehicle-category').value;
     const config = VEHICLE_CONFIGS[vehicleId];
     
-    // Check if enough waypoints exist
+    // Rüzgar Verilerini Al
+    const windDir = parseFloat(document.getElementById('wind-direction').value || 0);
+    const windSpd = parseFloat(document.getElementById('wind-speed').value || 0);
+
     if (waypoints.length < 2) {
-        list.innerHTML = "<p style='color:#94a3b8; font-size:11px; padding:10px; text-align:center;'>Select at least 2 points on the map to view Mission Analysis.</p>";
+        list.innerHTML = "<p style='color:#94a3b8; font-size:11px; padding:10px; text-align:center;'>Select at least 2 points to calculate Wind Triangle.</p>";
         return;
     }
 
-    // Table Header in English
     let tableHTML = `
         <table class="nav-log-table">
             <thead>
                 <tr>
                     <th>LEG</th>
-                    <th>DIST</th>
+                    <th>CRS</th>
+                    <th>HDG</th>
+                    <th>GS</th>
                     <th>ETE</th>
                     <th>BURN</th>
                 </tr>
@@ -323,46 +326,77 @@ function updateUI() {
     `;
 
     for (let i = 1; i < waypoints.length; i++) {
-        const d = Cesium.Cartesian3.distance(waypoints[i-1].cartesian, waypoints[i].cartesian);
+        const prev = waypoints[i-1];
+        const curr = waypoints[i];
         
-        // Get speed and consumption rate inputs safely
+        // 1. Temel Mesafe (Distance)
+        const d = Cesium.Cartesian3.distance(prev.cartesian, curr.cartesian);
+        
+        // 2. True Course (TC) Hesabı (İki nokta arasındaki açı)
+        // Cesium'dan yeryüzü açısını (bearing) alıyoruz
+        const vector = Cesium.Cartesian3.subtract(curr.cartesian, prev.cartesian, new Cesium.Cartesian3());
+        const east = Cesium.Cartesian3.cross(prev.cartesian, Cesium.Cartesian3.UNIT_Z, new Cesium.Cartesian3());
+        const north = Cesium.Cartesian3.cross(Cesium.Cartesian3.UNIT_Z, east, new Cesium.Cartesian3());
+        
+        // Basitleştirilmiş Yön Hesabı (Lat/Lon farkından)
+        const y = Math.sin(curr.lon * Math.PI/180 - prev.lon * Math.PI/180) * Math.cos(curr.lat * Math.PI/180);
+        const x = Math.cos(prev.lat * Math.PI/180) * Math.sin(curr.lat * Math.PI/180) -
+                  Math.sin(prev.lat * Math.PI/180) * Math.cos(curr.lat * Math.PI/180) * Math.cos(curr.lon * Math.PI/180 - prev.lon * Math.PI/180);
+        let tc = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360; // True Course (Derece)
+
+        // 3. Hız ve Rüzgar Vektörleri
         const speedInputId = config.isElectric ? 'drone-speed' : 'fuel-speed';
-        const rateInputId = config.isElectric ? 'drone-bat' : 'fuel-rate'; // Note: simplified logic for drone burn
+        let tas = parseFloat(document.getElementById(speedInputId)?.value || 1); // True Air Speed
         
-        const speed = parseFloat(document.getElementById(speedInputId)?.value || 1);
+        // Birim Dönüşümü (Hesaplamalar Knot/Saat veya m/s üzerinden yapılır)
+        // Eğer Drone ise (m/s), Rüzgar da m/s kabul edilir.
+        // Eğer Uçak ise (kts), Rüzgar da kts kabul edilir.
+
+        // 4. Rüzgar Üçgeni (The Wind Triangle) 📐
+        // WCA = asin( (WindSpeed * sin(WindDir - TC)) / TAS )
+        const rad = Math.PI / 180;
+        const wcaRad = Math.asin((windSpd * Math.sin((windDir - tc) * rad)) / tas);
+        const wca = wcaRad * 180 / Math.PI;
         
-        // Calculate Logic based on Unit System
-        let distDisplay, timeDisplay, burnDisplay;
+        // Ground Speed (GS) = TAS * cos(WCA) + WindSpeed * cos(WindDir - TC)
+        // Basitleştirilmiş Vektör Hesabı:
+        let gs = tas * Math.cos(wcaRad) + windSpd * Math.cos((windDir - tc) * rad);
+        
+        // Heading (Baş) = Course + WCA (Rüzgar düzeltmesi eklenir)
+        let hdg = tc + wca;
+        if (isNaN(hdg)) hdg = tc; // Rüzgar hızı uçak hızından büyükse matematik hata verir
+        if (isNaN(gs)) gs = tas;
+
+        // 5. Sonuçları Formatla
+        let distDisplay, timeDisplay, burnDisplay, gsDisplay;
+        const rate = parseFloat(document.getElementById(config.isElectric ? 'drone-bat' : 'fuel-rate')?.value || 0);
 
         if (config.unitSystem === "metric") {
-            // Metric Calculations (Drone)
             const distKm = d / 1000;
-            const timeMin = (d / speed) / 60;
+            const timeMin = (distKm * 1000) / gs / 60; // gs is m/s
+            const burn = timeMin * 50; // Basit drone formülü
             
-            // Simple Drone Burn Model: (Time based estimate + Distance factor)
-            // This is a placeholder logic. You can refine this formula later.
-            const burn = (timeMin * 50) + (distKm * 10); 
-            
-            distDisplay = `${distKm.toFixed(2)} km`;
-            timeDisplay = `${timeMin.toFixed(1)} min`;
-            burnDisplay = `~${burn.toFixed(0)} mAh`;
+            distDisplay = `${distKm.toFixed(1)}km`;
+            gsDisplay = `${gs.toFixed(0)}m/s`;
+            timeDisplay = `${timeMin.toFixed(1)}m`;
+            burnDisplay = `~${burn.toFixed(0)}`;
         } else {
-            // Aviation Calculations (Aircraft)
-            const distNM = d * 0.000539957; // Convert Meters to Nautical Miles
-            const timeHrs = distNM / speed;
-            const flowRate = parseFloat(document.getElementById('fuel-rate')?.value || 0);
-            const burn = timeHrs * flowRate;
-            
-            distDisplay = `${distNM.toFixed(1)} NM`;
-            timeDisplay = `${(timeHrs * 60).toFixed(1)} min`;
-            burnDisplay = `${burn.toFixed(1)} L`;
+            const distNM = d * 0.000539957;
+            const timeHrs = distNM / gs; // gs is knots
+            const burn = timeHrs * rate;
+
+            distDisplay = `${distNM.toFixed(1)}NM`;
+            gsDisplay = `${gs.toFixed(0)}kts`;
+            timeDisplay = `${(timeHrs * 60).toFixed(0)}m`;
+            burnDisplay = `${burn.toFixed(1)}L`;
         }
 
-        // Add Row to Table
         tableHTML += `
             <tr>
-                <td style="color:#fff; font-weight:bold;">WP${i}➔${i+1}</td>
-                <td>${distDisplay}</td>
+                <td style="color:#fff;">WP${i}➔${i+1}</td>
+                <td>${tc.toFixed(0)}°</td>
+                <td style="color:#f59e0b; font-weight:bold;">${hdg.toFixed(0)}°</td>
+                <td>${gsDisplay}</td>
                 <td>${timeDisplay}</td>
                 <td>${burnDisplay}</td>
             </tr>
@@ -371,8 +405,12 @@ function updateUI() {
 
     tableHTML += `</tbody></table>`;
     
-    // Add a summary footer
-    tableHTML += `<div style="margin-top:10px; border-top:1px solid #334155; padding-top:5px; font-size:10px; color:#94a3b8; text-align:right;">*ETE: Estimated Time Enroute</div>`;
+    // Footer: Rüzgar Bilgisi
+    if (windSpd > 0) {
+        tableHTML += `<div style="margin-top:5px; font-size:9px; color:#f59e0b; text-align:right;">
+            ⚠️ Wind Correction Applied: ${windDir}° @ ${windSpd}
+        </div>`;
+    }
     
     list.innerHTML = tableHTML;
 }
