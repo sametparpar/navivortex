@@ -702,34 +702,68 @@ function generateMissionBriefing() {
 
 
 
-// 12. Load Missions from Cloud (My Missions Panel)
+// 17. Tab Switching Logic (Sağ Panel)
+function openTab(tabName) {
+    // Tüm içerikleri gizle
+    const contents = document.getElementsByClassName('tab-content');
+    for (let i = 0; i < contents.length; i++) {
+        contents[i].style.display = 'none';
+    }
+
+    // Tüm butonların aktifliğini kaldır
+    const btns = document.getElementsByClassName('tab-btn');
+    for (let i = 0; i < btns.length; i++) {
+        btns[i].className = btns[i].className.replace(" active", "");
+    }
+
+    // Seçileni aç
+    document.getElementById(tabName).style.display = 'block';
+    
+    // Tıklanan butonu aktif yap
+    event.currentTarget.className += " active";
+
+    // Eğer Library sekmesi açıldıysa ve liste boşsa, otomatik yükle
+    if (tabName === 'tab-library' && document.getElementById('mission-list-container').children.length <= 1) {
+        loadMyMissions();
+    }
+}
+
+// 18. Filter Missions (Arama Kutusu İçin) 🔍
+function filterMissions() {
+    const input = document.getElementById('mission-search');
+    const filter = input.value.toUpperCase();
+    const list = document.getElementById('mission-list-container');
+    const items = list.getElementsByClassName('mission-item');
+
+    for (let i = 0; i < items.length; i++) {
+        const txtValue = items[i].innerText || items[i].textContent;
+        if (txtValue.toUpperCase().indexOf(filter) > -1) {
+            items[i].style.display = "flex"; 
+        } else {
+            items[i].style.display = "none";
+        }
+    }
+}
+
+// 19. Load Missions (YENİ VERSİYON - Sekmeli Yapıya Uygun)
 function loadMyMissions() {
     if (!currentUser) {
-        alert("Please sign in to view your saved missions.");
+        document.getElementById('mission-list-container').innerHTML = 
+            '<p style="color:#ef4444; font-size:11px; text-align:center; padding:10px;">Please SIGN IN to view your missions.</p>';
         return;
     }
 
     const container = document.getElementById('mission-list-container');
-    
-    // Toggle Visibility (Aç/Kapa)
-    if (container.style.display === 'none') {
-        container.style.display = 'block';
-    } else {
-        container.style.display = 'none';
-        return;
-    }
+    container.innerHTML = '<p style="color:#94a3b8; font-size:10px; text-align:center;">Fetching data from cloud...</p>';
 
-    container.innerHTML = '<p style="padding:10px; color:#94a3b8; font-size:10px; text-align:center;">Loading...</p>';
-
-    // Firebase Query
     db.collection("missions")
         .where("pilotId", "==", currentUser.uid)
         .orderBy("createdAt", "desc")
-        .limit(10) // Son 10 görevi getir
+        .limit(50)
         .get()
         .then((querySnapshot) => {
             if (querySnapshot.empty) {
-                container.innerHTML = '<p style="padding:10px; color:#94a3b8; font-size:10px; text-align:center;">No saved missions found.</p>';
+                container.innerHTML = '<p style="color:#94a3b8; font-size:11px; text-align:center; padding:10px;">No saved missions found.</p>';
                 return;
             }
 
@@ -737,18 +771,16 @@ function loadMyMissions() {
             querySnapshot.forEach((doc) => {
                 const mission = doc.data();
                 const date = mission.createdAt ? new Date(mission.createdAt.seconds * 1000).toLocaleDateString() : 'Just now';
-                
-                // Güvenli veri kontrolü
                 const vehicleName = mission.vehicle ? mission.vehicle.toUpperCase().replace('_', ' ') : 'UNKNOWN';
-                const pointCount = mission.points ? mission.points.length : 0;
+                const missionName = mission.missionName || `${vehicleName} - ${date}`;
 
                 html += `
                     <div class="mission-item" onclick="restoreMission('${doc.id}')">
                         <div class="mission-info">
-                            <strong>${vehicleName}</strong> (${pointCount} WPs)
-                            <span class="mission-date">${date}</span>
+                            <strong style="color:#38bdf8;">${missionName}</strong><br>
+                            <span class="mission-date">${date} • ${mission.points.length} WPs</span>
                         </div>
-                        <button class="mission-delete-btn" onclick="deleteMission(event, '${doc.id}')" title="Delete">×</button>
+                        <button class="mission-delete-btn" onclick="deleteMission(event, '${doc.id}')" title="Delete">🗑️</button>
                     </div>
                 `;
             });
@@ -756,9 +788,31 @@ function loadMyMissions() {
         })
         .catch((error) => {
             console.error("Error loading missions:", error);
-            container.innerHTML = '<p style="padding:10px; color:#ef4444; font-size:10px; text-align:center;">Error loading data.</p>';
+            container.innerHTML = '<p style="color:#ef4444; font-size:10px; text-align:center;">Error: ' + error.message + '</p>';
         });
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // 13. Restore Mission to Map (Haritayı Yeniden Çiz)
 function restoreMission(missionId) {
