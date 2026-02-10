@@ -750,6 +750,113 @@ function deleteMission(event, missionId) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// 15. UI Interaction (Accordion Menu)
+function toggleMenu(sectionId) {
+    const section = document.getElementById(sectionId);
+    const allSections = document.querySelectorAll('.menu-content');
+    
+    // İsteğe bağlı: Diğerlerini kapat, sadece tıklananı aç (Daha temiz görünüm için)
+    // allSections.forEach(div => {
+    //    if(div.id !== sectionId) div.style.display = 'none';
+    // });
+
+    if (section.style.display === 'none' || section.style.display === '') {
+        section.style.display = 'block';
+    } else {
+        section.style.display = 'none';
+    }
+}
+
+// 16. Live Weather Fetch (OpenWeatherMap API)
+async function getLiveWeather() {
+    // ⚠️ DİKKAT: Buraya kendi API anahtarını alıp yazmalısın.
+    // Ücretsiz almak için: https://home.openweathermap.org/users/sign_up
+    const API_KEY = "BURAYA_KENDI_API_ANAHTARINI_YAZMALISIN"; 
+    
+    if (waypoints.length === 0) {
+        alert("Please place at least one point on the map to get local weather.");
+        return;
+    }
+
+    // İlk noktanın konumunu al
+    const lat = waypoints[0].lat;
+    const lon = waypoints[0].lon;
+    const btn = document.querySelector('button[onclick="getLiveWeather()"]');
+
+    btn.innerText = "⏳ Loading...";
+
+    try {
+        // Eğer API Key yoksa (Demo Modu) - Kullanıcıyı üzmemek için rastgele veri
+        if (API_KEY === "BURAYA_KENDI_API_ANAHTARINI_YAZMALISIN") {
+            console.warn("API Key eksik. Demo verisi gösteriliyor.");
+            setTimeout(() => {
+                alert("⚠️ API Key not found! Showing DEMO weather data.\n(Edit app.js line ~400 to add your OpenWeatherMap Key)");
+                document.getElementById('wind-direction').value = Math.floor(Math.random() * 360);
+                document.getElementById('wind-speed').value = Math.floor(Math.random() * 20) + 5;
+                updateUI();
+                btn.innerText = "☁️ GET LIVE";
+            }, 1000);
+            return;
+        }
+
+        // Gerçek API Çağrısı
+        const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`);
+        const data = await response.json();
+
+        if (data.wind) {
+            // Açıyı ve hızı kutulara yaz
+            document.getElementById('wind-direction').value = data.wind.deg;
+            
+            // API m/s verir. Eğer uçak seçiliyse (knot) dönüştür.
+            const vehicleId = document.getElementById('vehicle-category').value;
+            const config = VEHICLE_CONFIGS[vehicleId];
+            
+            let speedVal = data.wind.speed; // m/s
+            if (!config.isElectric) { // Uçaksa (Aviation mode)
+                speedVal = speedVal * 1.94384; // m/s to knots
+            }
+            
+            document.getElementById('wind-speed').value = speedVal.toFixed(1);
+            
+            updateUI(); // Haritadaki vektörleri güncelle
+            alert(`✅ Weather Updated for ${data.name}:\nWind: ${data.wind.deg}° at ${speedVal.toFixed(1)} ${config.isElectric ? 'm/s' : 'kts'}`);
+        }
+    } catch (error) {
+        console.error(error);
+        alert("Weather fetch failed. Check console.");
+    } finally {
+        btn.innerText = "☁️ GET LIVE";
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                           
 
 
