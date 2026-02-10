@@ -180,7 +180,7 @@ function renderVisuals(failIndex) {
                 positions: positions,
                 width: 4,
                 material: Cesium.Color.fromCssColorString('#38bdf8'),
-                clampToGround: true, // Çizgiyi araziye yapıştırır
+                clampToGround: true, 
                 classificationType: Cesium.ClassificationType.TERRAIN
             }
         });
@@ -194,7 +194,7 @@ function renderVisuals(failIndex) {
                 color: (failIndex !== -1 && index >= failIndex) ? Cesium.Color.RED : Cesium.Color.fromCssColorString('#10b981'),
                 outlineColor: Cesium.Color.WHITE,
                 outlineWidth: 2,
-                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND // Noktayı yüzeye sabitler
+                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND 
             }
         });
         waypointEntities.push(pin);
