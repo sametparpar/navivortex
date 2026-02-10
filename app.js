@@ -1,6 +1,102 @@
 // 1. Cesium ION Access Token (Harita verileri için zorunlu)
 Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzMzEyYzc1OS03OTY0LTQ5MGYtODcwMi0zMGNiYmZjNGIxMTkiLCJpZCI6Mzc2MTk2LCJpYXQiOjE3Njc4NjA4NjJ9.aZRZorILCG4gIlzwCnm1L2SCp58z-TCg6yNaDbPLxnU';
 
+
+
+
+// --- FIREBASE CONFIGURATION (START) ---
+const firebaseConfig = {
+    apiKey: "AIzaSyDj58VpffB4SayaOZ6iA2JSfrFUhw0hzPw",
+    authDomain: "navivortex-533de.firebaseapp.com",
+    projectId: "navivortex-533de",
+    storageBucket: "navivortex-533de.firebasestorage.app",
+    messagingSenderId: "887483850322",
+    appId: "1:887483850322:web:5c7ba61cbf0e52cc724988"
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+let currentUser = null;
+
+// 1. Google ile Giriş Yap
+function loginWithGoogle() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    auth.signInWithPopup(provider)
+        .then((result) => {
+            console.log("Giriş Başarılı:", result.user.displayName);
+        })
+        .catch((error) => {
+            alert("Giriş Hatası: " + error.message);
+        });
+}
+
+// 2. Çıkış Yap
+function logout() {
+    auth.signOut().then(() => {
+        console.log("Çıkış Yapıldı");
+    });
+}
+
+// 3. Kullanıcı Durumunu Dinle (Oturum Açık mı?)
+auth.onAuthStateChanged((user) => {
+    const loginBtn = document.getElementById('btn-login');
+    const userPanel = document.getElementById('user-panel');
+    const userName = document.getElementById('user-name');
+
+    if (user) {
+        currentUser = user;
+        loginBtn.style.display = 'none';
+        userPanel.style.display = 'block';
+        userName.innerText = `Pilot: ${user.displayName}`;
+    } else {
+        currentUser = null;
+        loginBtn.style.display = 'block';
+        userPanel.style.display = 'none';
+    }
+});
+
+// 4. Rotayı Buluta Kaydet
+function saveMissionToCloud() {
+    if (!currentUser) {
+        alert("Lütfen önce giriş yapın!");
+        return;
+    }
+    if (waypoints.length < 2) {
+        alert("Kaydedilecek rota yok! En az 2 nokta belirleyin.");
+        return;
+    }
+
+    const missionData = {
+        pilotId: currentUser.uid,
+        pilotName: currentUser.displayName,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        vehicle: document.getElementById('vehicle-category').value,
+        points: waypoints.map(wp => ({
+            lat: wp.lat,
+            lon: wp.lon,
+            alt: wp.alt
+        }))
+    };
+
+    db.collection("missions").add(missionData)
+        .then(() => {
+            alert("✅ Mission saved successfully to Cloud!");
+        })
+        .catch((error) => {
+            alert("❌ Save failed: " + error.message);
+        });
+}
+// --- FIREBASE CONFIGURATION (END) ---
+
+
+
+
+
+
+
+
 let viewer;
 let waypoints = [];
 let routeLineEntity = null;
