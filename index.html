@@ -131,19 +131,54 @@
 
 
     
+
+
+
+
+
+
 <div id="data-table">
-    <div style="margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid #334155; display:flex; justify-content:space-between; align-items:center;">
-        <span class="table-title">NAV LOG & MISSION DATA</span>
-        <button onclick="loadMyMissions()" style="width:auto; padding:5px 10px; font-size:10px; background:#3b82f6;">📂 MY MISSIONS</button>
-    </div>
     
-    <div id="mission-list-container" style="display:none; margin-bottom:15px; max-height:150px; overflow-y:auto; border:1px solid #334155; border-radius:6px; background:#0f172a;">
-        <p style="padding:10px; color:#94a3b8; font-size:10px; text-align:center;">Loading missions...</p>
+    <div class="tab-header">
+        <button class="tab-btn active" onclick="openTab('tab-log')">📊 LOG</button>
+        <button class="tab-btn" onclick="openTab('tab-profile')">🏔️ PROFILE</button>
+        <button class="tab-btn" onclick="openTab('tab-library')">📂 LIBRARY</button>
     </div>
 
-    <div id="wp-list"></div>
-    <div id="total-stats"></div>
+    <div id="tab-log" class="tab-content" style="display:block;">
+        <div id="total-stats" style="margin-bottom:10px;"></div>
+        <div id="wp-list">
+            <p style="color:#64748b; font-size:11px; text-align:center; padding:20px;">
+                No active route.<br>Click on map to add waypoints.
+            </p>
+        </div>
+    </div>
+
+    <div id="tab-profile" class="tab-content" style="display:none;">
+        <p style="color:#64748b; font-size:11px; text-align:center; padding:20px;">
+            Elevation Profile Module<br>(Coming Soon)
+        </p>
+    </div>
+
+    <div id="tab-library" class="tab-content" style="display:none;">
+        <input type="text" id="mission-search" placeholder="🔍 Search saved missions..." onkeyup="filterMissions()" 
+               style="width:100%; padding:8px; background:#0f172a; border:1px solid #334155; color:white; font-size:11px; border-radius:4px; margin-bottom:10px;">
+        
+        <div id="mission-list-container" class="scrollable-list">
+            <p style="color:#64748b; font-size:11px; text-align:center; padding:10px;">
+                <button onclick="loadMyMissions()" style="background:#3b82f6; padding:5px 10px;">↻ LOAD MY MISSIONS</button>
+            </p>
+        </div>
+    </div>
+
 </div>
+
+
+
+
+
+
+    
 
 
 
@@ -159,6 +194,7 @@
     <script src="app.js"></script>
 </body>
 </html>
+
 
 
 
