@@ -786,7 +786,7 @@ function toggleMenu(sectionId) {
 async function getLiveWeather() {
     // ⚠️ DİKKAT: Buraya kendi API anahtarını alıp yazmalısın.
     // Ücretsiz almak için: https://home.openweathermap.org/users/sign_up
-    const API_KEY = "BURAYA_KENDI_API_ANAHTARINI_YAZMALISIN"; 
+    const API_KEY = "86b7d3ff9069982fcbdca23d170f0a70"; 
     
     if (waypoints.length === 0) {
         alert("Please place at least one point on the map to get local weather.");
