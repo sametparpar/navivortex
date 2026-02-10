@@ -26,6 +26,32 @@
             </select>
         </div>
 
+
+
+
+<div class="input-group" style="border-top:1px solid #334155; margin-top:15px; padding-top:10px;">
+    <label style="color:#f59e0b;">💨 WIND CONDITIONS (Global)</label>
+    <div style="display:flex; gap:10px;">
+        <div style="flex:1;">
+            <label style="font-size:9px;">DIRECTION (°)</label>
+            <input type="number" id="wind-direction" value="0" min="0" max="360" placeholder="0-360" oninput="updateUI()">
+        </div>
+        <div style="flex:1;">
+            <label style="font-size:9px;">SPEED (kts/m/s)</label>
+            <input type="number" id="wind-speed" value="0" min="0" placeholder="Speed" oninput="updateUI()">
+        </div>
+    </div>
+    <small style="color:#64748b; font-size:9px; display:block; margin-top:4px;">*Enter wind coming FROM direction.</small>
+</div>
+
+
+
+
+
+
+
+        
+
         <hr class="separator">
         <div id="dynamic-inputs-container"></div>
 
@@ -89,6 +115,7 @@
     <script src="app.js"></script>
 </body>
 </html>
+
 
 
 
