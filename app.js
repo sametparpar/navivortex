@@ -202,23 +202,27 @@ function renderVisuals(failIndex) {
 }
 
 // 7. Profesyonel Nav Log Tablosu
+// 7. Professional Nav Log Table (English Interface)
 function updateUI() {
     const list = document.getElementById('wp-list');
     const vehicleId = document.getElementById('vehicle-category').value;
     const config = VEHICLE_CONFIGS[vehicleId];
     
-    if (waypoints.length < 1) {
-        list.innerHTML = "<p style='color:#64748b'>Rota noktası seçilmedi.</p>";
+    // Check if enough waypoints exist
+    if (waypoints.length < 2) {
+        list.innerHTML = "<p style='color:#94a3b8; font-size:11px; padding:10px; text-align:center;'>Select at least 2 points on the map to view Mission Analysis.</p>";
         return;
     }
 
+    // Table Header in English
     let tableHTML = `
         <table class="nav-log-table">
             <thead>
                 <tr>
-                    <th>BACAK</th>
-                    <th>MESAFE</th>
-                    <th>SÜRE</th>
+                    <th>LEG</th>
+                    <th>DIST</th>
+                    <th>ETE</th>
+                    <th>BURN</th>
                 </tr>
             </thead>
             <tbody>
@@ -227,29 +231,55 @@ function updateUI() {
     for (let i = 1; i < waypoints.length; i++) {
         const d = Cesium.Cartesian3.distance(waypoints[i-1].cartesian, waypoints[i].cartesian);
         
-        // Birim Dönüşümü
-        let distDisplay, timeDisplay;
-        const speed = parseFloat(document.querySelector('[id*="speed"]').value || 1);
+        // Get speed and consumption rate inputs safely
+        const speedInputId = config.isElectric ? 'drone-speed' : 'fuel-speed';
+        const rateInputId = config.isElectric ? 'drone-bat' : 'fuel-rate'; // Note: simplified logic for drone burn
+        
+        const speed = parseFloat(document.getElementById(speedInputId)?.value || 1);
+        
+        // Calculate Logic based on Unit System
+        let distDisplay, timeDisplay, burnDisplay;
 
         if (config.unitSystem === "metric") {
-            distDisplay = `${(d/1000).toFixed(2)} km`;
-            timeDisplay = `${(d / speed / 60).toFixed(1)} dk`;
+            // Metric Calculations (Drone)
+            const distKm = d / 1000;
+            const timeMin = (d / speed) / 60;
+            
+            // Simple Drone Burn Model: (Time based estimate + Distance factor)
+            // This is a placeholder logic. You can refine this formula later.
+            const burn = (timeMin * 50) + (distKm * 10); 
+            
+            distDisplay = `${distKm.toFixed(2)} km`;
+            timeDisplay = `${timeMin.toFixed(1)} min`;
+            burnDisplay = `~${burn.toFixed(0)} mAh`;
         } else {
-            const distNM = d * 0.000539957;
+            // Aviation Calculations (Aircraft)
+            const distNM = d * 0.000539957; // Convert Meters to Nautical Miles
+            const timeHrs = distNM / speed;
+            const flowRate = parseFloat(document.getElementById('fuel-rate')?.value || 0);
+            const burn = timeHrs * flowRate;
+            
             distDisplay = `${distNM.toFixed(1)} NM`;
-            timeDisplay = `${(distNM / speed * 60).toFixed(1)} dk`;
+            timeDisplay = `${(timeHrs * 60).toFixed(1)} min`;
+            burnDisplay = `${burn.toFixed(1)} L`;
         }
 
+        // Add Row to Table
         tableHTML += `
             <tr>
-                <td>WP${i}➔${i+1}</td>
+                <td style="color:#fff; font-weight:bold;">WP${i}➔${i+1}</td>
                 <td>${distDisplay}</td>
                 <td>${timeDisplay}</td>
+                <td>${burnDisplay}</td>
             </tr>
         `;
     }
 
     tableHTML += `</tbody></table>`;
+    
+    // Add a summary footer
+    tableHTML += `<div style="margin-top:10px; border-top:1px solid #334155; padding-top:5px; font-size:10px; color:#94a3b8; text-align:right;">*ETE: Estimated Time Enroute</div>`;
+    
     list.innerHTML = tableHTML;
 }
 
