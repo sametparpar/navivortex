@@ -588,6 +588,78 @@ function generateMissionBriefing() {
 
 
 
+
+
+
+
+// 12. Load Missions from Cloud (My Missions Panel)
+function loadMyMissions() {
+    if (!currentUser) {
+        alert("Please sign in to view your saved missions.");
+        return;
+    }
+
+    const container = document.getElementById('mission-list-container');
+    
+    // Toggle Visibility (Aç/Kapa)
+    if (container.style.display === 'none') {
+        container.style.display = 'block';
+    } else {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.innerHTML = '<p style="padding:10px; color:#94a3b8; font-size:10px; text-align:center;">Loading...</p>';
+
+    // Firebase Query
+    db.collection("missions")
+        .where("pilotId", "==", currentUser.uid)
+        .orderBy("createdAt", "desc")
+        .limit(10) // Son 10 görevi getir
+        .get()
+        .then((querySnapshot) => {
+            if (querySnapshot.empty) {
+                container.innerHTML = '<p style="padding:10px; color:#94a3b8; font-size:10px; text-align:center;">No saved missions found.</p>';
+                return;
+            }
+
+            let html = '';
+            querySnapshot.forEach((doc) => {
+                const mission = doc.data();
+                const date = mission.createdAt ? new Date(mission.createdAt.seconds * 1000).toLocaleDateString() : 'Just now';
+                
+                // Güvenli veri kontrolü
+                const vehicleName = mission.vehicle ? mission.vehicle.toUpperCase().replace('_', ' ') : 'UNKNOWN';
+                const pointCount = mission.points ? mission.points.length : 0;
+
+                html += `
+                    <div class="mission-item" onclick="restoreMission('${doc.id}')">
+                        <div class="mission-info">
+                            <strong>${vehicleName}</strong> (${pointCount} WPs)
+                            <span class="mission-date">${date}</span>
+                        </div>
+                        <button class="mission-delete-btn" onclick="deleteMission(event, '${doc.id}')" title="Delete">×</button>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        })
+        .catch((error) => {
+            console.error("Error loading
+
+
+
+                          
+
+
+
+
+
+
+
+
+
+
 // 8. Başlatıcı
 window.onload = () => {
     initCesium();
