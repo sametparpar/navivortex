@@ -192,3 +192,63 @@ button {
 .mission-delete-btn:hover {
     color: #ff0000;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* --- YENİ MENÜ TASARIMI (ACCORDION) --- */
+.menu-section {
+    margin-bottom: 8px;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    overflow: hidden;
+    background: rgba(30, 41, 59, 0.5);
+}
+
+.menu-header {
+    padding: 10px;
+    background: #1e293b;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: bold;
+    color: #cbd5e1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.2s;
+}
+
+.menu-header:hover {
+    background: #334155;
+    color: #fff;
+}
+
+.menu-content {
+    padding: 10px;
+    display: none; /* Varsayılan kapalı */
+    background: rgba(15, 23, 42, 0.4);
+}
+
+.toggle-icon {
+    font-size: 9px;
+    color: #64748b;
+}
