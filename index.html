@@ -55,12 +55,30 @@
         <div id="energy-alert" class="energy-warn"></div>
     </div>
 
-    <div id="data-table">
-        <div class="table-title">NAV LOG & MISSION DATA</div>
-        <div id="wp-list"></div>
-        <div id="total-stats"></div>
+
+
+
+
+
+    
+<div id="data-table">
+    <div style="margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid #334155; display:flex; justify-content:space-between; align-items:center;">
+        <span class="table-title">NAV LOG & MISSION DATA</span>
+        <button onclick="loadMyMissions()" style="width:auto; padding:5px 10px; font-size:10px; background:#3b82f6;">📂 MY MISSIONS</button>
+    </div>
+    
+    <div id="mission-list-container" style="display:none; margin-bottom:15px; max-height:150px; overflow-y:auto; border:1px solid #334155; border-radius:6px; background:#0f172a;">
+        <p style="padding:10px; color:#94a3b8; font-size:10px; text-align:center;">Loading missions...</p>
     </div>
 
+    <div id="wp-list"></div>
+    <div id="total-stats"></div>
+</div>
+
+
+
+
+    
     <div class="bottom-ad-bar">
         <span class="ad-tag">ADVERTISEMENT</span>
         </div>
@@ -71,6 +89,7 @@
     <script src="app.js"></script>
 </body>
 </html>
+
 
 
 
