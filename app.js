@@ -13,6 +13,7 @@ let waypointEntities = [];
 
 
 
+// 2. Initialize Map (Updated for Screenshot Capability)
 function initCesium() {
     viewer = new Cesium.Viewer('cesiumContainer', {
         terrain: Cesium.Terrain.fromWorldTerrain(),
@@ -21,25 +22,22 @@ function initCesium() {
         timeline: false,
         infoBox: false,
         selectionIndicator: false,
-        geocoder: true // Üst sağa dünya çapında arama kutusu ekler
+        geocoder: true,
+        // BU KISIM YENİ VE ÇOK ÖNEMLİ (PDF İçin):
+        contextOptions: {
+            webgl: { preserveDrawingBuffer: true }
+        }
     });
 
-    // Sadece izin varsa ve konum alınabiliyorsa git, yoksa sessizce kal
+    // Otomatik Konum (Önceki kodun aynısı)
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-            (position) => {
-                const lat = position.coords.latitude;
-                const lon = position.coords.longitude;
-                
+            (pos) => {
                 viewer.camera.flyTo({
-                    destination: Cesium.Cartesian3.fromDegrees(lon, lat, 5000),
-                    duration: 3
+                    destination: Cesium.Cartesian3.fromDegrees(pos.coords.longitude, pos.coords.latitude, 5000)
                 });
             },
-            (error) => {
-                console.log("Auto-location skipped: User choice or secure connection required.");
-                // Bir yere odaklanma, harita global kalsın
-            }
+            (err) => console.log("Location access denied.")
         );
     }
 
