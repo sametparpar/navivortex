@@ -8,6 +8,9 @@
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -38,6 +41,17 @@
         <button class="btn-primary" onclick="generateSearchGrid()">GENERATE SEARCH GRID</button>
         <button class="btn-export" onclick="exportMission('LITCHI')">EXPORT FOR DRONE (CSV)</button>
         <button class="btn-pdf" onclick="generateMissionBriefing()" style="background:#8b5cf6; margin-top:10px;">DOWNLOAD MISSION BRIEF (PDF)</button>
+        <div id="auth-section" style="margin-top:20px; border-top:1px solid #334155; padding-top:10px;">
+    <button id="btn-login" onclick="loginWithGoogle()" style="background:#4285F4; display:block;">
+        <span style="font-size:14px;">G</span> SIGN IN WITH GOOGLE
+    </button>
+
+    <div id="user-panel" style="display:none;">
+        <p id="user-name" style="color:#94a3b8; font-size:11px; margin-bottom:5px;">Welcome, User</p>
+        <button onclick="saveMissionToCloud()" style="background:#f59e0b;">SAVE MISSION TO CLOUD ☁️</button>
+        <button onclick="logout()" style="background:#ef4444; margin-top:5px; font-size:10px;">LOGOUT</button>
+    </div>
+</div>
         <div id="energy-alert" class="energy-warn"></div>
     </div>
 
@@ -57,6 +71,7 @@
     <script src="app.js"></script>
 </body>
 </html>
+
 
 
 
