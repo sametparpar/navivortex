@@ -15,34 +15,78 @@
 <body>
 
     <div id="params-panel">
-        <h2 class="panel-title">NAVIVORTEX V60</h2>
-        
-        <div class="input-group">
-            <label>Mission Vehicle</label>
-            <select id="vehicle-category" onchange="buildDynamicMenu()">
-                <option value="electric_drone">Electric Drone</option>
-                <option value="light_aircraft">Light Aircraft (General Aviation)</option>
-                <option value="helicopter">Helicopter (Rotary Wing)</option>
-            </select>
+    <h3 style="margin:0 0 15px 0; color:#38bdf8; border-bottom:1px solid #334155; padding-bottom:10px;">
+        ✈️ FLIGHT CONFIG
+    </h3>
+
+    <div class="menu-section">
+        <div class="menu-header" onclick="toggleMenu('sec-vehicle')">
+            <span>🚁 VEHICLE PROFILE</span>
+            <span class="toggle-icon">▼</span>
         </div>
-
-
-
-
-<div class="input-group" style="border-top:1px solid #334155; margin-top:15px; padding-top:10px;">
-    <label style="color:#f59e0b;">💨 WIND CONDITIONS (Global)</label>
-    <div style="display:flex; gap:10px;">
-        <div style="flex:1;">
-            <label style="font-size:9px;">DIRECTION (°)</label>
-            <input type="number" id="wind-direction" value="0" min="0" max="360" placeholder="0-360" oninput="updateUI()">
-        </div>
-        <div style="flex:1;">
-            <label style="font-size:9px;">SPEED (kts/m/s)</label>
-            <input type="number" id="wind-speed" value="0" min="0" placeholder="Speed" oninput="updateUI()">
+        <div id="sec-vehicle" class="menu-content" style="display:block;">
+            <div class="input-group">
+                <label>AIRCRAFT TYPE</label>
+                <select id="vehicle-category" onchange="updateVehicleParams()">
+                    <option value="electric_drone">⚡ ELECTRIC DRONE</option>
+                    <option value="light_aircraft">🛩️ LIGHT AIRCRAFT (C172)</option>
+                </select>
+            </div>
+            <div id="dynamic-inputs"></div>
         </div>
     </div>
-    <small style="color:#64748b; font-size:9px; display:block; margin-top:4px;">*Enter wind coming FROM direction.</small>
+
+    <div class="menu-section">
+        <div class="menu-header" onclick="toggleMenu('sec-env')">
+            <span>💨 WIND & WEATHER</span>
+            <span class="toggle-icon">▼</span>
+        </div>
+        <div id="sec-env" class="menu-content">
+            <div class="input-group">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <label>WIND VECTORS</label>
+                    <button onclick="getLiveWeather()" style="width:auto; padding:2px 8px; font-size:9px; margin:0; background:#0ea5e9;">
+                        ☁️ GET LIVE
+                    </button>
+                </div>
+                <div style="display:flex; gap:5px; margin-top:5px;">
+                    <input type="number" id="wind-direction" placeholder="Dir (0-360)" min="0" max="360" oninput="updateUI()">
+                    <input type="number" id="wind-speed" placeholder="Speed (kts)" min="0" oninput="updateUI()">
+                </div>
+                <small style="color:#64748b; font-size:8px;">*Wind direction is FROM.</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="menu-section">
+        <div class="menu-header" onclick="toggleMenu('sec-actions')">
+            <span>💾 MISSION ACTIONS</span>
+            <span class="toggle-icon">▼</span>
+        </div>
+        <div id="sec-actions" class="menu-content">
+            <button class="btn-pdf" onclick="generateMissionBriefing()" style="background:#8b5cf6;">📄 PDF BRIEFING</button>
+            <button class="btn-export" onclick="exportMission('LITCHI')">📥 EXPORT CSV</button>
+            
+            <div id="auth-section" style="margin-top:10px; border-top:1px dashed #334155; padding-top:10px;">
+                <button id="btn-login" onclick="loginWithGoogle()" style="background:#4285F4;">
+                    G SIGN IN
+                </button>
+                <div id="user-panel" style="display:none;">
+                    <p id="user-name" style="color:#94a3b8; font-size:10px; margin-bottom:5px;">User</p>
+                    <button onclick="saveMissionToCloud()" style="background:#f59e0b;">☁️ SAVE CLOUD</button>
+                    <button onclick="logout()" style="background:#ef4444; margin-top:5px;">EXIT</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+
+
+
+
+
+    
 
 
 
@@ -115,6 +159,7 @@
     <script src="app.js"></script>
 </body>
 </html>
+
 
 
 
