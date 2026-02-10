@@ -645,7 +645,70 @@ function loadMyMissions() {
             container.innerHTML = html;
         })
         .catch((error) => {
-            console.error("Error loading
+            console.error("Error loading missions:", error);
+            container.innerHTML = '<p style="padding:10px; color:#ef4444; font-size:10px; text-align:center;">Error loading data.</p>';
+        });
+}
+
+// 13. Restore Mission to Map (Haritayı Yeniden Çiz)
+function restoreMission(missionId) {
+    db.collection("missions").doc(missionId).get().then((doc) => {
+        if (doc.exists) {
+            const mission = doc.data();
+            
+            // 1. Araç Tipini Ayarla
+            const vehicleSelect = document.getElementById('vehicle-category');
+            if (vehicleSelect && mission.vehicle) {
+                vehicleSelect.value = mission.vehicle;
+                buildDynamicMenu(); // Inputları güncelle
+            }
+
+            // 2. Noktaları Temizle ve Geri Yükle
+            waypoints = [];
+            
+            mission.points.forEach(pt => {
+                const cartesian = Cesium.Cartesian3.fromDegrees(pt.lon, pt.lat, pt.alt);
+                waypoints.push({
+                    lat: pt.lat,
+                    lon: pt.lon,
+                    alt: pt.alt,
+                    cartesian: cartesian
+                });
+            });
+
+            // 3. Haritayı ve Tabloyu Güncelle
+            renderVisuals(-1);
+            updateUI();
+            
+            // 4. Kamerayı Rotaya Odakla
+            if (waypoints.length > 0) {
+                const firstWP = waypoints[0];
+                viewer.camera.flyTo({
+                    destination: Cesium.Cartesian3.fromDegrees(firstWP.lon, firstWP.lat, 2000),
+                    duration: 2
+                });
+            }
+
+            // Listeyi Gizle
+            document.getElementById('mission-list-container').style.display = 'none';
+            console.log("Mission restored:", missionId);
+        }
+    }).catch((error) => {
+        console.error("Error restoring mission:", error);
+    });
+}
+
+// 14. Delete Mission (Silme İşlemi)
+function deleteMission(event, missionId) {
+    event.stopPropagation(); // Listeye tıklamayı engelle (Sadece sil)
+    if (confirm("Are you sure you want to delete this mission?")) {
+        db.collection("missions").doc(missionId).delete().then(() => {
+            loadMyMissions(); // Listeyi yenile
+        }).catch((error) => {
+            alert("Error deleting mission: " + error.message);
+        });
+    }
+}
 
 
 
