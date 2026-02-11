@@ -34,7 +34,7 @@ body, html {
 
 /* Sağ Panel (Nav Log) - Harita butonlarını kapatmaması için 80px aşağıda */
 #data-table { 
-    top: 80px;      
+    top: 20px;      
     right: 15px; 
     width: 290px;   
     max-height: 60vh; 
@@ -119,7 +119,7 @@ button {
 
 .bottom-ad-bar {
     position: absolute; 
-    bottom: 20px; 
+    bottom: ; 
     left: 50%; 
     transform: translateX(-50%);
     width: 728px; 
