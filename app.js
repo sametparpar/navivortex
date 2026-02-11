@@ -1497,62 +1497,7 @@ async function toggleAeroLayer() {
 
 
 
-// 25. Interactive Waypoint Editing (Drag & Drop Logic) 🖱️🏗️
-let leftDown = false;
-let selectedEntity = null;
 
-const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-
-// Mouse Tıklama (Noktayı Tut)
-handler.setInputAction(function(click) {
-    const pickedObject = viewer.scene.pick(click.position);
-    if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.point) {
-        selectedEntity = pickedObject.id;
-        leftDown = true;
-        viewer.scene.screenSpaceCameraController.enableRotate = false; // Harita kaymasını durdur
-    }
-}, Cesium.ScreenSpaceEventType.LEFT_DOWN);
-
-// Mouse Hareket (Sürükle)
-handler.setInputAction(function(movement) {
-    if (leftDown && selectedEntity) {
-        const cartesian = viewer.camera.pickEllipsoid(movement.endPosition, viewer.scene.globe.ellipsoid);
-        if (cartesian) {
-            // Hangi waypoint olduğunu bul
-            const index = waypointEntities.indexOf(selectedEntity);
-            if (index !== -1) {
-                // Koordinatları güncelle
-                const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
-                const lon = Cesium.Math.toDegrees(cartographic.longitude);
-                const lat = Cesium.Math.toDegrees(cartographic.latitude);
-                
-                // Waypoints listesini güncelle (Yüksekliği koru)
-                waypoints[index].lat = lat;
-                waypoints[index].lon = lon;
-                waypoints[index].cartesian = cartesian;
-
-                // Görseli ve Nav Log'u canlı güncelle
-                selectedEntity.position = cartesian;
-                renderVisuals(-1); 
-                updateUI();
-            }
-        }
-    }
-}, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
-
-// Mouse Bırak (İşlemi Bitir)
-handler.setInputAction(function() {
-    if (leftDown) {
-        leftDown = false;
-        selectedEntity = null;
-        viewer.scene.screenSpaceCameraController.enableRotate = true; // Haritayı serbest bırak
-        
-        // Final hesaplamaları yap (Yakıt, rüzgar vb.)
-        updateUI();
-        if(typeof updateElevationProfile === 'function') updateElevationProfile();
-        showToast("Waypoint updated.", "info");
-    }
-}, Cesium.ScreenSpaceEventType.LEFT_UP);
 
 
 
