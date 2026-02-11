@@ -1434,42 +1434,41 @@ window.alert = function(msg) {
 
 
 
-// 24. Aeronautical Layer Management (STABLE & KEY-INTEGRATED) 📡🧭
+// 24. Professional Aeronautical Layer (OpenAIP Global Integration) 📡🧭
 let aeroImageryLayer = null;
 
-function toggleAeroLayer() {
+async function toggleAeroLayer() {
     const isVisible = document.getElementById('aero-layer-toggle').checked;
-    
-    // Senin OpenAIP Anahtarın (Entegre Edildi)
-    const OPENAIP_API_KEY = "51bce148aa7ef5c4ea94580abe6a3925"; 
+    const OPENAIP_API_KEY = "51bce148aa7ef5c4ea94580abe6a3925";
 
     if (isVisible) {
         try {
-            // Cesium'un en yeni ve stabil ImageryProvider yapısı
+            // Cesium Imagery Provider Konfigürasyonu
             const openAipProvider = new Cesium.UrlTemplateImageryProvider({
-                url: `https://api.openaip.net/api/v1/tiles/openaip/{z}/{x}/{y}.png?apiKey=${OPENAIP_API_KEY}`,
+                // Global CDN üzerinden erişim sağlayarak DNS hatalarını minimize ediyoruz
+                url: `https://{s}.tile.openaip.net/geowebcache/service/tms/1.0.0/openaip_baselayer@EPSG%3A900913@png/{z}/{x}/{rev_y}.png?apiKey=${OPENAIP_API_KEY}`,
+                // Alternatif URL (Eğer yukarıdaki DNS hatası verirse bunu kullanır):
+                // url: `https://api.openaip.net/api/v1/tiles/openaip/{z}/{x}/{y}.png?apiKey=${OPENAIP_API_KEY}`,
                 credit: 'Data © openAIP Contributors',
-                tilingScheme: new Cesium.WebMercatorTilingScheme(), // Çökmeyi önleyen kritik şema
+                tilingScheme: new Cesium.WebMercatorTilingScheme(),
                 maximumLevel: 14,
-                minimumLevel: 0,
-                hasAlphaChannel: true
+                hasAlphaChannel: true,
+                subdomains: ['a', 'b', 'c'] // Yük dengeleme için subdomainler
             });
 
-            // Katmanı ekle
+            if (aeroImageryLayer) viewer.imageryLayers.remove(aeroImageryLayer);
+
             aeroImageryLayer = viewer.imageryLayers.addImageryProvider(openAipProvider);
             
-            // Görünürlük ayarları
-            aeroImageryLayer.alpha = 0.85; 
-            aeroImageryLayer.brightness = 1.1; // Çizgiler daha net görünsün
-            
-            // Katmanı her zaman en üstte tut (Haritanın altında kalmasın)
+            // Görsel Optimizasyon
+            aeroImageryLayer.alpha = 0.85;
+            aeroImageryLayer.brightness = 1.1;
             viewer.imageryLayers.raiseToTop(aeroImageryLayer);
 
-            showToast("Aeronautical layers active. Check high-traffic areas!", "success");
+            showToast("Aeronautical layers active (OpenAIP Global).", "success");
         } catch (error) {
-            console.error("OpenAIP Layer Error:", error);
-            showToast("Layer failed to load. Check API Key activity.", "error");
-            document.getElementById('aero-layer-toggle').checked = false;
+            console.error("Critical Aero Layer Error:", error);
+            showToast("Aviation data connection failed.", "error");
         }
     } else {
         if (aeroImageryLayer) {
@@ -1479,6 +1478,81 @@ function toggleAeroLayer() {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// 25. Interactive Waypoint Editing (Drag & Drop Logic) 🖱️🏗️
+let leftDown = false;
+let selectedEntity = null;
+
+const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+
+// Mouse Tıklama (Noktayı Tut)
+handler.setInputAction(function(click) {
+    const pickedObject = viewer.scene.pick(click.position);
+    if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.point) {
+        selectedEntity = pickedObject.id;
+        leftDown = true;
+        viewer.scene.screenSpaceCameraController.enableRotate = false; // Harita kaymasını durdur
+    }
+}, Cesium.ScreenSpaceEventType.LEFT_DOWN);
+
+// Mouse Hareket (Sürükle)
+handler.setInputAction(function(movement) {
+    if (leftDown && selectedEntity) {
+        const cartesian = viewer.camera.pickEllipsoid(movement.endPosition, viewer.scene.globe.ellipsoid);
+        if (cartesian) {
+            // Hangi waypoint olduğunu bul
+            const index = waypointEntities.indexOf(selectedEntity);
+            if (index !== -1) {
+                // Koordinatları güncelle
+                const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
+                const lon = Cesium.Math.toDegrees(cartographic.longitude);
+                const lat = Cesium.Math.toDegrees(cartographic.latitude);
+                
+                // Waypoints listesini güncelle (Yüksekliği koru)
+                waypoints[index].lat = lat;
+                waypoints[index].lon = lon;
+                waypoints[index].cartesian = cartesian;
+
+                // Görseli ve Nav Log'u canlı güncelle
+                selectedEntity.position = cartesian;
+                renderVisuals(-1); 
+                updateUI();
+            }
+        }
+    }
+}, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
+// Mouse Bırak (İşlemi Bitir)
+handler.setInputAction(function() {
+    if (leftDown) {
+        leftDown = false;
+        selectedEntity = null;
+        viewer.scene.screenSpaceCameraController.enableRotate = true; // Haritayı serbest bırak
+        
+        // Final hesaplamaları yap (Yakıt, rüzgar vb.)
+        updateUI();
+        if(typeof updateElevationProfile === 'function') updateElevationProfile();
+        showToast("Waypoint updated.", "info");
+    }
+}, Cesium.ScreenSpaceEventType.LEFT_UP);
 
 
 
