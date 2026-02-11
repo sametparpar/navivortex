@@ -1426,6 +1426,49 @@ window.alert = function(msg) {
 
 
 
+
+
+
+
+
+
+
+
+// 24. Aeronautical Layer Management (OpenAIP) 📡
+let aeroLayer = null;
+
+function toggleAeroLayer() {
+    const isVisible = document.getElementById('aero-layer-toggle').checked;
+    
+    if (isVisible) {
+        // OpenAIP Tile Map Service
+        aeroLayer = viewer.imageryLayers.addImageryProvider(
+            new Cesium.UrlTemplateImageryProvider({
+                url: 'https://{s}.tile.openweathermap.org/map/aeronautical/{z}/{x}/{y}.png?appid=YOUR_API_KEY', // Alternatif veya OpenAIP Proxy
+                // OpenAIP doğrudan kullanım için:
+                url: 'https://api.openaip.net/api/v1/tiles/openaip/{z}/{x}/{y}.png?apiKey=YOUR_OPENAIP_KEY', 
+                credit: 'Maps © openAIP',
+                maximumLevel: 14
+            })
+        );
+        showToast("Aeronautical layers active. Check Airspaces!", "info");
+    } else {
+        if (aeroLayer) {
+            viewer.imageryLayers.remove(aeroLayer);
+            aeroLayer = null;
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
                           
 
 
