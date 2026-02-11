@@ -109,58 +109,64 @@ let waypointEntities = [];
 
 
 
-// GLOBAL DEĞİŞKEN (En tepede tanımlı olmalı)
-// let viewer; // Eğer en tepede varsa burayı yorum satırı yap.
+// 2. Initialize Map (Updated for Screenshot Capability)
 
-// 2. Initialize Map (GÜNCELLENMİŞ & PROFESYONEL)
 function initCesium() {
-    // 1. Viewer'ı en dolu ayarlarla başlat
+
     viewer = new Cesium.Viewer('cesiumContainer', {
-        terrainProvider: await Cesium.createWorldTerrainAsync(), // Arazi yapısı
+
+        terrain: Cesium.Terrain.fromWorldTerrain(),
+
+        baseLayerPicker: true,
+
         animation: false,
+
         timeline: false,
-        fullscreenButton: false,
-        geocoder: true,          // Arama butonu (Şehir bulmak için)
-        homeButton: false,
-        sceneModePicker: false,  // 2D/3D geçişi (Gerek yok)
-        navigationHelpButton: false,
+
         infoBox: false,
+
         selectionIndicator: false,
 
-        // --- KRİTİK AYARLAR ---
-        baseLayerPicker: true,   // SAĞ ÜSTTEKİ HARİTA SEÇİCİYİ AÇAR 🗺️
-        
-        // PDF Çıktısı alırken haritanın boş çıkmaması için şart:
+        geocoder: true,
+
+        // BU KISIM YENİ VE ÇOK ÖNEMLİ (PDF İçin):
+
         contextOptions: {
+
             webgl: { preserveDrawingBuffer: true }
+
         }
+
     });
 
-    // 2. Kamera ve Konum Ayarları
+
+
+    // Otomatik Konum (Önceki kodun aynısı)
+
     if (navigator.geolocation) {
+
         navigator.geolocation.getCurrentPosition(
+
             (pos) => {
+
                 viewer.camera.flyTo({
+
                     destination: Cesium.Cartesian3.fromDegrees(pos.coords.longitude, pos.coords.latitude, 5000)
+
                 });
+
             },
-            (err) => {
-                console.log("Konum alınamadı, varsayılan (Bursa) açılıyor.");
-                viewer.camera.setView({
-                    destination: Cesium.Cartesian3.fromDegrees(29.0, 40.2, 50000)
-                });
-            }
+
+            (err) => console.log("Location access denied.")
+
         );
-    } else {
-        // Tarayıcı konum desteklemiyorsa Bursa'yı aç
-        viewer.camera.setView({
-            destination: Cesium.Cartesian3.fromDegrees(29.0, 40.2, 50000)
-        });
+
     }
 
-    // 3. Olay Dinleyicilerini Başlat (Sürükle-Bırak vb.)
-    // Eğer setupHandler diye bir fonksiyonun varsa burada çağır, yoksa silebilirsin.
-    if (typeof setupHandler === 'function') setupHandler(); 
+
+
+    setupHandler();
+
 }
 
 
