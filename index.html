@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex 10.27</title>
+    <title>NaviVortex V60 | Professional Flight Planner</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
@@ -14,274 +14,140 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-
     <div id="toast-container"></div>
 
     <div id="params-panel">
-    <h3 style="margin:0 0 15px 0; color:#38bdf8; border-bottom:1px solid #334155; padding-bottom:10px;">
-        ✈️ FLIGHT CONFIG
-    </h3>
+        <h3 style="margin:0 0 15px 0; color:#38bdf8; border-bottom:1px solid #334155; padding-bottom:10px;">
+            ✈️ FLIGHT CONFIG
+        </h3>
 
-
-
-
-        <div class="input-group" style="margin-bottom:15px; background: rgba(56, 189, 248, 0.1); padding: 8px; border-radius: 6px; border: 1px solid #0ea5e9;">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-        <span style="font-size:10px; font-weight:bold; color:#38bdf8;">🌍 AERONAUTICAL LAYERS</span>
-        <label class="switch">
-            <input type="checkbox" id="aero-layer-toggle" onchange="toggleAeroLayer()">
-            <span class="slider round"></span>
-        </label>
-    </div>
-</div>
-
-
-
-
-
-        
-    <div class="menu-section">
-        <div class="menu-header" onclick="toggleMenu('sec-vehicle')">
-            <span>🚁 VEHICLE PROFILE</span>
-            <span class="toggle-icon">▼</span>
-        </div>
-        <div id="sec-vehicle" class="menu-content" style="display:block;">
-            <div class="input-group">
-                <label>AIRCRAFT TYPE</label>
-                <select id="vehicle-category" onchange="updateVehicleParams()">
-                    <option value="electric_drone">⚡ ELECTRIC DRONE</option>
-                    <option value="light_aircraft">🛩️ LIGHT AIRCRAFT (C172)</option>
-                </select>
+        <div class="input-group" style="margin-bottom:15px; background: rgba(56, 189, 248, 0.1); padding: 10px; border-radius: 6px; border: 1px solid #0ea5e9;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:10px; font-weight:bold; color:#38bdf8;">🌍 AERO MAP (Hava Sahaları)</span>
+                <label class="switch">
+                    <input type="checkbox" id="aero-layer-toggle" onchange="toggleAeroLayer()">
+                    <span class="slider round"></span>
+                </label>
             </div>
-            <div id="dynamic-inputs"></div>
         </div>
-    </div>
 
-    <div class="menu-section">
-        <div class="menu-header" onclick="toggleMenu('sec-env')">
-            <span>💨 WIND & WEATHER</span>
-            <span class="toggle-icon">▼</span>
-        </div>
-        <div id="sec-env" class="menu-content">
-            <div class="input-group">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <label>WIND VECTORS</label>
-                    <button onclick="getLiveWeather()" style="width:auto; padding:2px 8px; font-size:9px; margin:0; background:#0ea5e9;">
-                        ☁️ GET LIVE
-                    </button>
+        <div class="menu-section">
+            <div class="menu-header" onclick="toggleMenu('sec-vehicle')">
+                <span>🚁 VEHICLE PROFILE</span>
+                <span class="toggle-icon">▼</span>
+            </div>
+            <div id="sec-vehicle" class="menu-content" style="display:block;">
+                <div class="input-group">
+                    <label>AIRCRAFT TYPE</label>
+                    <select id="vehicle-category" onchange="updateVehicleParams()">
+                        <option value="electric_drone">⚡ ELECTRIC DRONE</option>
+                        <option value="light_aircraft">🛩️ LIGHT AIRCRAFT (C172)</option>
+                    </select>
                 </div>
-                <div style="display:flex; gap:5px; margin-top:5px;">
-                    <input type="number" id="wind-direction" placeholder="Dir (0-360)" min="0" max="360" oninput="updateUI()">
-                    <input type="number" id="wind-speed" placeholder="Speed (kts)" min="0" oninput="updateUI()">
+                <div id="dynamic-inputs"></div>
+            </div>
+        </div>
+
+        <div class="menu-section">
+            <div class="menu-header" onclick="toggleMenu('sec-env')">
+                <span>💨 WIND & WEATHER</span>
+                <span class="toggle-icon">▼</span>
+            </div>
+            <div id="sec-env" class="menu-content">
+                <div class="input-group">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <label>WIND VECTORS</label>
+                        <button onclick="getLiveWeather()" style="width:auto; padding:2px 8px; font-size:9px; margin:0; background:#0ea5e9;">
+                            ☁️ GET LIVE
+                        </button>
+                    </div>
+                    <div style="display:flex; gap:5px; margin-top:5px;">
+                        <input type="number" id="wind-direction" placeholder="Dir" min="0" max="360" oninput="updateUI()">
+                        <input type="number" id="wind-speed" placeholder="Kts" min="0" oninput="updateUI()">
+                    </div>
                 </div>
-                <small style="color:#64748b; font-size:8px;">*Wind direction is FROM.</small>
-            </div>
-        </div>
-    </div>
-
-
-
-
-
-
-
-<div class="menu-section">
-    <div class="menu-header" onclick="toggleMenu('sec-tools')">
-        <span>🛠️ SMART TOOLS (GRID)</span>
-        <span class="toggle-icon">▼</span>
-    </div>
-    <div id="sec-tools" class="menu-content">
-        <p style="color:#94a3b8; font-size:9px; margin-bottom:10px;">
-            1. Draw polygon boundary with points.<br>
-            2. Adjust settings below.<br>
-            3. Click GENERATE to fill area.
-        </p>
-
-        <div class="input-group">
-    <label>GRID ALTITUDE (m)</label>
-    <div style="display:flex; align-items:center; gap:10px;">
-        <input type="number" id="grid-alt" value="40" min="5" style="width:60px; padding:5px; background:#0f172a; border:1px solid #334155; color:white; border-radius:4px;">
-        
-        <div style="display:flex; align-items:center;">
-            <input type="checkbox" id="terrain-follow" checked style="margin-right:5px;">
-            <label for="terrain-follow" style="font-size:9px; cursor:pointer;">TERRAIN FOLLOW (AGL)</label>
-        </div>
-    </div>
-</div>
-
-        <div class="input-group" style="margin-top:5px;">
-            <label>LEG SPACING (m)</label>
-            <div style="display:flex; align-items:center; gap:5px;">
-                <input type="range" id="grid-spacing-slider" min="10" max="200" value="30" oninput="syncGridInputs('spacing')" style="flex:1;">
-                <input type="number" id="grid-spacing" value="30" min="5" oninput="syncGridInputs('spacing_text')" style="width:50px; padding:2px; font-size:10px;">
             </div>
         </div>
 
-        <div class="input-group" style="margin-top:5px;">
-            <label>GRID ANGLE (°)</label>
-            <div style="display:flex; align-items:center; gap:5px;">
-                <input type="range" id="grid-angle-slider" min="0" max="180" value="0" oninput="syncGridInputs('angle')" style="flex:1;">
-                <input type="number" id="grid-angle" value="0" min="0" max="360" oninput="syncGridInputs('angle_text')" style="width:50px; padding:2px; font-size:10px;">
+        <div class="menu-section">
+            <div class="menu-header" onclick="toggleMenu('sec-tools')">
+                <span>🛠️ SMART TOOLS (GRID)</span>
+                <span class="toggle-icon">▼</span>
+            </div>
+            <div id="sec-tools" class="menu-content">
+                <div class="input-group">
+                    <label>GRID ALTITUDE (m)</label>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <input type="number" id="grid-alt" value="40" min="5" style="width:60px; padding:5px; background:#0f172a; border:1px solid #334155; color:white;">
+                        <div style="display:flex; align-items:center;">
+                            <input type="checkbox" id="terrain-follow" checked style="margin-right:5px;">
+                            <label for="terrain-follow" style="font-size:9px;">TERRAIN AGL</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>LEG SPACING (m)</label>
+                    <input type="range" id="grid-spacing-slider" min="10" max="200" value="30" oninput="syncGridInputs('spacing')">
+                    <input type="number" id="grid-spacing" value="30" oninput="syncGridInputs('spacing_text')" style="width:50px; font-size:10px;">
+                </div>
+                <div class="input-group">
+                    <label>GRID ANGLE (°)</label>
+                    <input type="range" id="grid-angle-slider" min="0" max="180" value="0" oninput="syncGridInputs('angle')">
+                    <input type="number" id="grid-angle" value="0" oninput="syncGridInputs('angle_text')" style="width:50px; font-size:10px;">
+                </div>
+                <button onclick="generateGridMission()" style="background:#10b981; margin-top:10px; width:100%;">🕸️ GENERATE GRID</button>
             </div>
         </div>
 
-        <button onclick="generateGridMission()" style="background:#10b981; margin-top:10px; width:100%;">
-            🕸️ GENERATE SEARCH GRID
-        </button>
-    </div>
-</div>
-
-
-
-
-
-
-
-        
-    <div class="menu-section">
-        <div class="menu-header" onclick="toggleMenu('sec-actions')">
-            <span>💾 MISSION ACTIONS</span>
-            <span class="toggle-icon">▼</span>
-        </div>
-        <div id="sec-actions" class="menu-content">
-            <button class="btn-pdf" onclick="generateMissionBriefing()" style="background:#8b5cf6;">📄 PDF BRIEFING</button>
-            <button class="btn-export" onclick="exportMission('LITCHI')">📥 EXPORT CSV</button>
-            
-            <div id="auth-section" style="margin-top:10px; border-top:1px dashed #334155; padding-top:10px;">
-                <button id="btn-login" onclick="loginWithGoogle()" style="background:#4285F4;">
-                    G SIGN IN
-                </button>
-                <div id="user-panel" style="display:none;">
-                    <p id="user-name" style="color:#94a3b8; font-size:10px; margin-bottom:5px;">User</p>
-                    <button onclick="saveMissionToCloud()" style="background:#f59e0b;">☁️ SAVE CLOUD</button>
-                    <button onclick="logout()" style="background:#ef4444; margin-top:5px;">EXIT</button>
+        <div class="menu-section">
+            <div class="menu-header" onclick="toggleMenu('sec-actions')">
+                <span>💾 MISSION ACTIONS</span>
+                <span class="toggle-icon">▼</span>
+            </div>
+            <div id="sec-actions" class="menu-content">
+                <button onclick="generateMissionBriefing()" style="background:#8b5cf6;">📄 PDF BRIEFING</button>
+                <button onclick="exportMission('LITCHI')">📥 EXPORT CSV</button>
+                
+                <div id="auth-section" style="margin-top:10px; border-top:1px dashed #334155; padding-top:10px;">
+                    <button id="btn-login" onclick="loginWithGoogle()" style="background:#4285F4;">G SIGN IN</button>
+                    <div id="user-panel" style="display:none;">
+                        <p id="user-name" style="color:#94a3b8; font-size:10px;">User</p>
+                        <button onclick="saveMissionToCloud()" style="background:#f59e0b;">☁️ SAVE CLOUD</button>
+                        <button onclick="logout()" style="background:#ef4444; margin-top:5px;">EXIT</button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-
-
-
-
-
-    
-
-
-
-
-
-
-
-        
-
-        <hr class="separator">
-        <div id="dynamic-inputs-container"></div>
-
-        <div class="input-group">
-            <label>Headwind (Knots / m/s)</label>
-            <input type="number" id="uav-wind" value="0" onchange="calculateLogistics()">
+    <div id="data-table">
+        <div class="tab-header">
+            <button class="tab-btn active" onclick="openTab('tab-log')">📊 LOG</button>
+            <button class="tab-btn" onclick="openTab('tab-profile')">🏔️ PROFILE</button>
+            <button class="tab-btn" onclick="openTab('tab-library')">📂 LIBRARY</button>
         </div>
 
-        <div class="ad-container sidebar-ad">
-            <span class="ad-tag">SPONSORED</span>
+        <div id="tab-log" class="tab-content" style="display:block;">
+            <div id="total-stats"></div>
+            <div id="wp-list">
+                <p style="color:#64748b; font-size:11px; text-align:center; padding:20px;">No active route.</p>
             </div>
+        </div>
 
-        <button class="btn-primary" onclick="generateSearchGrid()">GENERATE SEARCH GRID</button>
-        <button class="btn-export" onclick="exportMission('LITCHI')">EXPORT FOR DRONE (CSV)</button>
-        <button class="btn-pdf" onclick="generateMissionBriefing()" style="background:#8b5cf6; margin-top:10px;">DOWNLOAD MISSION BRIEF (PDF)</button>
-        <div id="auth-section" style="margin-top:20px; border-top:1px solid #334155; padding-top:10px;">
-    <button id="btn-login" onclick="loginWithGoogle()" style="background:#4285F4; display:block;">
-        <span style="font-size:14px;">G</span> SIGN IN WITH GOOGLE
-    </button>
+        <div id="tab-profile" class="tab-content" style="display:none; position:relative; height:250px;">
+            <canvas id="elevationChart"></canvas>
+            <div id="profile-loading" style="display:none; position:absolute; top:40%; left:30%; background:rgba(0,0,0,0.8); color:white; padding:5px; border-radius:4px; font-size:10px;">
+                ⏳ Sampling Terrain...
+            </div>
+        </div>
 
-    <div id="user-panel" style="display:none;">
-        <p id="user-name" style="color:#94a3b8; font-size:11px; margin-bottom:5px;">Welcome, User</p>
-        <button onclick="saveMissionToCloud()" style="background:#f59e0b;">SAVE MISSION TO CLOUD ☁️</button>
-        <button onclick="logout()" style="background:#ef4444; margin-top:5px; font-size:10px;">LOGOUT</button>
-    </div>
-</div>
-        <div id="energy-alert" class="energy-warn"></div>
-    </div>
-
-
-
-
-
-
-    
-
-
-
-
-
-
-<div id="data-table">
-    
-    <div class="tab-header">
-        <button class="tab-btn active" onclick="openTab('tab-log')">📊 LOG</button>
-        <button class="tab-btn" onclick="openTab('tab-profile')">🏔️ PROFILE</button>
-        <button class="tab-btn" onclick="openTab('tab-library')">📂 LIBRARY</button>
-    </div>
-
-    <div id="tab-log" class="tab-content" style="display:block;">
-        <div id="total-stats" style="margin-bottom:10px;"></div>
-        <div id="wp-list">
-            <p style="color:#64748b; font-size:11px; text-align:center; padding:20px;">
-                No active route.<br>Click on map to add waypoints.
-            </p>
+        <div id="tab-library" class="tab-content" style="display:none;">
+            <input type="text" id="mission-search" placeholder="🔍 Search missions..." onkeyup="filterMissions()" style="width:100%; margin-bottom:10px; background:#0f172a; color:white; border:1px solid #334155;">
+            <div id="mission-list-container" class="scrollable-list">
+                <button onclick="loadMyMissions()" style="background:#3b82f6; width:100%;">↻ LOAD MISSIONS</button>
+            </div>
         </div>
     </div>
-
-
-
-
-
-
-
-    
-<div id="tab-profile" class="tab-content" style="display:none; position:relative; height:250px;">
-    <canvas id="elevationChart"></canvas>
-    <div id="profile-loading" style="display:none; position:absolute; top:40%; left:30%; background:rgba(0,0,0,0.7); color:white; padding:5px; border-radius:4px; font-size:10px;">
-        ⏳ Sampling Terrain...
-    </div>
-</div>
-
-
-
-    
-
-
-    
-
-    <div id="tab-library" class="tab-content" style="display:none;">
-        <input type="text" id="mission-search" placeholder="🔍 Search saved missions..." onkeyup="filterMissions()" 
-               style="width:100%; padding:8px; background:#0f172a; border:1px solid #334155; color:white; font-size:11px; border-radius:4px; margin-bottom:10px;">
-        
-        <div id="mission-list-container" class="scrollable-list">
-            <p style="color:#64748b; font-size:11px; text-align:center; padding:10px;">
-                <button onclick="loadMyMissions()" style="background:#3b82f6; padding:5px 10px;">↻ LOAD MY MISSIONS</button>
-            </p>
-        </div>
-    </div>
-
-</div>
-
-
-
-
-
-
-    
-
-
-
-
-    
-    <div class="bottom-ad-bar">
-        <span class="ad-tag">ADVERTISEMENT</span>
-        </div>
 
     <div id="cesiumContainer"></div>
 
@@ -289,38 +155,3 @@
     <script src="app.js"></script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
