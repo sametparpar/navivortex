@@ -260,38 +260,71 @@ function calculateLogistics() {
 
 
 
-// 6. Görselleştirme (Derinlik Hatası Düzeltildi)
-function renderVisuals(failIndex) {
-    if (routeLineEntity) viewer.entities.remove(routeLineEntity);
-    waypointEntities.forEach(e => viewer.entities.remove(e));
-    waypointEntities = [];
+// 5. Render Visuals (Dinamik Çizim - Polygon & Polyline) 🎨
+function renderVisuals(activeParamIndex) {
+    viewer.entities.removeAll();
 
-    const positions = waypoints.map(wp => wp.cartesian);
-
-    if (positions.length > 1) {
-        routeLineEntity = viewer.entities.add({
-            polyline: {
-                positions: positions,
-                width: 4,
-                material: Cesium.Color.fromCssColorString('#38bdf8'),
-                clampToGround: true, 
-                classificationType: Cesium.ClassificationType.TERRAIN
+    // 1. Polygon (Alan) Görseli - Şeklin içini boya
+    if (waypoints.length >= 3) {
+        viewer.entities.add({
+            polygon: {
+                hierarchy: new Cesium.CallbackProperty(() => {
+                    return new Cesium.PolygonHierarchy(
+                        waypoints.map(p => p.cartesian)
+                    );
+                }, false),
+                material: Cesium.Color.CYAN.withAlpha(0.2), // Şeffaf Mavi Dolgu
+                outline: true,
+                outlineColor: Cesium.Color.CYAN.withAlpha(0.5),
+                outlineWidth: 2
             }
         });
     }
 
-    waypoints.forEach((wp, index) => {
-        const pin = viewer.entities.add({
-            position: wp.cartesian,
-            point: {
-                pixelSize: 10,
-                color: (failIndex !== -1 && index >= failIndex) ? Cesium.Color.RED : Cesium.Color.fromCssColorString('#10b981'),
-                outlineColor: Cesium.Color.WHITE,
-                outlineWidth: 2,
-                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND 
+    // 2. Rota Çizgisi (Path)
+    if (waypoints.length > 0) {
+        viewer.entities.add({
+            polyline: {
+                positions: new Cesium.CallbackProperty(() => {
+                    return waypoints.map(p => p.cartesian);
+                }, false),
+                width: 3,
+                material: new Cesium.PolylineGlowMaterialProperty({
+                    glowPower: 0.2,
+                    color: Cesium.Color.YELLOW
+                })
             }
         });
-        waypointEntities.push(pin);
+    }
+
+    // 3. Noktalar (Waypoints)
+    waypoints.forEach((wp, index) => {
+        // Seçili nokta mı?
+        const isSelected = (index === activeParamIndex);
+        const color = isSelected ? Cesium.Color.RED : Cesium.Color.YELLOW;
+        const scale = isSelected ? 10 : 6; // Grid noktaları küçük (6), seçilen büyük (10)
+
+        viewer.entities.add({
+            position: wp.cartesian,
+            point: {
+                pixelSize: scale,
+                color: color,
+                outlineColor: Cesium.Color.BLACK,
+                outlineWidth: 1
+            },
+            label: {
+                text: (index + 1).toString(),
+                font: '10px sans-serif',
+                fillColor: Cesium.Color.WHITE,
+                outlineColor: Cesium.Color.BLACK,
+                outlineWidth: 2,
+                style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                pixelOffset: new Cesium.Cartesian2(0, -10),
+                // Sadece köşe noktalarına veya az sayıda ise numara ver (Kirliliği önle)
+                show: (waypoints.length < 20) 
+            }
+        });
     });
 }
 
