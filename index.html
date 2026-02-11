@@ -65,7 +65,7 @@
 
 
 
-        <div class="menu-section">
+<div class="menu-section">
     <div class="menu-header" onclick="toggleMenu('sec-tools')">
         <span>🛠️ SMART TOOLS (GRID)</span>
         <span class="toggle-icon">▼</span>
@@ -78,10 +78,15 @@
         </p>
 
         <div class="input-group">
+            <label>GRID ALTITUDE (m)</label>
+            <input type="number" id="grid-alt" value="50" min="10" step="5" style="width:100%; padding:5px; background:#0f172a; border:1px solid #334155; color:white; border-radius:4px;">
+        </div>
+
+        <div class="input-group" style="margin-top:5px;">
             <label>LEG SPACING (m)</label>
             <div style="display:flex; align-items:center; gap:5px;">
-                <input type="range" id="grid-spacing-slider" min="10" max="200" value="50" oninput="syncGridInputs('spacing')" style="flex:1;">
-                <input type="number" id="grid-spacing" value="50" min="5" oninput="syncGridInputs('spacing_text')" style="width:50px; padding:2px; font-size:10px;">
+                <input type="range" id="grid-spacing-slider" min="10" max="200" value="30" oninput="syncGridInputs('spacing')" style="flex:1;">
+                <input type="number" id="grid-spacing" value="30" min="5" oninput="syncGridInputs('spacing_text')" style="width:50px; padding:2px; font-size:10px;">
             </div>
         </div>
 
@@ -257,6 +262,7 @@
     <script src="app.js"></script>
 </body>
 </html>
+
 
 
 
