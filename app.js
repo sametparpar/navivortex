@@ -384,6 +384,78 @@ function calculateLogistics() {
 
 
 
+
+
+
+
+
+
+
+// ---------------------------------------------------------
+// 26. GLOBAL ALTITUDE UPDATER 📶
+// ---------------------------------------------------------
+function updateGlobalAltitude() {
+    const vehicleId = document.getElementById('vehicle-category').value;
+    const isElectric = (vehicleId === 'electric_drone');
+    
+    // Değeri al
+    let newAltVal = parseFloat(document.getElementById(isElectric ? 'drone-alt' : 'plane-alt').value);
+    
+    if (isNaN(newAltVal)) return;
+
+    // Eğer uçak modundaysak (Feet), Metreye çevir (Çünkü Cesium metre kullanır)
+    // 1 ft = 0.3048 m
+    let altitudeMeters = isElectric ? newAltVal : (newAltVal * 0.3048);
+
+    // Mevcut tüm waypointleri güncelle
+    waypoints.forEach((wp, index) => {
+        // Veriyi güncelle
+        wp.alt = altitudeMeters;
+
+        // Haritadaki konumunu (Cartesian) güncelle
+        // Not: Cesium'da yükseklik değiştirmek için Lat/Lon'u koruyup yeni yükseklik vermeliyiz.
+        wp.cartesian = Cesium.Cartesian3.fromDegrees(wp.lon, wp.lat, wp.alt);
+    });
+
+    // Her şeyi yeniden çiz
+    renderVisuals(-1);        // Haritadaki çizgileri güncelle
+    updateUI();               // Tabloyu güncelle
+    calculateLogistics();     // Yakıtı güncelle
+    
+    // Grafiği güncelle (En önemlisi bu!)
+    if(typeof updateElevationProfile === 'function') {
+        updateElevationProfile();
+    }
+    
+    showToast(`Altitude updated to ${newAltVal} ${isElectric ? 'm' : 'ft'}.`, "info");
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // 5. Render Visuals (Dynamic Drawing) 🎨
 function renderVisuals(activeParamIndex) {
     viewer.entities.removeAll();
