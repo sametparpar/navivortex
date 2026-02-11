@@ -1174,108 +1174,140 @@ function syncGridInputs(source) {
 
 
 
-// 22. Generate Search Grid (Advanced Rotation Logic) 🕸️
-// 22. Generate Search Grid (GÜNCELLENMİŞ - İrtifa Ayarlı)
-function generateGridMission() {
+// 22. Generate Smart Search Grid (Terrain Aware / AGL) 🕸️🏔️
+async function generateGridMission() {
+    // 1. GÜVENLİK KONTROLLERİ
     if (waypoints.length < 3) {
-        alert("Please define an area with at least 3 points first (Corners).");
+        alert("Please define an area with at least 3 points first.");
         return;
     }
+    if (!confirm("This will generate a new grid path. Existing points will be cleared. Continue?")) return;
 
-    if (!confirm("Replacing current path with Search Grid... Continue?")) return;
+    // Butonun yazısını değiştir (İşlem sürerken)
+    const btn = document.querySelector('button[onclick="generateGridMission()"]');
+    const oldText = btn.innerText;
+    btn.innerText = "⏳ CALCULATING TERRAIN...";
+    btn.disabled = true;
 
-    // --- DEĞİŞİKLİK BURADA ---
-    const spacingMeters = parseFloat(document.getElementById('grid-spacing').value);
-    const angleDeg = parseFloat(document.getElementById('grid-angle').value);
-    
-    // Kullanıcının girdiği irtifayı al (Yoksa varsayılan 50m)
-    let alt = parseFloat(document.getElementById('grid-alt').value);
-    if (isNaN(alt)) alt = 50;
+    try {
+        // 2. PARAMETRELERİ AL
+        const spacingMeters = parseFloat(document.getElementById('grid-spacing').value);
+        const angleDeg = parseFloat(document.getElementById('grid-angle').value);
+        let targetAlt = parseFloat(document.getElementById('grid-alt').value); // İstenen yükseklik (AGL)
+        const useTerrain = document.getElementById('terrain-follow').checked;
 
-    // 1. Alanın Merkezini Bul (Centroid)
-    let sumLat = 0, sumLon = 0;
-    waypoints.forEach(p => { sumLat += p.lat; sumLon += p.lon; });
-    const centerLat = sumLat / waypoints.length;
-    const centerLon = sumLon / waypoints.length;
+        // 3. ALAN HESABI (BOUNDING BOX & ROTATION)
+        // Alanın merkezini bul
+        let sumLat = 0, sumLon = 0;
+        waypoints.forEach(p => { sumLat += p.lat; sumLon += p.lon; });
+        const centerLat = sumLat / waypoints.length;
+        const centerLon = sumLon / waypoints.length;
 
-    // 2. Bounding Box (Genişlik/Yükseklik) Hesapla
-    // Tüm noktaları merkeze göre döndürüp, düz bir kutu gibi ölçüyoruz
-    const rad = -angleDeg * (Math.PI / 180); // Tersi yönde döndür ki düzleşsin
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        // Derece dönüşümü (Rotation)
+        const rad = -angleDeg * (Math.PI / 180);
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
 
-    // Dönüştürülmüş koordinatları sakla
-    const rotatedPoints = waypoints.map(p => {
-        const dy = (p.lat - centerLat) * 111111; // Metre cinsinden Y farkı
-        const dx = (p.lon - centerLon) * 111111 * Math.cos(centerLat * Math.PI/180); // Metre cinsinden X farkı
+        // Sınırları hesapla
+        waypoints.forEach(p => {
+            const dy = (p.lat - centerLat) * 111111;
+            const dx = (p.lon - centerLon) * 111111 * Math.cos(centerLat * Math.PI/180);
+            const rx = dx * Math.cos(rad) - dy * Math.sin(rad);
+            const ry = dx * Math.sin(rad) + dy * Math.cos(rad);
+            if (rx < minX) minX = rx; if (rx > maxX) maxX = rx;
+            if (ry < minY) minY = ry; if (ry > maxY) maxY = ry;
+        });
+
+        // 4. IZGARA NOKTALARINI OLUŞTUR (Sanal)
+        let tempPoints = []; // Sadece lat/lon tutacak
+        let y = minY;
+        let direction = 1;
+
+        while (y <= maxY) {
+            const xStart = (direction === 1) ? minX : maxX;
+            const xEnd = (direction === 1) ? maxX : minX;
+            const invRad = angleDeg * (Math.PI / 180);
+
+            // Satır başı ve sonu
+            [xStart, xEnd].forEach(x => {
+                const finalDx = x * Math.cos(invRad) - y * Math.sin(invRad);
+                const finalDy = x * Math.sin(invRad) + y * Math.cos(invRad);
+                const finalLat = centerLat + (finalDy / 111111);
+                const finalLon = centerLon + (finalDx / (111111 * Math.cos(centerLat * Math.PI/180)));
+                
+                tempPoints.push({lat: finalLat, lon: finalLon});
+            });
+
+            y += spacingMeters;
+            direction *= -1;
+        }
+
+        // 5. TERRAIN SAMPLING (KRİTİK BÖLÜM) 🌍
+        // Cesium'a sor: "Bu noktaların zemin yüksekliği ne?"
+        let finalWaypoints = [];
         
-        // Döndürme Formülü
-        const rx = dx * Math.cos(rad) - dy * Math.sin(rad);
-        const ry = dx * Math.sin(rad) + dy * Math.cos(rad);
+        if (useTerrain) {
+            // Cesium formatına çevir
+            const positionsToQuery = tempPoints.map(p => Cesium.Cartographic.fromDegrees(p.lon, p.lat));
+            
+            // İnternetten yükseklik verisini çek (Promise)
+            const updatedPositions = await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, positionsToQuery);
+            
+            // Verileri işle
+            updatedPositions.forEach(pos => {
+                const groundHeight = pos.height || 0; // Zemin yüksekliği (MSL)
+                const flightAlt = groundHeight + targetAlt; // Zemin + 30m
+                
+                finalWaypoints.push({
+                    lat: Cesium.Math.toDegrees(pos.latitude),
+                    lon: Cesium.Math.toDegrees(pos.longitude),
+                    alt: flightAlt, // Dinamik İrtifa!
+                    cartesian: Cesium.Cartesian3.fromRadians(pos.longitude, pos.latitude, flightAlt)
+                });
+            });
 
-        if (rx < minX) minX = rx;
-        if (rx > maxX) maxX = rx;
-        if (ry < minY) minY = ry;
-        if (ry > maxY) maxY = ry;
+        } else {
+            // Düz Uçuş (Eski Yöntem - İlk noktanın irtifasını al)
+            const baseAlt = waypoints[0].alt; // Kalkış noktası referansı
+            tempPoints.forEach(p => {
+                const flightAlt = baseAlt + targetAlt; // Kalkış + 30m (Sabit)
+                finalWaypoints.push({
+                    lat: p.lat,
+                    lon: p.lon,
+                    alt: flightAlt,
+                    cartesian: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, flightAlt)
+                });
+            });
+        }
 
-        return {x: rx, y: ry};
-    });
-
-    // 3. Izgarayı Oluştur (Sanal Düzlemde)
-    const newWaypoints = [];
-    let y = minY;
-    let direction = 1; // 1: Sağ, -1: Sol
-
-    while (y <= maxY) {
-        // Zikzak Mantığı: Bir satır sağa, bir satır sola
-        const xStart = (direction === 1) ? minX : maxX;
-        const xEnd = (direction === 1) ? maxX : minX;
-
-        // İki nokta ekle (Satır başı ve sonu)
-        // Gerçek dünyaya geri döndür (Inverse Rotation)
-        const invRad = angleDeg * (Math.PI / 180);
-
-        [xStart, xEnd].forEach(x => {
-            // Geri Döndür
-            const finalDx = x * Math.cos(invRad) - y * Math.sin(invRad);
-            const finalDy = x * Math.sin(invRad) + y * Math.cos(invRad);
-
-            // Lat/Lon'a çevir
-            const finalLat = centerLat + (finalDy / 111111);
-            const finalLon = centerLon + (finalDx / (111111 * Math.cos(centerLat * Math.PI/180)));
-
-            // Listeye Ekle
-            const cartesian = Cesium.Cartesian3.fromDegrees(finalLon, finalLat, alt);
-            newWaypoints.push({
-                lat: finalLat,
-                lon: finalLon,
-                alt: alt,
-                cartesian: cartesian
+        // 6. SİSTEMİ GÜNCELLE
+        waypoints = finalWaypoints;
+        
+        viewer.entities.removeAll();
+        waypoints.forEach(wp => {
+            viewer.entities.add({
+                position: wp.cartesian,
+                point: { pixelSize: 10, color: Cesium.Color.YELLOW }
             });
         });
 
-        y += spacingMeters;
-        direction *= -1; // Yön değiştir
+        renderVisuals(-1);
+        updateUI();
+        
+        // Varsa sağ paneldeki elevation grafiğini de güncelle
+        if(typeof updateElevationProfile === 'function') {
+            document.getElementById('tab-profile').style.display = 'block'; // Grafiği aç
+            updateElevationProfile();
+        }
+
+        alert(`✅ Smart Grid Generated!\nPoints: ${waypoints.length}\nMode: ${useTerrain ? 'Terrain Follow (AGL)' : 'Flat Plane'}`);
+
+    } catch (error) {
+        console.error(error);
+        alert("Error generating grid: " + error.message);
+    } finally {
+        btn.innerText = oldText;
+        btn.disabled = false;
     }
-
-    // 4. Eski Noktaları Sil ve Yenileri Ekle
-    waypoints = newWaypoints;
-    
-    // Görselliği Yenile
-    viewer.entities.removeAll();
-    waypoints.forEach(wp => {
-        viewer.entities.add({
-            position: wp.cartesian,
-            point: { pixelSize: 10, color: Cesium.Color.YELLOW }
-        });
-    });
-
-    renderVisuals(-1);
-    updateUI();
-    
-    // Kamerayı Ortala
-    viewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(centerLon, centerLat, 3000)
-    });
 }
 
 
