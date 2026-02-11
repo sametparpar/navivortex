@@ -181,7 +181,7 @@ function initCesium() {
 
 
 // ---------------------------------------------------------
-// 25. UNIFIED INTERACTION HANDLER (Click to Add + Drag to Move) 🖱️
+// 25. UNIFIED INTERACTION HANDLER (Smooth Drag & Drop) 🖱️
 // ---------------------------------------------------------
 function setupHandler() {
     const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
@@ -189,69 +189,79 @@ function setupHandler() {
     // Sürükleme için değişkenler
     let isDragging = false;
     let draggedEntity = null;
+    let draggedIndex = -1; // Hangi index'i taşıyoruz?
 
     // 1. SOL TUŞA BASINCA (Sürüklemeyi Başlat)
     handler.setInputAction(function(click) {
         const pickedObject = viewer.scene.pick(click.position);
         
         // Eğer bir Waypoint'e tıkladıysak SÜRÜKLEME moduna gir
-        if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.point) {
-            isDragging = true;
-            draggedEntity = pickedObject.id;
-            viewer.scene.screenSpaceCameraController.enableRotate = false; // Haritayı kilitle
-            document.body.style.cursor = "grabbing"; // İmleci değiştir
+        if (Cesium.defined(pickedObject) && pickedObject.id) {
+            // Tıklanan entity'nin bizim listemizde olup olmadığına bak
+            const index = waypointEntities.indexOf(pickedObject.id);
+            
+            if (index !== -1) {
+                isDragging = true;
+                draggedEntity = pickedObject.id;
+                draggedIndex = index;
+                
+                viewer.scene.screenSpaceCameraController.enableRotate = false; // Haritayı kilitle
+                document.body.style.cursor = "grabbing"; // İmleci değiştir
+            }
         }
     }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
 
-    // 2. MOUSE HAREKET EDİNCE (Noktayı Taşı)
+    // 2. MOUSE HAREKET EDİNCE (Noktayı Canlı Taşı)
     handler.setInputAction(function(movement) {
-        if (isDragging && draggedEntity) {
+        if (isDragging && draggedEntity && draggedIndex !== -1) {
+            // Mouse'un olduğu yerin dünya koordinatını bul
             const cartesian = viewer.camera.pickEllipsoid(movement.endPosition, viewer.scene.globe.ellipsoid);
             
             if (cartesian) {
-                // A) Görseli Taşı
+                // A) Görsel Noktayı Taşı (Çok Hızlı)
                 draggedEntity.position = new Cesium.ConstantPositionProperty(cartesian);
                 
-                // B) Veriyi (Array) Güncelle
-                // WaypointEntities dizisindeki sırasını bul
-                const index = waypointEntities.indexOf(draggedEntity);
+                // B) Veri Dizisini (Array) Arkada Güncelle
+                // Rota ve Polygon 'CallbackProperty' kullandığı için
+                // biz bu diziyi güncelleyince onlar OTOMATİK güncellenecek.
+                // renderVisuals çağırmaya GEREK YOK!
                 
-                if (index !== -1 && waypoints[index]) {
-                    const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
-                    
-                    // Koordinatları güncelle
-                    waypoints[index].lat = Cesium.Math.toDegrees(cartographic.latitude);
-                    waypoints[index].lon = Cesium.Math.toDegrees(cartographic.longitude);
-                    waypoints[index].cartesian = cartesian;
-                    // Yükseklik değişmesin
-                    waypoints[index].alt = waypoints[index].alt; 
+                const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
+                waypoints[draggedIndex].lat = Cesium.Math.toDegrees(cartographic.latitude);
+                waypoints[draggedIndex].lon = Cesium.Math.toDegrees(cartographic.longitude);
+                waypoints[draggedIndex].cartesian = cartesian;
+                // Yükseklik değişmesin
+                waypoints[draggedIndex].alt = waypoints[draggedIndex].alt;
 
-                    // Çizgileri ve Tabloyu Canlı Güncelle
-                    renderVisuals(-1);
-                    updateUI();
-                }
+                // C) Sadece Tabloyu (Distance/Time) Canlı Güncelle
+                // Eğer çok kasarsa bunu burdan silip LEFT_UP içine alabilirsin.
+                updateUI(); 
             }
         }
     }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
-    // 3. SOL TUŞU BIRAKINCA (Sürüklemeyi Bitir)
+    // 3. SOL TUŞU BIRAKINCA (Sürüklemeyi Bitir ve Kaydet)
     handler.setInputAction(function() {
         if (isDragging) {
             isDragging = false;
             draggedEntity = null;
-            viewer.scene.screenSpaceCameraController.enableRotate = true; // Haritayı aç
+            draggedIndex = -1;
+            
+            viewer.scene.screenSpaceCameraController.enableRotate = true; // Harita kilidini aç
             document.body.style.cursor = "default";
             
             // Son hesaplamaları yap
             updateUI();
             if(typeof updateElevationProfile === 'function') updateElevationProfile();
-            showToast("Nokta taşındı.", "info");
+            
+            showToast("✅ Rota güncellendi.", "info");
         }
     }, Cesium.ScreenSpaceEventType.LEFT_UP);
 
-    // 4. SOL TIKLAMA (YENİ NOKTA EKLEME) - Senin eski kodun burada
+    // 4. SOL TIKLAMA (YENİ NOKTA EKLEME)
     handler.setInputAction((click) => {
-        // ÖNEMLİ KONTROL: Eğer bir nokta sürüklüyorsak veya bir noktanın üzerine tıkladıysak YENİ NOKTA EKLEME!
+        // Eğer bir şey sürüklüyorsak veya bir nesneye tıkladıysak YENİ NOKTA EKLEME
+        if (isDragging) return;
         const pickedObject = viewer.scene.pick(click.position);
         if (Cesium.defined(pickedObject) && pickedObject.id) return;
 
@@ -261,7 +271,6 @@ function setupHandler() {
             const cartographic = Cesium.Cartographic.fromCartesian(pickedPosition);
             const lat = Cesium.Math.toDegrees(cartographic.latitude);
             const lon = Cesium.Math.toDegrees(cartographic.longitude);
-            // Yüksekliği biraz yukarıdan başlat ki gömülmesin
             const alt = Math.round(cartographic.height + 50); 
 
             // Listeye ekle
@@ -272,7 +281,7 @@ function setupHandler() {
                 cartesian: pickedPosition
             });
 
-            // Görselleri çiz
+            // Görselleri çiz (Burada mecbur çiziyoruz çünkü yeni eleman var)
             renderVisuals(-1);
             updateUI();
             calculateLogistics();
