@@ -480,30 +480,39 @@ function updateVehicleParams() {
         // --- DRONE AYARLARI ---
         html = `
             <div class="input-group" style="margin-top:10px;">
-                <label style="color:#94a3b8; font-size:10px;">CRUISE SPEED (m/s)</label>
-                <input type="number" id="drone-speed" value="15" oninput="updateUI()" style="background:#0f172a; border:1px solid #334155; color:white; width:100%; padding:5px; border-radius:4px;">
+                <label>CRUISE ALTITUDE (AGL - m)</label>
+                <input type="number" id="drone-alt" value="50" onchange="updateGlobalAltitude()" placeholder="e.g. 50">
             </div>
-            <div class="input-group" style="margin-top:5px;">
-                <label style="color:#94a3b8; font-size:10px;">BATTERY CAPACITY (mAh)</label>
-                <input type="number" id="drone-bat" value="5200" oninput="updateUI()" style="background:#0f172a; border:1px solid #334155; color:white; width:100%; padding:5px; border-radius:4px;">
+            <div class="input-group">
+                <label>CRUISE SPEED (m/s)</label>
+                <input type="number" id="drone-speed" value="15" onchange="calculateLogistics()" placeholder="e.g. 15">
+            </div>
+            <div class="input-group">
+                <label>BATTERY CAPACITY (mAh)</label>
+                <input type="number" id="drone-bat" value="5200" onchange="calculateLogistics()" placeholder="e.g. 5200">
             </div>
         `;
     } else {
         // --- UÇAK (C172) AYARLARI ---
         html = `
             <div class="input-group" style="margin-top:10px;">
-                <label style="color:#94a3b8; font-size:10px;">TRUE AIRSPEED (TAS - kts)</label>
-                <input type="number" id="fuel-speed" value="110" oninput="updateUI()" style="background:#0f172a; border:1px solid #334155; color:white; width:100%; padding:5px; border-radius:4px;">
+                <label>CRUISE ALTITUDE (MSL - ft)</label>
+                <input type="number" id="plane-alt" value="2500" onchange="updateGlobalAltitude()" placeholder="e.g. 2500">
             </div>
-            <div class="input-group" style="margin-top:5px;">
-                <label style="color:#94a3b8; font-size:10px;">FUEL BURN (Gal/hr)</label>
-                <input type="number" id="fuel-rate" value="9" oninput="updateUI()" style="background:#0f172a; border:1px solid #334155; color:white; width:100%; padding:5px; border-radius:4px;">
+            <div class="input-group">
+                <label>TRUE AIRSPEED (TAS - kts)</label>
+                <input type="number" id="fuel-speed" value="110" onchange="calculateLogistics()" placeholder="e.g. 110">
+            </div>
+            <div class="input-group">
+                <label>FUEL BURN (Gal/hr)</label>
+                <input type="number" id="fuel-rate" value="9" onchange="calculateLogistics()" placeholder="e.g. 9">
             </div>
         `;
     }
 
-    // HTML'i içeri bas
     container.innerHTML = html;
+
+    
     
     // Değerler değiştiği için hesaplamayı hemen güncelle
     updateUI();
