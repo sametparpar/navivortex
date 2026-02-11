@@ -1141,6 +1141,147 @@ function renderChart(labels, terrainData, flightData) {
 
 
 
+
+
+
+
+
+
+
+// 21. Sync Grid Inputs (Slider ve Text Kutusunu Eşle) 🎚️
+function syncGridInputs(source) {
+    const spacingSlider = document.getElementById('grid-spacing-slider');
+    const spacingText = document.getElementById('grid-spacing');
+    const angleSlider = document.getElementById('grid-angle-slider');
+    const angleText = document.getElementById('grid-angle');
+
+    if (source === 'spacing') spacingText.value = spacingSlider.value;
+    if (source === 'spacing_text') spacingSlider.value = spacingText.value;
+    
+    if (source === 'angle') angleText.value = angleSlider.value;
+    if (source === 'angle_text') angleSlider.value = angleText.value;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+// 22. Generate Search Grid (Advanced Rotation Logic) 🕸️
+function generateGridMission() {
+    if (waypoints.length < 3) {
+        alert("Please define an area with at least 3 points first (Corners).");
+        return;
+    }
+
+    if (!confirm("Replacing current path with Search Grid... Continue?")) return;
+
+    const spacingMeters = parseFloat(document.getElementById('grid-spacing').value);
+    const angleDeg = parseFloat(document.getElementById('grid-angle').value);
+    const alt = waypoints[0].alt;
+
+    // 1. Alanın Merkezini Bul (Centroid)
+    let sumLat = 0, sumLon = 0;
+    waypoints.forEach(p => { sumLat += p.lat; sumLon += p.lon; });
+    const centerLat = sumLat / waypoints.length;
+    const centerLon = sumLon / waypoints.length;
+
+    // 2. Bounding Box (Genişlik/Yükseklik) Hesapla
+    // Tüm noktaları merkeze göre döndürüp, düz bir kutu gibi ölçüyoruz
+    const rad = -angleDeg * (Math.PI / 180); // Tersi yönde döndür ki düzleşsin
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+
+    // Dönüştürülmüş koordinatları sakla
+    const rotatedPoints = waypoints.map(p => {
+        const dy = (p.lat - centerLat) * 111111; // Metre cinsinden Y farkı
+        const dx = (p.lon - centerLon) * 111111 * Math.cos(centerLat * Math.PI/180); // Metre cinsinden X farkı
+        
+        // Döndürme Formülü
+        const rx = dx * Math.cos(rad) - dy * Math.sin(rad);
+        const ry = dx * Math.sin(rad) + dy * Math.cos(rad);
+
+        if (rx < minX) minX = rx;
+        if (rx > maxX) maxX = rx;
+        if (ry < minY) minY = ry;
+        if (ry > maxY) maxY = ry;
+
+        return {x: rx, y: ry};
+    });
+
+    // 3. Izgarayı Oluştur (Sanal Düzlemde)
+    const newWaypoints = [];
+    let y = minY;
+    let direction = 1; // 1: Sağ, -1: Sol
+
+    while (y <= maxY) {
+        // Zikzak Mantığı: Bir satır sağa, bir satır sola
+        const xStart = (direction === 1) ? minX : maxX;
+        const xEnd = (direction === 1) ? maxX : minX;
+
+        // İki nokta ekle (Satır başı ve sonu)
+        // Gerçek dünyaya geri döndür (Inverse Rotation)
+        const invRad = angleDeg * (Math.PI / 180);
+
+        [xStart, xEnd].forEach(x => {
+            // Geri Döndür
+            const finalDx = x * Math.cos(invRad) - y * Math.sin(invRad);
+            const finalDy = x * Math.sin(invRad) + y * Math.cos(invRad);
+
+            // Lat/Lon'a çevir
+            const finalLat = centerLat + (finalDy / 111111);
+            const finalLon = centerLon + (finalDx / (111111 * Math.cos(centerLat * Math.PI/180)));
+
+            // Listeye Ekle
+            const cartesian = Cesium.Cartesian3.fromDegrees(finalLon, finalLat, alt);
+            newWaypoints.push({
+                lat: finalLat,
+                lon: finalLon,
+                alt: alt,
+                cartesian: cartesian
+            });
+        });
+
+        y += spacingMeters;
+        direction *= -1; // Yön değiştir
+    }
+
+    // 4. Eski Noktaları Sil ve Yenileri Ekle
+    waypoints = newWaypoints;
+    
+    // Görselliği Yenile
+    viewer.entities.removeAll();
+    waypoints.forEach(wp => {
+        viewer.entities.add({
+            position: wp.cartesian,
+            point: { pixelSize: 10, color: Cesium.Color.YELLOW }
+        });
+    });
+
+    renderVisuals(-1);
+    updateUI();
+    
+    // Kamerayı Ortala
+    viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(centerLon, centerLat, 3000)
+    });
+}
+
+
+
+
+
+
+
+
+
+
                           
 
 
