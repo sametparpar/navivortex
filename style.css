@@ -322,3 +322,59 @@ button {
     background-color: #334155;
     border-radius: 10px;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* --- MODERN TOAST BİLDİRİMLERİ --- */
+#toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+}
+
+.toast {
+    min-width: 250px;
+    background: rgba(15, 23, 42, 0.95);
+    color: #fff;
+    padding: 12px 20px;
+    margin-bottom: 10px;
+    border-radius: 6px;
+    border-left: 4px solid #3b82f6; /* Varsayılan Mavi */
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    font-size: 12px;
+    animation: slideIn 0.3s ease-out forwards;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.toast.success { border-left-color: #10b981; } /* Yeşil */
+.toast.error { border-left-color: #ef4444; }   /* Kırmızı */
+.toast.warning { border-left-color: #f59e0b; } /* Sarı */
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
