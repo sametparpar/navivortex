@@ -1434,47 +1434,47 @@ window.alert = function(msg) {
 
 
 
-// 24. Professional Aeronautical Layer (OpenAIP Global Integration) 📡🧭
+// 24. AERO LAYER (ÜCRETSİZ & LİMİTSİZ ALTERNATİF - OSM) 🌍
 let aeroImageryLayer = null;
 
-async function toggleAeroLayer() {
+function toggleAeroLayer() {
     const isVisible = document.getElementById('aero-layer-toggle').checked;
-    const OPENAIP_API_KEY = "51bce148aa7ef5c4ea94580abe6a3925";
 
     if (isVisible) {
+        // Varsa eski katmanı temizle
+        if (aeroImageryLayer) {
+            viewer.imageryLayers.remove(aeroImageryLayer);
+            aeroImageryLayer = null;
+        }
+
         try {
-            // Cesium Imagery Provider Konfigürasyonu
-            const openAipProvider = new Cesium.UrlTemplateImageryProvider({
-                // Global CDN üzerinden erişim sağlayarak DNS hatalarını minimize ediyoruz
-                url: `https://{s}.tile.openaip.net/geowebcache/service/tms/1.0.0/openaip_baselayer@EPSG%3A900913@png/{z}/{x}/{rev_y}.png?apiKey=${OPENAIP_API_KEY}`,
-                // Alternatif URL (Eğer yukarıdaki DNS hatası verirse bunu kullanır):
-                // url: `https://api.openaip.net/api/v1/tiles/openaip/{z}/{x}/{y}.png?apiKey=${OPENAIP_API_KEY}`,
-                credit: 'Data © openAIP Contributors',
+            // OpenAIP (Paralı) YERİNE -> OpenStreetMap (Ücretsiz/Limitsiz)
+            const provider = new Cesium.UrlTemplateImageryProvider({
+                url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                credit: 'Map data © OpenStreetMap contributors',
                 tilingScheme: new Cesium.WebMercatorTilingScheme(),
-                maximumLevel: 14,
-                hasAlphaChannel: true,
-                subdomains: ['a', 'b', 'c'] // Yük dengeleme için subdomainler
+                maximumLevel: 19
             });
 
-            if (aeroImageryLayer) viewer.imageryLayers.remove(aeroImageryLayer);
-
-            aeroImageryLayer = viewer.imageryLayers.addImageryProvider(openAipProvider);
+            aeroImageryLayer = viewer.imageryLayers.addImageryProvider(provider);
             
-            // Görsel Optimizasyon
-            aeroImageryLayer.alpha = 0.85;
-            aeroImageryLayer.brightness = 1.1;
+            // Alt katman (Uydu) görünsün diye şeffaflık veriyoruz
+            aeroImageryLayer.alpha = 0.6; 
+            
+            // Katmanı en üste taşı
             viewer.imageryLayers.raiseToTop(aeroImageryLayer);
+            
+            showToast("Harita katmanı aktif (OSM Mode).", "success");
 
-            showToast("Aeronautical layers active (OpenAIP Global).", "success");
-        } catch (error) {
-            console.error("Critical Aero Layer Error:", error);
-            showToast("Aviation data connection failed.", "error");
+        } catch (e) {
+            console.error(e);
+            showToast("Katman hatası.", "error");
         }
     } else {
         if (aeroImageryLayer) {
             viewer.imageryLayers.remove(aeroImageryLayer);
             aeroImageryLayer = null;
-            showToast("Aeronautical layers disabled.", "info");
+            showToast("Katman gizlendi.", "info");
         }
     }
 }
