@@ -1,403 +1,181 @@
-/* 1. Genel Sayfa ve Harita Düzeni */
+/* =========================================
+   1. GENEL SAYFA VE HARİTA DÜZENİ
+   ========================================= */
 body, html { 
     width: 100%; height: 100%; margin: 0; padding: 0; 
     overflow: hidden; background: #000; 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 #cesiumContainer { 
     position: absolute; 
     top: 0; left: 0; 
     width: 100%; height: 100%; 
-    z-index: 1; 
+    z-index: 0; /* En altta */
 }
 
-/* 2. Ortak Panel Tasarımı */
+/* =========================================
+   2. PANELLER (SOL VE SAĞ) - HİZALAMA: 10PX
+   ========================================= */
 #params-panel, #data-table {
     position: absolute; 
-    background: rgba(15, 23, 42, 0.9); 
+    top: 10px; /* Daha fazla harita alanı için yukarı aldık */
+    background: rgba(15, 23, 42, 0.95); /* Biraz daha koyu ve opak */
     backdrop-filter: blur(10px); 
-    border-radius: 12px;
+    border-radius: 8px;
     color: white; 
-    font-family: 'Segoe UI', sans-serif; 
-    z-index: 100;
+    z-index: 10;
     box-sizing: border-box;
+    max-height: 95vh; /* Ekranın %95'ini kaplayabilsin */
+    overflow-y: auto; 
+    border: 1px solid #334155;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
 }
 
 /* Sol Panel (Ayarlar) */
 #params-panel { 
-    top: 20px; 
-    left: 20px; 
-    width: 280px; 
-    padding: 20px; 
-    border: 1px solid #38bdf8; 
-}
-
-/* Sağ Panel (Nav Log)
-#data-table { 
-    top: 20px;      
-    right: 15px; 
-    width: 290px;   
-    max-height: 60vh; 
-    overflow-y: auto; 
-    padding: 12px; 
-    border: 1px solid #10b981; 
-}
-
-/* 3. Input, Select ve Label Tasarımı */
-.input-group { margin-bottom: 15px; }
-
-label { 
-    display: block; 
-    font-size: 10px; 
-    color: #94a3b8; 
-    text-transform: uppercase; 
-    letter-spacing: 1px; 
-    margin-bottom: 5px;
-}
-
-input, select { 
-    width: 100%; 
-    padding: 10px; 
-    background: #1e293b; 
-    border: 1px solid #334155; 
-    color: #38bdf8; 
-    border-radius: 6px; 
-    box-sizing: border-box;
-    font-size: 13px;
-}
-
-/* 4. Buton Tasarımları */
-button {
-    width: 100%; 
-    padding: 12px; 
-    border-radius: 6px; 
-    font-weight: bold; 
-    cursor: pointer; 
-    margin-top: 10px; 
-    border: none; 
-    color: white; 
-    transition: all 0.2s ease;
-}
-
-.btn-primary { background: #10b981; }
-.btn-primary:hover { background: #059669; transform: translateY(-1px); }
-
-.btn-export { background: #0ea5e9; }
-.btn-export:hover { background: #0284c7; transform: translateY(-1px); }
-
-/* 5. Nav Log Tablo Görünümü */
-.nav-log-table { 
-    width: 100%; 
-    border-collapse: collapse; 
-    font-size: 11px; 
-    margin-top: 10px; 
-}
-
-.nav-log-table th { 
-    color: #10b981; 
-    text-align: left; 
-    border-bottom: 1px solid #334155; 
-    padding: 6px 4px; 
-}
-
-.nav-log-table td { 
-    padding: 8px 4px; 
-    border-bottom: 1px solid #1e293b; 
-    color: #cbd5e1; 
-}
-
-/* 6. Reklam ve Uyarı Alanları */
-.ad-container { 
-    background: rgba(255, 255, 255, 0.05); 
-    border: 1px dashed #475569; 
-    text-align: center; 
-    margin: 15px 0; 
+    left: 10px; 
+    width: 290px; 
     padding: 15px; 
 }
 
-.ad-tag { font-size: 8px; color: #64748b; display: block; margin-bottom: 5px; }
+/* Sağ Panel (Nav Log) */
+#data-table { 
+    right: 10px; 
+    width: 320px; 
+    padding: 15px; 
+}
 
+/* =========================================
+   3. INPUT, BUTON VE ETİKETLER
+   ========================================= */
+.input-group { margin-bottom: 12px; }
+
+label { 
+    display: block; font-size: 10px; color: #94a3b8; 
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; font-weight: 600;
+}
+
+input, select { 
+    width: 100%; padding: 8px; 
+    background: #1e293b; border: 1px solid #334155; 
+    color: white; border-radius: 4px; box-sizing: border-box; font-size: 12px;
+}
+
+button {
+    width: 100%; padding: 10px; border-radius: 4px; 
+    font-weight: bold; cursor: pointer; margin-top: 8px; 
+    border: none; color: white; transition: all 0.2s ease; font-size: 11px;
+}
+button:hover { opacity: 0.9; transform: translateY(-1px); }
+
+.btn-primary { background: #10b981; } /* Yeşil */
+.btn-export { background: #0ea5e9; }  /* Mavi */
+.btn-pdf { background: #8b5cf6; }     /* Mor */
+
+/* =========================================
+   4. TABLO VE LİSTELER (NAV LOG)
+   ========================================= */
+.nav-log-table { 
+    width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 5px; 
+}
+.nav-log-table th { 
+    color: #38bdf8; text-align: left; border-bottom: 1px solid #334155; padding: 5px; 
+}
+.nav-log-table td { 
+    padding: 6px 5px; border-bottom: 1px solid #1e293b; color: #cbd5e1; 
+}
+
+/* Görev Listesi (Library) */
+.mission-item {
+    padding: 8px; border-bottom: 1px solid #1e293b; cursor: pointer; 
+    display: flex; justify-content: space-between; align-items: center;
+}
+.mission-item:hover { background: #334155; }
+.scrollable-list {
+    max-height: 250px; overflow-y: auto;
+    scrollbar-width: thin; scrollbar-color: #334155 #0f172a;
+}
+
+/* =========================================
+   5. MENU ACCORDION (AÇILIR/KAPANIR)
+   ========================================= */
+.menu-section { margin-bottom: 8px; border-bottom: 1px solid #334155; }
+.menu-header {
+    padding: 8px 0; cursor: pointer; display: flex; 
+    justify-content: space-between; align-items: center; 
+    font-size: 11px; font-weight: bold; color: #e2e8f0;
+}
+.menu-header:hover { color: #38bdf8; }
+.menu-content { display: none; padding-bottom: 10px; animation: fadeIn 0.3s; }
+
+/* =========================================
+   6. SEKMELER (TABS)
+   ========================================= */
+.tab-header { display: flex; gap: 5px; margin-bottom: 10px; border-bottom: 1px solid #334155; padding-bottom: 5px; }
+.tab-btn { 
+    flex: 1; background: transparent; border: none; color: #64748b; 
+    padding: 5px; cursor: pointer; font-size: 10px; font-weight: bold; 
+    border-bottom: 2px solid transparent; 
+}
+.tab-btn.active { color: #38bdf8; border-bottom: 2px solid #38bdf8; }
+.tab-content { display: none; animation: fadeIn 0.3s; }
+
+/* =========================================
+   7. HARİTA BUTONLARI (CESIUM TOOLBAR)
+   ========================================= */
+/* Sağ panelin (320px) + 10px boşluk = 330px. 
+   Butonları bunun soluna, 340px'e koyuyoruz. */
+.cesium-viewer-toolbar {
+    position: absolute;
+    top: 10px !important;       /* Panelle aynı hiza */
+    right: 340px !important;    /* Panelin solu */
+    display: flex !important;
+    gap: 5px;
+}
+
+.cesium-viewer-geocoderContainer {
+    position: absolute;
+    top: 10px !important;
+    right: 380px !important;    /* Toolbar'ın solu */
+}
+
+/* Buton Görselleri */
+.cesium-button {
+    background-color: rgba(15, 23, 42, 0.9) !important;
+    border: 1px solid #334155 !important;
+    border-radius: 4px !important;
+    width: 32px !important; height: 32px !important;
+}
+.cesium-button:hover { background-color: #38bdf8 !important; }
+
+/* =========================================
+   8. DİĞER BİLEŞENLER (TOAST, REKLAM, SWITCH)
+   ========================================= */
+/* Toast Bildirimleri */
+#toast-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; }
+.toast {
+    background: rgba(15, 23, 42, 0.95); color: #fff; padding: 10px 20px; 
+    margin-bottom: 5px; border-radius: 6px; border-left: 4px solid #3b82f6; 
+    font-size: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    animation: fadeIn 0.3s;
+}
+.toast.success { border-left-color: #10b981; }
+.toast.error { border-left-color: #ef4444; }
+
+/* Alt Reklam Barı (DÜZELTİLDİ) */
 .bottom-ad-bar {
     position: absolute; 
-    bottom: ; 
-    left: 50%; 
-    transform: translateX(-50%);
-    width: 728px; 
-    height: 90px; 
+    bottom: 0; /* BURASI BOŞTU, DÜZELTİLDİ */
+    left: 50%; transform: translateX(-50%);
+    width: 728px; height: 90px; 
     background: rgba(15, 23, 42, 0.8); 
-    border: 1px solid #334155; 
-    z-index: 100; 
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    border-top: 1px solid #334155; border-radius: 8px 8px 0 0;
+    z-index: 90; display: flex; align-items: center; justify-content: center;
 }
+.ad-tag { font-size: 8px; color: #64748b; margin-bottom: 2px; }
 
-.energy-warn { 
-    color: #ef4444; 
-    background: rgba(239, 68, 68, 0.1); 
-    padding: 10px; 
-    border-radius: 6px; 
-    margin-top: 10px; 
-    border: 1px solid #ef4444; 
-    font-size: 11px; 
-    font-weight: bold; 
-    display: none; 
-}
-
-
-
-
-
-
-
-/* Görev Listesi Öğeleri */
-.mission-item {
-    padding: 8px;
-    border-bottom: 1px solid #1e293b;
-    cursor: pointer;
-    transition: background 0.2s;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.mission-item:hover {
-    background: #1e293b;
-}
-
-.mission-item:last-child {
-    border-bottom: none;
-}
-
-.mission-info {
-    font-size: 11px;
-    color: #e2e8f0;
-}
-
-.mission-date {
-    font-size: 9px;
-    color: #94a3b8;
-    display: block;
-}
-
-.mission-delete-btn {
-    background: none;
-    border: none;
-    color: #ef4444;
-    font-size: 14px;
-    cursor: pointer;
-    padding: 0 5px;
-}
-
-.mission-delete-btn:hover {
-    color: #ff0000;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/* --- YENİ MENÜ TASARIMI (ACCORDION) --- */
-.menu-section {
-    margin-bottom: 8px;
-    border: 1px solid #334155;
-    border-radius: 6px;
-    overflow: hidden;
-    background: rgba(30, 41, 59, 0.5);
-}
-
-.menu-header {
-    padding: 10px;
-    background: #1e293b;
-    cursor: pointer;
-    font-size: 11px;
-    font-weight: bold;
-    color: #cbd5e1;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    transition: background 0.2s;
-}
-
-.menu-header:hover {
-    background: #334155;
-    color: #fff;
-}
-
-.menu-content {
-    padding: 10px;
-    display: none; /* Varsayılan kapalı */
-    background: rgba(15, 23, 42, 0.4);
-}
-
-.toggle-icon {
-    font-size: 9px;
-    color: #64748b;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/* --- SAĞ PANEL SEKMELERİ (TABS) --- */
-.tab-header {
-    display: flex;
-    border-bottom: 1px solid #334155;
-    margin-bottom: 10px;
-}
-
-.tab-btn {
-    flex: 1;
-    background: transparent;
-    border: none;
-    color: #94a3b8;
-    padding: 8px 0;
-    font-size: 10px;
-    font-weight: bold;
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-}
-
-.tab-btn:hover {
-    color: #e2e8f0;
-}
-
-.tab-btn.active {
-    color: #38bdf8;
-    border-bottom: 2px solid #38bdf8;
-}
-
-/* --- SCROLLABLE LIST (ÖLÇEKLENEBİLİRLİK İÇİN) --- */
-.scrollable-list {
-    max-height: 300px; /* Liste uzarsa burayı aşmaz */
-    overflow-y: auto;  /* Kaydırma çubuğu çıkar */
-    scrollbar-width: thin;
-    scrollbar-color: #334155 #0f172a;
-}
-
-/* Scrollbar Tasarımı (Webkit) */
-.scrollable-list::-webkit-scrollbar {
-    width: 6px;
-}
-.scrollable-list::-webkit-scrollbar-track {
-    background: #0f172a;
-}
-.scrollable-list::-webkit-scrollbar-thumb {
-    background-color: #334155;
-    border-radius: 10px;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/* --- MODERN TOAST BİLDİRİMLERİ --- */
-#toast-container {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 9999;
-}
-
-.toast {
-    min-width: 250px;
-    background: rgba(15, 23, 42, 0.95);
-    color: #fff;
-    padding: 12px 20px;
-    margin-bottom: 10px;
-    border-radius: 6px;
-    border-left: 4px solid #3b82f6; /* Varsayılan Mavi */
-    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-    font-size: 12px;
-    animation: slideIn 0.3s ease-out forwards;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.toast.success { border-left-color: #10b981; } /* Yeşil */
-.toast.error { border-left-color: #ef4444; }   /* Kırmızı */
-.toast.warning { border-left-color: #f59e0b; } /* Sarı */
-
-@keyframes slideIn {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/* --- MODERN SWITCH UI --- */
+/* Switch Toggle */
 .switch { position: relative; display: inline-block; width: 34px; height: 18px; }
 .switch input { opacity: 0; width: 0; height: 0; }
 .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .4s; border-radius: 18px; }
@@ -405,33 +183,5 @@ button {
 input:checked + .slider { background-color: #0ea5e9; }
 input:checked + .slider:before { transform: translateX(16px); }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/* --- CESIUM HARİTA SEÇİCİ KONUMU --- */
-.cesium-viewer-toolbar {
-    top: 20px !important;
-    right: 360px !important; /* Sağ panelin soluna ittik */
-    display: flex !important;
-}
-
-/* Butonun Görseli (Siyah Temaya Uygun) */
-.cesium-button {
-    background-color: rgba(15, 23, 42, 0.9) !important;
-    border: 1px solid #334155 !important;
-    border-radius: 6px !important;
-}
-.cesium-button:hover {
-    background-color: #38bdf8 !important; /* Mavi Hover */
-}
+/* Animasyonlar */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
