@@ -32,7 +32,7 @@ body, html {
     border: 1px solid #38bdf8; 
 }
 
-/* Sağ Panel (Nav Log) - Harita butonlarını kapatmaması için 80px aşağıda */
+/* Sağ Panel (Nav Log)
 #data-table { 
     top: 20px;      
     right: 15px; 
