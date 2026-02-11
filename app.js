@@ -1387,6 +1387,45 @@ async function generateGridMission() {
 
 
 
+
+
+
+
+
+
+// 23. Toast Notification System (Alert Yerine) 🍞
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    
+    // Element oluştur
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `<span>${message}</span>`;
+    
+    // Listeye ekle
+    container.appendChild(toast);
+
+    // 3 saniye sonra sil
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// Eski alert'i ez (İsteğe bağlı, ama kodun her yerini değiştirmemek için pratik)
+window.alert = function(msg) {
+    showToast(msg, 'warning');
+};
+
+
+
+
+
+
+
+
+
+
                           
 
 
