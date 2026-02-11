@@ -1434,32 +1434,45 @@ window.alert = function(msg) {
 
 
 
-// 24. Aeronautical Layer Management (OpenAIP) 📡
-let aeroLayer = null;
+// 24. Aeronautical Layer Management (OpenAIP Integration) 📡
+let aeroImageryLayer = null;
 
 function toggleAeroLayer() {
     const isVisible = document.getElementById('aero-layer-toggle').checked;
     
+    // ⚠️ Kendi API Key'ini buraya yapıştır!
+    const OPENAIP_API_KEY = "BURAYA_OPENAIP_KEY_GELECEK"; 
+
     if (isVisible) {
-        // OpenAIP Tile Map Service
-        aeroLayer = viewer.imageryLayers.addImageryProvider(
-            new Cesium.UrlTemplateImageryProvider({
-                url: 'https://{s}.tile.openweathermap.org/map/aeronautical/{z}/{x}/{y}.png?appid=YOUR_API_KEY', // Alternatif veya OpenAIP Proxy
-                // OpenAIP doğrudan kullanım için:
-                url: 'https://api.openaip.net/api/v1/tiles/openaip/{z}/{x}/{y}.png?apiKey=YOUR_OPENAIP_KEY', 
-                credit: 'Maps © openAIP',
-                maximumLevel: 14
-            })
-        );
-        showToast("Aeronautical layers active. Check Airspaces!", "info");
+        if (OPENAIP_API_KEY === "51bce148aa7ef5c4ea94580abe6a3925") {
+            showToast("Lütfen app.js içinde OpenAIP API Key tanımlayın!", "warning");
+            document.getElementById('aero-layer-toggle').checked = false;
+            return;
+        }
+
+        // OpenAIP Tile Provider
+        const openAipProvider = new Cesium.UrlTemplateImageryProvider({
+            url: `https://api.openaip.net/api/v1/tiles/openaip/{z}/{x}/{y}.png?apiKey=${OPENAIP_API_KEY}`,
+            credit: 'Data © openAIP Contributors',
+            maximumLevel: 14,
+            minimumLevel: 3,
+            rectangle: Cesium.Rectangle.MAX_VALUE // Tüm dünya
+        });
+
+        aeroImageryLayer = viewer.imageryLayers.addImageryProvider(openAipProvider);
+        
+        // Katman şeffaflığını ayarla (Alt harita görünsün diye)
+        aeroImageryLayer.alpha = 0.8; 
+        
+        showToast("Havacılık katmanları yüklendi. Hava sahaları aktif.", "success");
     } else {
-        if (aeroLayer) {
-            viewer.imageryLayers.remove(aeroLayer);
-            aeroLayer = null;
+        if (aeroImageryLayer) {
+            viewer.imageryLayers.remove(aeroImageryLayer);
+            aeroImageryLayer = null;
+            showToast("Havacılık katmanları kaldırıldı.", "info");
         }
     }
 }
-
 
 
 
