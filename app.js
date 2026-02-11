@@ -1174,102 +1174,136 @@ function syncGridInputs(source) {
 
 
 
-// 22. Generate Smart Search Grid (Terrain Aware / AGL) 🕸️🏔️
+// 22. Generate Smart Search Grid (Polygon Clipping / Scanline Algo) 🕸️✂️
 async function generateGridMission() {
-    // 1. GÜVENLİK KONTROLLERİ
     if (waypoints.length < 3) {
         alert("Please define an area with at least 3 points first.");
         return;
     }
-    if (!confirm("This will generate a new grid path. Existing points will be cleared. Continue?")) return;
+    if (!confirm("This will replace current points with a Polygon-Clipped Grid. Continue?")) return;
 
-    // Butonun yazısını değiştir (İşlem sürerken)
     const btn = document.querySelector('button[onclick="generateGridMission()"]');
     const oldText = btn.innerText;
-    btn.innerText = "⏳ CALCULATING TERRAIN...";
+    btn.innerText = "⏳ CLIPPING POLYGON...";
     btn.disabled = true;
 
     try {
-        // 2. PARAMETRELERİ AL
+        // --- 1. AYARLARI AL ---
         const spacingMeters = parseFloat(document.getElementById('grid-spacing').value);
         const angleDeg = parseFloat(document.getElementById('grid-angle').value);
-        let targetAlt = parseFloat(document.getElementById('grid-alt').value); // İstenen yükseklik (AGL)
+        let targetAlt = parseFloat(document.getElementById('grid-alt').value);
         const useTerrain = document.getElementById('terrain-follow').checked;
 
-        // 3. ALAN HESABI (BOUNDING BOX & ROTATION)
-        // Alanın merkezini bul
+        // --- 2. ROTASYON VE KOORDİNAT SİSTEMİ ---
+        // Merkez noktayı bul (Döndürme işlemi için pivot)
         let sumLat = 0, sumLon = 0;
         waypoints.forEach(p => { sumLat += p.lat; sumLon += p.lon; });
         const centerLat = sumLat / waypoints.length;
         const centerLon = sumLon / waypoints.length;
 
-        // Derece dönüşümü (Rotation)
-        const rad = -angleDeg * (Math.PI / 180);
-        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        // Derece dönüşümü (Radyan)
+        const rad = -angleDeg * (Math.PI / 180); // Ters çevirerek düzleştiriyoruz
 
-        // Sınırları hesapla
-        waypoints.forEach(p => {
-            const dy = (p.lat - centerLat) * 111111;
-            const dx = (p.lon - centerLon) * 111111 * Math.cos(centerLat * Math.PI/180);
-            const rx = dx * Math.cos(rad) - dy * Math.sin(rad);
-            const ry = dx * Math.sin(rad) + dy * Math.cos(rad);
-            if (rx < minX) minX = rx; if (rx > maxX) maxX = rx;
-            if (ry < minY) minY = ry; if (ry > maxY) maxY = ry;
-        });
-
-        // 4. IZGARA NOKTALARINI OLUŞTUR (Sanal)
-        let tempPoints = []; // Sadece lat/lon tutacak
-        let y = minY;
-        let direction = 1;
-
-        while (y <= maxY) {
-            const xStart = (direction === 1) ? minX : maxX;
-            const xEnd = (direction === 1) ? maxX : minX;
-            const invRad = angleDeg * (Math.PI / 180);
-
-            // Satır başı ve sonu
-            [xStart, xEnd].forEach(x => {
-                const finalDx = x * Math.cos(invRad) - y * Math.sin(invRad);
-                const finalDy = x * Math.sin(invRad) + y * Math.cos(invRad);
-                const finalLat = centerLat + (finalDy / 111111);
-                const finalLon = centerLon + (finalDx / (111111 * Math.cos(centerLat * Math.PI/180)));
-                
-                tempPoints.push({lat: finalLat, lon: finalLon});
-            });
-
-            y += spacingMeters;
-            direction *= -1;
+        // Yardımcı Fonksiyon: Lat/Lon -> Metre (Rotated)
+        function project(lat, lon) {
+            const dy = (lat - centerLat) * 111111;
+            const dx = (lon - centerLon) * 111111 * Math.cos(centerLat * Math.PI/180);
+            return {
+                x: dx * Math.cos(rad) - dy * Math.sin(rad),
+                y: dx * Math.sin(rad) + dy * Math.cos(rad)
+            };
         }
 
-        // 5. TERRAIN SAMPLING (KRİTİK BÖLÜM) 🌍
-        // Cesium'a sor: "Bu noktaların zemin yüksekliği ne?"
+        // Yardımcı Fonksiyon: Metre (Rotated) -> Lat/Lon
+        function unproject(x, y) {
+            const invRad = angleDeg * (Math.PI / 180); // Geri döndür
+            const dx = x * Math.cos(invRad) - y * Math.sin(invRad);
+            const dy = x * Math.sin(invRad) + y * Math.cos(invRad);
+            return {
+                lat: centerLat + (dy / 111111),
+                lon: centerLon + (dx / (111111 * Math.cos(centerLat * Math.PI/180)))
+            };
+        }
+
+        // --- 3. POLYGON SINIRLARINI HESAPLA ---
+        // Tüm noktaları sanal düzleme (metre) çevir
+        const polyPoints = waypoints.map(p => project(p.lat, p.lon));
+
+        // Sanal düzlemde min/max Y değerlerini bul (Tarama aralığı)
+        let minY = Infinity, maxY = -Infinity;
+        polyPoints.forEach(p => {
+            if (p.y < minY) minY = p.y;
+            if (p.y > maxY) maxY = p.y;
+        });
+
+        // --- 4. SCANLINE ALGORİTMASI (SATIR TARAMA) ---
+        let tempPoints = [];
+        let y = minY; // En alttan başla
+        let direction = 1; // 1: Sağa, -1: Sola
+
+        while (y <= maxY) {
+            // Bu Y yüksekliğindeki yatay çizginin, polygon kenarlarıyla kesişimlerini bul
+            let intersections = [];
+            
+            for (let i = 0; i < polyPoints.length; i++) {
+                const p1 = polyPoints[i];
+                const p2 = polyPoints[(i + 1) % polyPoints.length]; // Bir sonraki nokta (döngüsel)
+
+                // Çizgi p1 ve p2'nin Y değerleri arasında mı?
+                if ((p1.y <= y && p2.y > y) || (p2.y <= y && p1.y > y)) {
+                    // X kesişim noktasını bul (Lineer Enterpolasyon)
+                    const x = p1.x + (y - p1.y) * (p2.x - p1.x) / (p2.y - p1.y);
+                    intersections.push(x);
+                }
+            }
+
+            // Kesişimleri küçükten büyüğe sırala (Soldan sağa)
+            intersections.sort((a, b) => a - b);
+
+            // Çiftler halinde rota oluştur (Giriş -> Çıkış)
+            for (let i = 0; i < intersections.length; i += 2) {
+                if (i + 1 >= intersections.length) break;
+
+                const xStart = intersections[i];     // Giriş
+                const xEnd = intersections[i + 1];   // Çıkış
+
+                // Zikzak yönüne göre noktaları ekle
+                if (direction === 1) {
+                    tempPoints.push(unproject(xStart, y));
+                    tempPoints.push(unproject(xEnd, y));
+                } else {
+                    tempPoints.push(unproject(xEnd, y));
+                    tempPoints.push(unproject(xStart, y));
+                }
+            }
+
+            y += spacingMeters;
+            direction *= -1; // Yön değiştir
+        }
+
+        // --- 5. TERRAIN / YÜKSEKLİK HESABI ---
         let finalWaypoints = [];
         
         if (useTerrain) {
-            // Cesium formatına çevir
             const positionsToQuery = tempPoints.map(p => Cesium.Cartographic.fromDegrees(p.lon, p.lat));
-            
-            // İnternetten yükseklik verisini çek (Promise)
+            // Cesium'dan arazi verisini çek
             const updatedPositions = await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, positionsToQuery);
             
-            // Verileri işle
             updatedPositions.forEach(pos => {
-                const groundHeight = pos.height || 0; // Zemin yüksekliği (MSL)
-                const flightAlt = groundHeight + targetAlt; // Zemin + 30m
-                
+                const groundHeight = pos.height || 0;
+                const flightAlt = groundHeight + targetAlt;
                 finalWaypoints.push({
                     lat: Cesium.Math.toDegrees(pos.latitude),
                     lon: Cesium.Math.toDegrees(pos.longitude),
-                    alt: flightAlt, // Dinamik İrtifa!
+                    alt: flightAlt,
                     cartesian: Cesium.Cartesian3.fromRadians(pos.longitude, pos.latitude, flightAlt)
                 });
             });
-
         } else {
-            // Düz Uçuş (Eski Yöntem - İlk noktanın irtifasını al)
-            const baseAlt = waypoints[0].alt; // Kalkış noktası referansı
+            // Düz Uçuş (Flat Plane)
+            const baseAlt = waypoints[0].alt; // Referans yükseklik
             tempPoints.forEach(p => {
-                const flightAlt = baseAlt + targetAlt; // Kalkış + 30m (Sabit)
+                const flightAlt = baseAlt + targetAlt;
                 finalWaypoints.push({
                     lat: p.lat,
                     lon: p.lon,
@@ -1279,31 +1313,32 @@ async function generateGridMission() {
             });
         }
 
-        // 6. SİSTEMİ GÜNCELLE
+        // --- 6. GÖRSELİ GÜNCELLE ---
         waypoints = finalWaypoints;
-        
         viewer.entities.removeAll();
+        
+        // Noktaları daha küçük çiz (Görsel kirliliği önlemek için pixelSize 6 yaptık)
         waypoints.forEach(wp => {
             viewer.entities.add({
                 position: wp.cartesian,
-                point: { pixelSize: 10, color: Cesium.Color.YELLOW }
+                point: { pixelSize: 6, color: Cesium.Color.YELLOW, outlineColor: Cesium.Color.BLACK, outlineWidth: 1 }
             });
         });
 
         renderVisuals(-1);
         updateUI();
-        
-        // Varsa sağ paneldeki elevation grafiğini de güncelle
+
+        // Profili güncelle
         if(typeof updateElevationProfile === 'function') {
-            document.getElementById('tab-profile').style.display = 'block'; // Grafiği aç
+            document.getElementById('tab-profile').style.display = 'block';
             updateElevationProfile();
         }
 
-        alert(`✅ Smart Grid Generated!\nPoints: ${waypoints.length}\nMode: ${useTerrain ? 'Terrain Follow (AGL)' : 'Flat Plane'}`);
+        alert(`✅ Clipped Grid Generated!\nPoints: ${waypoints.length}\nMode: ${useTerrain ? 'AGL (Terrain)' : 'MSL (Flat)'}`);
 
     } catch (error) {
         console.error(error);
-        alert("Error generating grid: " + error.message);
+        alert("Error: " + error.message);
     } finally {
         btn.innerText = oldText;
         btn.disabled = false;
