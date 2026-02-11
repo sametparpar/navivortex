@@ -180,22 +180,91 @@ function initCesium() {
 
 
 
-
-
-
-
-
-// 3. Tıklama Olaylarını Yönet
+// ---------------------------------------------------------
+// 25. UNIFIED INTERACTION HANDLER (Click to Add + Drag to Move) 🖱️
+// ---------------------------------------------------------
 function setupHandler() {
     const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+
+    // Sürükleme için değişkenler
+    let isDragging = false;
+    let draggedEntity = null;
+
+    // 1. SOL TUŞA BASINCA (Sürüklemeyi Başlat)
+    handler.setInputAction(function(click) {
+        const pickedObject = viewer.scene.pick(click.position);
+        
+        // Eğer bir Waypoint'e tıkladıysak SÜRÜKLEME moduna gir
+        if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.point) {
+            isDragging = true;
+            draggedEntity = pickedObject.id;
+            viewer.scene.screenSpaceCameraController.enableRotate = false; // Haritayı kilitle
+            document.body.style.cursor = "grabbing"; // İmleci değiştir
+        }
+    }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
+
+    // 2. MOUSE HAREKET EDİNCE (Noktayı Taşı)
+    handler.setInputAction(function(movement) {
+        if (isDragging && draggedEntity) {
+            const cartesian = viewer.camera.pickEllipsoid(movement.endPosition, viewer.scene.globe.ellipsoid);
+            
+            if (cartesian) {
+                // A) Görseli Taşı
+                draggedEntity.position = new Cesium.ConstantPositionProperty(cartesian);
+                
+                // B) Veriyi (Array) Güncelle
+                // WaypointEntities dizisindeki sırasını bul
+                const index = waypointEntities.indexOf(draggedEntity);
+                
+                if (index !== -1 && waypoints[index]) {
+                    const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
+                    
+                    // Koordinatları güncelle
+                    waypoints[index].lat = Cesium.Math.toDegrees(cartographic.latitude);
+                    waypoints[index].lon = Cesium.Math.toDegrees(cartographic.longitude);
+                    waypoints[index].cartesian = cartesian;
+                    // Yükseklik değişmesin
+                    waypoints[index].alt = waypoints[index].alt; 
+
+                    // Çizgileri ve Tabloyu Canlı Güncelle
+                    renderVisuals(-1);
+                    updateUI();
+                }
+            }
+        }
+    }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
+    // 3. SOL TUŞU BIRAKINCA (Sürüklemeyi Bitir)
+    handler.setInputAction(function() {
+        if (isDragging) {
+            isDragging = false;
+            draggedEntity = null;
+            viewer.scene.screenSpaceCameraController.enableRotate = true; // Haritayı aç
+            document.body.style.cursor = "default";
+            
+            // Son hesaplamaları yap
+            updateUI();
+            if(typeof updateElevationProfile === 'function') updateElevationProfile();
+            showToast("Nokta taşındı.", "info");
+        }
+    }, Cesium.ScreenSpaceEventType.LEFT_UP);
+
+    // 4. SOL TIKLAMA (YENİ NOKTA EKLEME) - Senin eski kodun burada
     handler.setInputAction((click) => {
+        // ÖNEMLİ KONTROL: Eğer bir nokta sürüklüyorsak veya bir noktanın üzerine tıkladıysak YENİ NOKTA EKLEME!
+        const pickedObject = viewer.scene.pick(click.position);
+        if (Cesium.defined(pickedObject) && pickedObject.id) return;
+
+        // Boş yere tıklandıysa: Yeni Waypoint Ekle
         const pickedPosition = viewer.scene.pickPosition(click.position);
         if (Cesium.defined(pickedPosition)) {
             const cartographic = Cesium.Cartographic.fromCartesian(pickedPosition);
             const lat = Cesium.Math.toDegrees(cartographic.latitude);
             const lon = Cesium.Math.toDegrees(cartographic.longitude);
-            const alt = Math.round(cartographic.height + 50);
+            // Yüksekliği biraz yukarıdan başlat ki gömülmesin
+            const alt = Math.round(cartographic.height + 50); 
 
+            // Listeye ekle
             waypoints.push({
                 lat: lat,
                 lon: lon,
@@ -203,12 +272,42 @@ function setupHandler() {
                 cartesian: pickedPosition
             });
 
+            // Görselleri çiz
             renderVisuals(-1);
             updateUI();
             calculateLogistics();
         }
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // 4. Dinamik Menü Oluşturucu
 function buildDynamicMenu() {
