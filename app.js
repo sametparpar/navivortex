@@ -1441,7 +1441,7 @@ function toggleAeroLayer() {
     const isVisible = document.getElementById('aero-layer-toggle').checked;
     
     // ⚠️ Kendi API Key'ini buraya yapıştır!
-    const OPENAIP_API_KEY = "BURAYA_OPENAIP_KEY_GELECEK"; 
+    const OPENAIP_API_KEY = "51bce148aa7ef5c4ea94580abe6a3925"; 
 
     if (isVisible) {
         if (OPENAIP_API_KEY === "51bce148aa7ef5c4ea94580abe6a3925") {
