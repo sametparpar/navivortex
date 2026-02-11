@@ -1175,6 +1175,7 @@ function syncGridInputs(source) {
 
 
 // 22. Generate Search Grid (Advanced Rotation Logic) 🕸️
+// 22. Generate Search Grid (GÜNCELLENMİŞ - İrtifa Ayarlı)
 function generateGridMission() {
     if (waypoints.length < 3) {
         alert("Please define an area with at least 3 points first (Corners).");
@@ -1183,9 +1184,13 @@ function generateGridMission() {
 
     if (!confirm("Replacing current path with Search Grid... Continue?")) return;
 
+    // --- DEĞİŞİKLİK BURADA ---
     const spacingMeters = parseFloat(document.getElementById('grid-spacing').value);
     const angleDeg = parseFloat(document.getElementById('grid-angle').value);
-    const alt = waypoints[0].alt;
+    
+    // Kullanıcının girdiği irtifayı al (Yoksa varsayılan 50m)
+    let alt = parseFloat(document.getElementById('grid-alt').value);
+    if (isNaN(alt)) alt = 50;
 
     // 1. Alanın Merkezini Bul (Centroid)
     let sumLat = 0, sumLon = 0;
