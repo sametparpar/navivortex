@@ -404,3 +404,34 @@ button {
 .slider:before { position: absolute; content: ""; height: 12px; width: 12px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
 input:checked + .slider { background-color: #0ea5e9; }
 input:checked + .slider:before { transform: translateX(16px); }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* --- CESIUM HARİTA SEÇİCİ KONUMU --- */
+.cesium-viewer-toolbar {
+    top: 20px !important;
+    right: 360px !important; /* Sağ panelin soluna ittik */
+    display: flex !important;
+}
+
+/* Butonun Görseli (Siyah Temaya Uygun) */
+.cesium-button {
+    background-color: rgba(15, 23, 42, 0.9) !important;
+    border: 1px solid #334155 !important;
+    border-radius: 6px !important;
+}
+.cesium-button:hover {
+    background-color: #38bdf8 !important; /* Mavi Hover */
+}
