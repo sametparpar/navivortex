@@ -983,7 +983,7 @@ async function getLiveWeather() {
 
     try {
         // Eğer API Key yoksa (Demo Modu) - Kullanıcıyı üzmemek için rastgele veri
-        if (API_KEY === "BURAYA_KENDI_API_ANAHTARINI_YAZMALISIN") {
+        if (API_KEY === "86b7d3ff9069982fcbdca23d170f0a70") {
             console.warn("API Key eksik. Demo verisi gösteriliyor.");
             setTimeout(() => {
                 alert("⚠️ API Key not found! Showing DEMO weather data.\n(Edit app.js line ~400 to add your OpenWeatherMap Key)");
@@ -1434,42 +1434,48 @@ window.alert = function(msg) {
 
 
 
-// 24. Aeronautical Layer Management (OpenAIP Integration) 📡
+// 24. Aeronautical Layer Management (STABLE & KEY-INTEGRATED) 📡🧭
 let aeroImageryLayer = null;
 
 function toggleAeroLayer() {
     const isVisible = document.getElementById('aero-layer-toggle').checked;
     
-    // ⚠️ Kendi API Key'ini buraya yapıştır!
+    // Senin OpenAIP Anahtarın (Entegre Edildi)
     const OPENAIP_API_KEY = "51bce148aa7ef5c4ea94580abe6a3925"; 
 
     if (isVisible) {
-        if (OPENAIP_API_KEY === "51bce148aa7ef5c4ea94580abe6a3925") {
-            showToast("Lütfen app.js içinde OpenAIP API Key tanımlayın!", "warning");
+        try {
+            // Cesium'un en yeni ve stabil ImageryProvider yapısı
+            const openAipProvider = new Cesium.UrlTemplateImageryProvider({
+                url: `https://api.openaip.net/api/v1/tiles/openaip/{z}/{x}/{y}.png?apiKey=${OPENAIP_API_KEY}`,
+                credit: 'Data © openAIP Contributors',
+                tilingScheme: new Cesium.WebMercatorTilingScheme(), // Çökmeyi önleyen kritik şema
+                maximumLevel: 14,
+                minimumLevel: 0,
+                hasAlphaChannel: true
+            });
+
+            // Katmanı ekle
+            aeroImageryLayer = viewer.imageryLayers.addImageryProvider(openAipProvider);
+            
+            // Görünürlük ayarları
+            aeroImageryLayer.alpha = 0.85; 
+            aeroImageryLayer.brightness = 1.1; // Çizgiler daha net görünsün
+            
+            // Katmanı her zaman en üstte tut (Haritanın altında kalmasın)
+            viewer.imageryLayers.raiseToTop(aeroImageryLayer);
+
+            showToast("Aeronautical layers active. Check high-traffic areas!", "success");
+        } catch (error) {
+            console.error("OpenAIP Layer Error:", error);
+            showToast("Layer failed to load. Check API Key activity.", "error");
             document.getElementById('aero-layer-toggle').checked = false;
-            return;
         }
-
-        // OpenAIP Tile Provider
-        const openAipProvider = new Cesium.UrlTemplateImageryProvider({
-            url: `https://api.openaip.net/api/v1/tiles/openaip/{z}/{x}/{y}.png?apiKey=${OPENAIP_API_KEY}`,
-            credit: 'Data © openAIP Contributors',
-            maximumLevel: 14,
-            minimumLevel: 3,
-            rectangle: Cesium.Rectangle.MAX_VALUE // Tüm dünya
-        });
-
-        aeroImageryLayer = viewer.imageryLayers.addImageryProvider(openAipProvider);
-        
-        // Katman şeffaflığını ayarla (Alt harita görünsün diye)
-        aeroImageryLayer.alpha = 0.8; 
-        
-        showToast("Havacılık katmanları yüklendi. Hava sahaları aktif.", "success");
     } else {
         if (aeroImageryLayer) {
             viewer.imageryLayers.remove(aeroImageryLayer);
             aeroImageryLayer = null;
-            showToast("Havacılık katmanları kaldırıldı.", "info");
+            showToast("Aeronautical layers disabled.", "info");
         }
     }
 }
