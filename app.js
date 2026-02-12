@@ -180,11 +180,14 @@ function initCesium() {
 
 
 
+
+
+
+
+
+
 // ---------------------------------------------------------
-// 25. UNIFIED INTERACTION HANDLER (Smooth Drag & Drop) 🖱️
-// ---------------------------------------------------------
-// ---------------------------------------------------------
-// 25. UNIFIED INTERACTION HANDLER (Final Fixed Logic) 🖱️
+// 25. SMART INTERACTION HANDLER (Insert Between Points) 🧠🖱️
 // ---------------------------------------------------------
 function setupHandler() {
     const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
@@ -192,7 +195,7 @@ function setupHandler() {
     let draggedEntity = null;
     let draggedIndex = -1;
 
-    // 1. LEFT DOWN (Start Drag)
+    // 1. SÜRÜKLEME BAŞLAT
     handler.setInputAction(function(click) {
         const pickedObject = viewer.scene.pick(click.position);
         if (Cesium.defined(pickedObject) && pickedObject.id) {
@@ -207,28 +210,25 @@ function setupHandler() {
         }
     }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
 
-    // 2. MOUSE MOVE (Update Data Real-time)
+    // 2. SÜRÜKLEME HAREKETİ
     handler.setInputAction(function(movement) {
         if (isDragging && draggedEntity && draggedIndex !== -1) {
             const cartesian = viewer.camera.pickEllipsoid(movement.endPosition, viewer.scene.globe.ellipsoid);
             if (cartesian) {
-                // A) Update Visual Position
                 draggedEntity.position = new Cesium.ConstantPositionProperty(cartesian);
-                
-                // B) Update Data Array (Critical for Line/Polygon Callback)
                 const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
+                
                 waypoints[draggedIndex].lat = Cesium.Math.toDegrees(cartographic.latitude);
                 waypoints[draggedIndex].lon = Cesium.Math.toDegrees(cartographic.longitude);
                 waypoints[draggedIndex].cartesian = cartesian;
                 
-                // C) Update UI Calculation (But DO NOT Re-Render Map!)
-                updateUI();          // Updates the Table
-                calculateLogistics(); // Updates the Total Distance/Time at top
+                updateUI();
+                calculateLogistics();
             }
         }
     }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
-    // 3. LEFT UP (Finish Drag)
+    // 3. SÜRÜKLEME BİTİR
     handler.setInputAction(function() {
         if (isDragging) {
             isDragging = false;
@@ -237,30 +237,66 @@ function setupHandler() {
             viewer.scene.screenSpaceCameraController.enableRotate = true;
             document.body.style.cursor = "default";
             
-            showToast("Route updated.", "info"); // English Message
+            // Son hesaplamalar (Grafik güncellemesi burada yapılır)
+            if(typeof updateElevationProfile === 'function') updateElevationProfile();
+            showToast("Route updated.", "info");
         }
     }, Cesium.ScreenSpaceEventType.LEFT_UP);
 
-    // 4. LEFT CLICK (Add New Point)
+    // 4. AKILLI NOKTA EKLEME (INSERT LOGIC) 🧠
     handler.setInputAction((click) => {
         if (isDragging) return;
         const pickedObject = viewer.scene.pick(click.position);
         if (Cesium.defined(pickedObject) && pickedObject.id) return;
 
         const pickedPosition = viewer.scene.pickPosition(click.position);
+        
         if (Cesium.defined(pickedPosition)) {
-            const cartographic = Cesium.Cartographic.fromCartesian(pickedPosition);
-            
-            waypoints.push({
-                lat: Cesium.Math.toDegrees(cartographic.latitude),
-                lon: Cesium.Math.toDegrees(cartographic.longitude),
-                alt: Math.round(cartographic.height + 50),
-                cartesian: pickedPosition
-            });
+            const newCartesian = pickedPosition;
+            const newCartographic = Cesium.Cartographic.fromCartesian(newCartesian);
+            const newPoint = {
+                lat: Cesium.Math.toDegrees(newCartographic.latitude),
+                lon: Cesium.Math.toDegrees(newCartographic.longitude),
+                alt: Math.round(newCartographic.height + 50),
+                cartesian: newCartesian
+            };
 
-            renderVisuals(-1); // Only re-render when ADDING a point
+            // --- EN İYİ YERİ BULMA ALGORİTMASI ---
+            let bestIndex = waypoints.length; // Varsayılan: Sona ekle
+            let minDistance = Number.MAX_VALUE;
+
+            // Her bir bacağa (Leg) olan mesafeyi kontrol et
+            for (let i = 0; i < waypoints.length - 1; i++) {
+                const p1 = waypoints[i].cartesian;
+                const p2 = waypoints[i+1].cartesian;
+                
+                // Basit mesafe kontrolü: (A-C) + (C-B) mesafesi (A-B)'ye ne kadar yakın?
+                const distA_New = Cesium.Cartesian3.distance(p1, newCartesian);
+                const distNew_B = Cesium.Cartesian3.distance(newCartesian, p2);
+                const distA_B = Cesium.Cartesian3.distance(p1, p2);
+                
+                // Eğer nokta çizginin üzerindeyse: (distA_New + distNew_B) == distA_B olur.
+                // Biz %10'luk bir hata payı (tolerance) bırakalım.
+                const detour = (distA_New + distNew_B) - distA_B;
+                
+                // Eğer bu sapma çok küçükse (örn: 10km'den azsa) ve en iyi adaysa
+                // Not: 10000 değeri harita ölçeğine göre değişir ama genelde iyi çalışır.
+                if (detour < minDistance && detour < 50000) { 
+                    minDistance = detour;
+                    bestIndex = i + 1; // Araya ekle
+                }
+            }
+
+            // Noktayı en iyi yere ekle
+            waypoints.splice(bestIndex, 0, newPoint);
+
+            // Çiz
+            renderVisuals(-1);
             updateUI();
             calculateLogistics();
+            if(typeof updateElevationProfile === 'function') updateElevationProfile();
+            
+            showToast(bestIndex === waypoints.length ? "Point added to END." : "Point inserted inside ROUTE.", "success");
         }
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 }
@@ -1854,6 +1890,129 @@ function toggleAeroLayer() {
 
 
 
+// ---------------------------------------------------------
+// 27. FLIGHT WIZARD (FROM -> TO ROUTE GENERATOR) ✈️
+// ---------------------------------------------------------
+const AIRPORT_DB = {
+    "LTFM": { name: "Istanbul Airport", lat: 41.2769, lon: 28.7297, alt: 99 },
+    "LTFJ": { name: "Sabiha Gokcen", lat: 40.8986, lon: 29.3092, alt: 95 },
+    "LTAC": { name: "Ankara Esenboga", lat: 40.1281, lon: 32.9951, alt: 953 },
+    "LTBJ": { name: "Izmir Adnan Menderes", lat: 38.2924, lon: 27.1570, alt: 126 },
+    "LTAI": { name: "Antalya", lat: 36.8987, lon: 30.8005, alt: 54 },
+    "LTBS": { name: "Dalaman", lat: 36.7131, lon: 28.7925, alt: 6 },
+    "LTFE": { name: "Bodrum Milas", lat: 37.2506, lon: 27.6644, alt: 6 },
+    "LTBU": { name: "Bursa Yenisehir", lat: 40.2552, lon: 29.5626, alt: 290 },
+    "LTBR": { name: "Bursa Yunuseli", lat: 40.2333, lon: 29.0083, alt: 100 },
+    "LTCG": { name: "Trabzon", lat: 40.9951, lon: 39.7897, alt: 32 },
+    "LTAF": { name: "Adana", lat: 36.9822, lon: 35.2804, alt: 20 }
+};
+
+function setupFlightPlanner() {
+    const panel = document.getElementById('params-panel');
+    if (!panel || document.getElementById('flight-wizard-section')) return;
+
+    // Menü Seçenekleri
+    let optionsHTML = '<option value="" disabled selected>Select...</option>';
+    for (const [icao, data] of Object.entries(AIRPORT_DB)) {
+        optionsHTML += `<option value="${icao}">${icao} - ${data.name}</option>`;
+    }
+
+    const div = document.createElement('div');
+    div.id = 'flight-wizard-section';
+    div.className = 'menu-section';
+    div.style.marginBottom = "10px";
+    div.style.border = "1px solid #38bdf8";
+
+    div.innerHTML = `
+        <div class="menu-header" onclick="toggleMenu('wizard-content')" style="background:rgba(56, 189, 248, 0.1);">
+            <span style="color:#38bdf8;">✈️ FLIGHT WIZARD</span>
+            <span class="toggle-icon">▼</span>
+        </div>
+        <div id="wizard-content" class="menu-content" style="display:block; padding:10px;">
+            
+            <div class="input-group">
+                <label style="color:#94a3b8;">DEPARTURE (HOME)</label>
+                <div style="display:flex; gap:5px;">
+                    <select onchange="document.getElementById('dep-input').value=this.value" style="width:40%;">
+                        <option value="">List...</option>${optionsHTML}
+                    </select>
+                    <input type="text" id="dep-input" placeholder="ICAO or Lat,Lon" style="flex:1;">
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label style="color:#94a3b8;">ARRIVAL (TARGET)</label>
+                <div style="display:flex; gap:5px;">
+                    <select onchange="document.getElementById('arr-input').value=this.value" style="width:40%;">
+                        <option value="">List...</option>${optionsHTML}
+                    </select>
+                    <input type="text" id="arr-input" placeholder="ICAO or Lat,Lon" style="flex:1;">
+                </div>
+            </div>
+
+            <button class="btn-primary" onclick="generateRoute()">🚀 CREATE ROUTE</button>
+        </div>
+    `;
+
+    const title = panel.querySelector('h3');
+    if (title) title.insertAdjacentElement('afterend', div);
+    else panel.prepend(div);
+}
+
+function generateRoute() {
+    const depVal = document.getElementById('dep-input').value.trim().toUpperCase();
+    const arrVal = document.getElementById('arr-input').value.trim().toUpperCase();
+
+    if (!depVal || !arrVal) { showToast("Enter Start & End points!", "error"); return; }
+
+    const getCoords = (input) => {
+        if (AIRPORT_DB[input]) return { ...AIRPORT_DB[input] };
+        const parts = input.split(',');
+        if (parts.length === 2) return { lat: parseFloat(parts[0]), lon: parseFloat(parts[1]), alt: 100 };
+        return null;
+    };
+
+    const dep = getCoords(depVal);
+    const arr = getCoords(arrVal);
+
+    if (!dep || !arr) { showToast("Invalid Coordinates!", "error"); return; }
+
+    // Rota Temizliği ve Oluşturma
+    waypoints = [];
+    viewer.entities.removeAll();
+    waypointEntities = []; // Listeyi de sıfırla
+
+    [dep, arr].forEach(p => {
+        waypoints.push({
+            lat: p.lat, lon: p.lon, alt: p.alt,
+            cartesian: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt)
+        });
+    });
+
+    renderVisuals(-1);
+    updateUI();
+    calculateLogistics();
+
+    viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(
+            (dep.lon + arr.lon) / 2, (dep.lat + arr.lat) / 2,
+            Cesium.Cartesian3.distance(waypoints[0].cartesian, waypoints[1].cartesian) * 2.5
+        )
+    });
+    
+    showToast("Route Created! Click on the line to bend it.", "success");
+}
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1880,8 +2039,8 @@ function toggleAeroLayer() {
 window.onload = () => {
     initCesium();               // Haritayı ve Handler'ı kurar
     buildDynamicMenu();         // Menüyü oluşturur
-    // enableDragAndDrop(); <--- BU SATIRI SİLİYORUZ (Gereksiz)
     updateVehicleParams();      // Ayarları çeker
+    setupFlightPlanner();
 };
 
 
