@@ -1978,12 +1978,11 @@ async function resolveLocation(query) {
 
 
 // ---------------------------------------------------------
-// 28. UI SETUP & ROUTE GENERATOR (Eksik Olan Parça) 🖥️
+// 28. SMART UI & AUTOCOMPLETE ENGINE (GÜNCELLENDİ) 🧠✨
 // ---------------------------------------------------------
 
 function setupFlightPlanner() {
     const panel = document.getElementById('params-panel');
-    // Eğer panel yoksa veya zaten eklediysek dur.
     if (!panel || document.getElementById('flight-wizard-section')) return;
 
     // Araç tipine göre etiket
@@ -1996,68 +1995,155 @@ function setupFlightPlanner() {
     div.id = 'flight-wizard-section';
     div.className = 'menu-section';
     div.style.marginBottom = "10px";
-    div.style.border = "1px solid #38bdf8"; // Mavi çerçeve
+    div.style.border = "1px solid #38bdf8";
 
+    // Not: "API Ready" yazısını kaldırdım.
     div.innerHTML = `
         <div class="menu-header" onclick="toggleMenu('wizard-content')" style="background:rgba(56, 189, 248, 0.1);">
             <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
                 <span style="color:#38bdf8;">✈️ FLIGHT WIZARD</span>
-                <span id="db-status-label" style="font-size:10px;">☁️ API Ready</span>
             </div>
             <span class="toggle-icon">▼</span>
         </div>
         <div id="wizard-content" class="menu-content" style="display:block; padding:10px;">
             
-            <div class="input-group">
-                <label style="color:#94a3b8;">${labelFrom}</label>
-                <input type="text" id="dep-input" placeholder="ICAO (LTFJ), Code (SAW) or Address" style="width:100%;">
+            <div class="input-wrapper">
+                <label style="color:#94a3b8; font-size:10px;">${labelFrom}</label>
+                <input type="text" id="dep-input" placeholder="Airport, City, or Code..." 
+                       onkeyup="handleInput(this, 'dep-suggestions')" autocomplete="off" style="width:100%;">
+                <div id="dep-suggestions" class="suggestion-box"></div>
             </div>
 
-            <div class="input-group">
-                <label style="color:#94a3b8;">${labelTo}</label>
-                <input type="text" id="arr-input" placeholder="Airport, City, Coord..." style="width:100%;">
+            <div class="input-wrapper">
+                <label style="color:#94a3b8; font-size:10px;">${labelTo}</label>
+                <input type="text" id="arr-input" placeholder="Airport, City, or Code..." 
+                       onkeyup="handleInput(this, 'arr-suggestions')" autocomplete="off" style="width:100%;">
+                <div id="arr-suggestions" class="suggestion-box"></div>
             </div>
 
             <button id="btn-create-route" class="btn-primary" onclick="generateSmartRoute()">🚀 FIND & FLY</button>
-            <div id="loading-msg" style="display:none; color:#f59e0b; font-size:10px; text-align:center; margin-top:5px;">
-                Searching Vercel Cloud... 🌍
-            </div>
         </div>
     `;
 
-    // Panelin en üstüne yerleştir
     const title = panel.querySelector('h3');
     if (title) title.insertAdjacentElement('afterend', div);
     else panel.prepend(div);
+
+    // Ekranda boş bir yere tıklayınca öneri kutusunu kapat
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.input-wrapper')) {
+            document.querySelectorAll('.suggestion-box').forEach(el => el.style.display = 'none');
+        }
+    });
 }
 
-// --- ROTA OLUŞTURUCU (Butona basınca bu çalışır) ---
-async function generateSmartRoute() {
-    const depInput = document.getElementById('dep-input').value;
-    const arrInput = document.getElementById('arr-input').value;
-    const btn = document.getElementById('btn-create-route');
-    const loader = document.getElementById('loading-msg');
+// --- OTOMATİK TAMAMLAMA MOTORU ---
+let timeoutId = null; // Hızlı yazmayı engellemek için
 
-    if (!depInput || !arrInput) { 
+async function handleInput(input, boxId) {
+    const query = input.value.trim();
+    const box = document.getElementById(boxId);
+
+    // 2 harften azsa kutuyu gizle ve çık
+    if (query.length < 2) {
+        box.style.display = 'none';
+        return;
+    }
+
+    // Kullanıcı yazmayı bitirene kadar bekle (300ms)
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(async () => {
+        
+        // Kutuyu aç ve 'Aranıyor...' yaz
+        box.style.display = 'block';
+        box.innerHTML = '<div class="suggestion-item" style="color:#94a3b8;">Searching...</div>';
+
+        try {
+            // Vercel API'ye sor
+            const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+            
+            if (!res.ok) throw new Error("API Error");
+            
+            const data = await res.json();
+            box.innerHTML = ''; // İçeriği temizle
+
+            if (data.length === 0) {
+                box.innerHTML = '<div class="suggestion-item" style="color:#94a3b8;">No results found</div>';
+            } else {
+                // Maksimum 5 sonuç göster
+                data.slice(0, 5).forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'suggestion-item';
+                    
+                    // Görünüm: "SAW - Sabiha Gokcen" (Kod kalın olsun)
+                    const code = item.iata || item.icao;
+                    div.innerHTML = `<strong>${code}</strong> - ${item.name} <span style="color:#64748b; font-size:10px;">(${item.city})</span>`;
+                    
+                    // Tıklayınca kutuya yaz
+                    div.onclick = () => {
+                        input.value = `${code} - ${item.name}`; // Kutuya yaz
+                        box.style.display = 'none'; // Listeyi kapat
+                    };
+                    
+                    box.appendChild(div);
+                });
+            }
+        } catch (err) {
+            console.error(err);
+            // Hata olsa bile kullanıcıya hissettirme, OSM yedeği zaten butona basınca çalışacak.
+            box.style.display = 'none'; 
+        }
+    }, 300);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// --- ROTA OLUŞTURUCU ---
+async function generateSmartRoute() {
+    let depText = document.getElementById('dep-input').value;
+    let arrText = document.getElementById('arr-input').value;
+
+    // Eğer kutuda "SAW - Sabiha..." yazıyorsa, sadece baştaki kodu (SAW) al.
+    if(depText.includes('-')) depText = depText.split('-')[0].trim();
+    if(arrText.includes('-')) arrText = arrText.split('-')[0].trim();
+
+    const btn = document.getElementById('btn-create-route');
+
+    if (!depText || !arrText) { 
         showToast("Please enter Start & End points!", "error"); 
         return; 
     }
 
-    // Yükleniyor Efekti
     btn.disabled = true;
-    loader.style.display = "block";
+    btn.innerText = "🔍 Routing...";
     
     try {
-        // İki noktayı aynı anda Vercel API'ye sor (Parallel Search)
         const [dep, arr] = await Promise.all([
-            resolveLocation(depInput),
-            resolveLocation(arrInput)
+            resolveLocation(depText),
+            resolveLocation(arrText)
         ]);
 
-        if (!dep) { showToast(`Location not found: ${depInput}`, "error"); throw "err"; }
-        if (!arr) { showToast(`Location not found: ${arrInput}`, "error"); throw "err"; }
+        if (!dep) { showToast(`Not found: ${depText}`, "error"); throw "err"; }
+        if (!arr) { showToast(`Not found: ${arrText}`, "error"); throw "err"; }
 
-        // --- HARİTA GÜNCELLEME ---
+        // Rotayı Çiz
         waypoints = [];
         viewer.entities.removeAll();
         waypointEntities = [];
@@ -2073,7 +2159,6 @@ async function generateSmartRoute() {
         updateUI();
         calculateLogistics();
 
-        // Kamerayı Odakla
         const dist = Cesium.Cartesian3.distance(waypoints[0].cartesian, waypoints[1].cartesian);
         viewer.camera.flyTo({
             destination: Cesium.Cartesian3.fromDegrees(
@@ -2082,17 +2167,35 @@ async function generateSmartRoute() {
             )
         });
 
-        showToast(`Route: ${dep.name} ➔ ${arr.name}`, "success");
+        showToast(`Route created!`, "success");
 
     } catch (e) {
-        // Hata zaten toast ile gösterildi veya loglandı
-        console.error(e);
+        // Hata zaten toast ile gösterildi
     } finally {
-        // Butonu eski haline getir
         btn.disabled = false;
-        loader.style.display = "none";
+        btn.innerText = "🚀 FIND & FLY";
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
