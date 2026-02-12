@@ -1890,117 +1890,72 @@ function toggleAeroLayer() {
 
 
 
-// ---------------------------------------------------------
-// 27. FLIGHT WIZARD (FROM -> TO ROUTE GENERATOR) ✈️
-// ---------------------------------------------------------
-const AIRPORT_DB = {
-    "LTFM": { name: "Istanbul Airport", lat: 41.2769, lon: 28.7297, alt: 99 },
-    "LTFJ": { name: "Sabiha Gokcen", lat: 40.8986, lon: 29.3092, alt: 95 },
-    "LTAC": { name: "Ankara Esenboga", lat: 40.1281, lon: 32.9951, alt: 953 },
-    "LTBJ": { name: "Izmir Adnan Menderes", lat: 38.2924, lon: 27.1570, alt: 126 },
-    "LTAI": { name: "Antalya", lat: 36.8987, lon: 30.8005, alt: 54 },
-    "LTBS": { name: "Dalaman", lat: 36.7131, lon: 28.7925, alt: 6 },
-    "LTFE": { name: "Bodrum Milas", lat: 37.2506, lon: 27.6644, alt: 6 },
-    "LTBU": { name: "Bursa Yenisehir", lat: 40.2552, lon: 29.5626, alt: 290 },
-    "LTBR": { name: "Bursa Yunuseli", lat: 40.2333, lon: 29.0083, alt: 100 },
-    "LTCG": { name: "Trabzon", lat: 40.9951, lon: 39.7897, alt: 32 },
-    "LTAF": { name: "Adana", lat: 36.9822, lon: 35.2804, alt: 20 }
-};
+// --- YENİ NESİL BULUT ARAMA SİSTEMİ ☁️ ---
 
-function setupFlightPlanner() {
-    const panel = document.getElementById('params-panel');
-    if (!panel || document.getElementById('flight-wizard-section')) return;
-
-    // Menü Seçenekleri
-    let optionsHTML = '<option value="" disabled selected>Select...</option>';
-    for (const [icao, data] of Object.entries(AIRPORT_DB)) {
-        optionsHTML += `<option value="${icao}">${icao} - ${data.name}</option>`;
+// Bu fonksiyon artık dev dosyayı indirmez. Sadece arayüzü hazırlar.
+async function initGlobalAirportDB() {
+    console.log("System Ready via Vercel API");
+    // İndirme yapmadığımız için direkt butonu aktif et
+    const btn = document.getElementById('btn-create-route');
+    if(btn) {
+        btn.disabled = false;
+        btn.innerText = "🚀 FIND & FLY";
     }
-
-    const div = document.createElement('div');
-    div.id = 'flight-wizard-section';
-    div.className = 'menu-section';
-    div.style.marginBottom = "10px";
-    div.style.border = "1px solid #38bdf8";
-
-    div.innerHTML = `
-        <div class="menu-header" onclick="toggleMenu('wizard-content')" style="background:rgba(56, 189, 248, 0.1);">
-            <span style="color:#38bdf8;">✈️ FLIGHT WIZARD</span>
-            <span class="toggle-icon">▼</span>
-        </div>
-        <div id="wizard-content" class="menu-content" style="display:block; padding:10px;">
-            
-            <div class="input-group">
-                <label style="color:#94a3b8;">DEPARTURE (HOME)</label>
-                <div style="display:flex; gap:5px;">
-                    <select onchange="document.getElementById('dep-input').value=this.value" style="width:40%;">
-                        <option value="">List...</option>${optionsHTML}
-                    </select>
-                    <input type="text" id="dep-input" placeholder="ICAO or Lat,Lon" style="flex:1;">
-                </div>
-            </div>
-
-            <div class="input-group">
-                <label style="color:#94a3b8;">ARRIVAL (TARGET)</label>
-                <div style="display:flex; gap:5px;">
-                    <select onchange="document.getElementById('arr-input').value=this.value" style="width:40%;">
-                        <option value="">List...</option>${optionsHTML}
-                    </select>
-                    <input type="text" id="arr-input" placeholder="ICAO or Lat,Lon" style="flex:1;">
-                </div>
-            </div>
-
-            <button class="btn-primary" onclick="generateRoute()">🚀 CREATE ROUTE</button>
-        </div>
-    `;
-
-    const title = panel.querySelector('h3');
-    if (title) title.insertAdjacentElement('afterend', div);
-    else panel.prepend(div);
 }
 
-function generateRoute() {
-    const depVal = document.getElementById('dep-input').value.trim().toUpperCase();
-    const arrVal = document.getElementById('arr-input').value.trim().toUpperCase();
+async function resolveLocation(query) {
+    if (!query) return null;
+    const q = query.trim();
 
-    if (!depVal || !arrVal) { showToast("Enter Start & End points!", "error"); return; }
+    // 1. KOORDİNAT KONTROLÜ (İstemcide - En Hızlı)
+    const coordParts = q.split(',');
+    if (coordParts.length === 2) {
+        const lat = parseFloat(coordParts[0]);
+        const lon = parseFloat(coordParts[1]);
+        if (!isNaN(lat) && !isNaN(lon)) {
+            return { lat: lat, lon: lon, alt: 100, name: `Coord (${q})`, type: 'coord' };
+        }
+    }
 
-    const getCoords = (input) => {
-        if (AIRPORT_DB[input]) return { ...AIRPORT_DB[input] };
-        const parts = input.split(',');
-        if (parts.length === 2) return { lat: parseFloat(parts[0]), lon: parseFloat(parts[1]), alt: 100 };
-        return null;
-    };
+    // 2. VERCEL API SORGUSU (Bizim api/search.js çalışacak)
+    try {
+        // 'api/search' yolu Vercel'de otomatik olarak yönlenir.
+        const response = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+        const data = await response.json();
 
-    const dep = getCoords(depVal);
-    const arr = getCoords(arrVal);
+        if (data && data.length > 0) {
+            const best = data[0]; 
+            return {
+                lat: best.lat,
+                lon: best.lon,
+                alt: best.alt ? best.alt * 0.3048 : 100, // Feet -> Meter
+                name: `${best.iata || best.icao} - ${best.name}`,
+                type: 'airport'
+            };
+        }
+    } catch (err) {
+        console.warn("API Error, falling back to OSM...", err);
+    }
 
-    if (!dep || !arr) { showToast("Invalid Coordinates!", "error"); return; }
+    // 3. OSM (YEDEK)
+    try {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`;
+        const response = await fetch(url);
+        const osmData = await response.json();
 
-    // Rota Temizliği ve Oluşturma
-    waypoints = [];
-    viewer.entities.removeAll();
-    waypointEntities = []; // Listeyi de sıfırla
+        if (osmData && osmData.length > 0) {
+            const bestMatch = osmData[0];
+            return {
+                lat: parseFloat(bestMatch.lat),
+                lon: parseFloat(bestMatch.lon),
+                alt: 100,
+                name: bestMatch.display_name.split(',')[0],
+                type: 'address'
+            };
+        }
+    } catch (e) { console.error(e); }
 
-    [dep, arr].forEach(p => {
-        waypoints.push({
-            lat: p.lat, lon: p.lon, alt: p.alt,
-            cartesian: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt)
-        });
-    });
-
-    renderVisuals(-1);
-    updateUI();
-    calculateLogistics();
-
-    viewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(
-            (dep.lon + arr.lon) / 2, (dep.lat + arr.lat) / 2,
-            Cesium.Cartesian3.distance(waypoints[0].cartesian, waypoints[1].cartesian) * 2.5
-        )
-    });
-    
-    showToast("Route Created! Click on the line to bend it.", "success");
+    return null;
 }
 
 
