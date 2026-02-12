@@ -431,6 +431,16 @@ function calculateLogistics() {
         alertBox.style.display = "none";
     }
 
+
+
+
+    // --- DEBUG LOG (Bunu testten sonra silebilirsin) ---
+    console.log(`Leg ${i}: Alt Diff: ${altDiff.toFixed(1)}m`);
+    if (altDiff > 5) console.log(">>> CLIMBING MODE ACTIVATED 🚀");
+    else if (altDiff < -5) console.log(">>> DESCENT MODE ACTIVATED 📉");
+    else console.log(">>> CRUISE MODE ✈️");
+    // ----------------------------------------------------
+
     // Toplamları Yazdır (Hız ortalama alınmaz, o yüzden cruise speed'i referans veriyoruz)
     // Ama süreyi doğru hesapladık.
     const avgSpeed = isElectric ? getVal('drone-speed') : (getVal('fuel-speed') * 0.5144);
