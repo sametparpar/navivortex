@@ -1977,6 +1977,142 @@ async function resolveLocation(query) {
 
 
 
+// ---------------------------------------------------------
+// 28. UI SETUP & ROUTE GENERATOR (Eksik Olan Parça) 🖥️
+// ---------------------------------------------------------
+
+function setupFlightPlanner() {
+    const panel = document.getElementById('params-panel');
+    // Eğer panel yoksa veya zaten eklediysek dur.
+    if (!panel || document.getElementById('flight-wizard-section')) return;
+
+    // Araç tipine göre etiket
+    const vehicleId = document.getElementById('vehicle-category').value;
+    const isDrone = (vehicleId === 'electric_drone');
+    const labelFrom = isDrone ? "HOME POINT" : "DEPARTURE";
+    const labelTo = isDrone ? "TARGET POINT" : "ARRIVAL";
+
+    const div = document.createElement('div');
+    div.id = 'flight-wizard-section';
+    div.className = 'menu-section';
+    div.style.marginBottom = "10px";
+    div.style.border = "1px solid #38bdf8"; // Mavi çerçeve
+
+    div.innerHTML = `
+        <div class="menu-header" onclick="toggleMenu('wizard-content')" style="background:rgba(56, 189, 248, 0.1);">
+            <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+                <span style="color:#38bdf8;">✈️ FLIGHT WIZARD</span>
+                <span id="db-status-label" style="font-size:10px;">☁️ API Ready</span>
+            </div>
+            <span class="toggle-icon">▼</span>
+        </div>
+        <div id="wizard-content" class="menu-content" style="display:block; padding:10px;">
+            
+            <div class="input-group">
+                <label style="color:#94a3b8;">${labelFrom}</label>
+                <input type="text" id="dep-input" placeholder="ICAO (LTFJ), Code (SAW) or Address" style="width:100%;">
+            </div>
+
+            <div class="input-group">
+                <label style="color:#94a3b8;">${labelTo}</label>
+                <input type="text" id="arr-input" placeholder="Airport, City, Coord..." style="width:100%;">
+            </div>
+
+            <button id="btn-create-route" class="btn-primary" onclick="generateSmartRoute()">🚀 FIND & FLY</button>
+            <div id="loading-msg" style="display:none; color:#f59e0b; font-size:10px; text-align:center; margin-top:5px;">
+                Searching Vercel Cloud... 🌍
+            </div>
+        </div>
+    `;
+
+    // Panelin en üstüne yerleştir
+    const title = panel.querySelector('h3');
+    if (title) title.insertAdjacentElement('afterend', div);
+    else panel.prepend(div);
+}
+
+// --- ROTA OLUŞTURUCU (Butona basınca bu çalışır) ---
+async function generateSmartRoute() {
+    const depInput = document.getElementById('dep-input').value;
+    const arrInput = document.getElementById('arr-input').value;
+    const btn = document.getElementById('btn-create-route');
+    const loader = document.getElementById('loading-msg');
+
+    if (!depInput || !arrInput) { 
+        showToast("Please enter Start & End points!", "error"); 
+        return; 
+    }
+
+    // Yükleniyor Efekti
+    btn.disabled = true;
+    loader.style.display = "block";
+    
+    try {
+        // İki noktayı aynı anda Vercel API'ye sor (Parallel Search)
+        const [dep, arr] = await Promise.all([
+            resolveLocation(depInput),
+            resolveLocation(arrInput)
+        ]);
+
+        if (!dep) { showToast(`Location not found: ${depInput}`, "error"); throw "err"; }
+        if (!arr) { showToast(`Location not found: ${arrInput}`, "error"); throw "err"; }
+
+        // --- HARİTA GÜNCELLEME ---
+        waypoints = [];
+        viewer.entities.removeAll();
+        waypointEntities = [];
+
+        [dep, arr].forEach(p => {
+            waypoints.push({
+                lat: p.lat, lon: p.lon, alt: p.alt || 100,
+                cartesian: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt || 100)
+            });
+        });
+
+        renderVisuals(-1);
+        updateUI();
+        calculateLogistics();
+
+        // Kamerayı Odakla
+        const dist = Cesium.Cartesian3.distance(waypoints[0].cartesian, waypoints[1].cartesian);
+        viewer.camera.flyTo({
+            destination: Cesium.Cartesian3.fromDegrees(
+                (dep.lon + arr.lon) / 2, (dep.lat + arr.lat) / 2,
+                dist * 2.5
+            )
+        });
+
+        showToast(`Route: ${dep.name} ➔ ${arr.name}`, "success");
+
+    } catch (e) {
+        // Hata zaten toast ile gösterildi veya loglandı
+        console.error(e);
+    } finally {
+        // Butonu eski haline getir
+        btn.disabled = false;
+        loader.style.display = "none";
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
                           
 
@@ -1995,6 +2131,7 @@ window.onload = () => {
     initCesium();               // Haritayı ve Handler'ı kurar
     buildDynamicMenu();         // Menüyü oluşturur
     updateVehicleParams();      // Ayarları çeker
+    setupFlightPlanner();
 };
 
 
