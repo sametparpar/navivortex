@@ -1995,7 +1995,6 @@ window.onload = () => {
     initCesium();               // Haritayı ve Handler'ı kurar
     buildDynamicMenu();         // Menüyü oluşturur
     updateVehicleParams();      // Ayarları çeker
-    setupFlightPlanner();
 };
 
 
