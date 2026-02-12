@@ -392,40 +392,38 @@ function calculateLogistics() {
 
 
 // ---------------------------------------------------------
-// 26. GLOBAL ALTITUDE UPDATER 📶
+// 26. GLOBAL ALTITUDE UPDATER (Safe & English) 📶
 // ---------------------------------------------------------
 function updateGlobalAltitude() {
     const vehicleId = document.getElementById('vehicle-category').value;
     const isElectric = (vehicleId === 'electric_drone');
     
     // Değeri al
-    let newAltVal = parseFloat(document.getElementById(isElectric ? 'drone-alt' : 'plane-alt').value);
+    const inputId = isElectric ? 'drone-alt' : 'plane-alt';
+    let newAltVal = parseFloat(document.getElementById(inputId).value);
     
-    if (isNaN(newAltVal)) return;
+    // HATA KORUMASI: Eğer kutu boşsa veya geçersizse işlem yapma!
+    if (isNaN(newAltVal) || newAltVal === null) {
+        console.warn("Invalid altitude input.");
+        return;
+    }
 
-    // Eğer uçak modundaysak (Feet), Metreye çevir (Çünkü Cesium metre kullanır)
-    // 1 ft = 0.3048 m
+    // Birim Dönüşümü (Feet -> Metre)
     let altitudeMeters = isElectric ? newAltVal : (newAltVal * 0.3048);
 
-    // Mevcut tüm waypointleri güncelle
-    waypoints.forEach((wp, index) => {
-        // Veriyi güncelle
+    // Tüm noktaların yüksekliğini güncelle
+    waypoints.forEach((wp) => {
         wp.alt = altitudeMeters;
-
-        // Haritadaki konumunu (Cartesian) güncelle
-        // Not: Cesium'da yükseklik değiştirmek için Lat/Lon'u koruyup yeni yükseklik vermeliyiz.
+        // Yeni yükseklik ile Cartesian koordinatı güncelle (Lat/Lon koruyarak)
         wp.cartesian = Cesium.Cartesian3.fromDegrees(wp.lon, wp.lat, wp.alt);
     });
 
-    // Her şeyi yeniden çiz
-    renderVisuals(-1);        // Haritadaki çizgileri güncelle
-    updateUI();               // Tabloyu güncelle
-    calculateLogistics();     // Yakıtı güncelle
+    // Her şeyi güncelle
+    renderVisuals(-1);        
+    updateUI();               
+    calculateLogistics();     
     
-    // Grafiği güncelle (En önemlisi bu!)
-    if(typeof updateElevationProfile === 'function') {
-        updateElevationProfile();
-    }
+    if(typeof updateElevationProfile === 'function') updateElevationProfile();
     
     showToast(`Altitude updated to ${newAltVal} ${isElectric ? 'm' : 'ft'}.`, "info");
 }
@@ -456,12 +454,12 @@ function updateGlobalAltitude() {
 
 
 
-// 5. Render Visuals (Dynamic Drawing) 🎨
+// 5. Render Visuals (Always Visible Points) 🎨
 function renderVisuals(activeParamIndex) {
     viewer.entities.removeAll();
-    waypointEntities = []; // Reset list
+    waypointEntities = []; // Listeyi sıfırla
 
-    // 1. Polygon (Area) - Auto Updates via Callback
+    // 1. Polygon (Area)
     if (waypoints.length >= 3) {
         viewer.entities.add({
             polygon: {
@@ -476,7 +474,7 @@ function renderVisuals(activeParamIndex) {
         });
     }
 
-    // 2. Route Line (Path) - Auto Updates via Callback
+    // 2. Route Line
     if (waypoints.length > 0) {
         viewer.entities.add({
             polyline: {
@@ -487,6 +485,11 @@ function renderVisuals(activeParamIndex) {
                 material: new Cesium.PolylineGlowMaterialProperty({
                     glowPower: 0.2,
                     color: Cesium.Color.YELLOW
+                }),
+                // Çizgi de yerin altında kalsa bile görünsün
+                depthFailMaterial: new Cesium.PolylineGlowMaterialProperty({
+                    glowPower: 0.2,
+                    color: Cesium.Color.RED.withAlpha(0.5) // Yerin altındaysa Kırmızılaşsın
                 })
             }
         });
@@ -504,7 +507,9 @@ function renderVisuals(activeParamIndex) {
                 pixelSize: scale,
                 color: color,
                 outlineColor: Cesium.Color.BLACK,
-                outlineWidth: 1
+                outlineWidth: 1,
+                // İŞTE SİHİRLİ KOD: Noktalar asla yerin altına girip kaybolmaz!
+                disableDepthTestDistance: Number.POSITIVE_INFINITY 
             },
             label: {
                 text: (index + 1).toString(),
@@ -515,11 +520,11 @@ function renderVisuals(activeParamIndex) {
                 style: Cesium.LabelStyle.FILL_AND_OUTLINE,
                 verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
                 pixelOffset: new Cesium.Cartesian2(0, -10),
-                show: (waypoints.length < 20) 
+                show: (waypoints.length < 20),
+                disableDepthTestDistance: Number.POSITIVE_INFINITY // Yazılar da kaybolmasın
             }
         });
 
-        // Add to tracking list for Drag & Drop
         waypointEntities.push(entity);
     });
 }
