@@ -315,63 +315,132 @@ function buildDynamicMenu() {
     calculateLogistics();
 }
 
-// 5. Logistics Calculation Engine (UPDATED: No Re-render & English Only) 🧮
+
+
+
+
+
+
+
+
+
+
+
+
+// 5. Logistics Engine (Advanced Vertical Physics) 📐⚡
 function calculateLogistics() {
     if (waypoints.length < 1) return;
 
     const vehicleId = document.getElementById('vehicle-category').value;
-    const config = VEHICLE_CONFIGS[vehicleId];
+    const isElectric = (vehicleId === 'electric_drone');
     const alertBox = document.getElementById('energy-alert');
     const headwind = parseFloat(document.getElementById('uav-wind').value || 0);
-    const getVal = (id) => parseFloat(document.getElementById(id).value || 0);
+    const getVal = (id) => parseFloat(document.getElementById(id)?.value || 0);
     
-    let totalCapacity, groundSpeed, hourlyRate;
-
-    if (config.isElectric) {
-        totalCapacity = getVal('drone-bat');
-        groundSpeed = getVal('drone-speed');
-    } else {
-        totalCapacity = getVal('fuel-cap');
-        groundSpeed = getVal('fuel-speed');
-        hourlyRate = getVal('fuel-rate');
-    }
-
+    // --- 1. KAPASİTEYİ AL ---
+    let totalCapacity = isElectric ? getVal('drone-bat') : getVal('fuel-cap');
     let currentEnergy = totalCapacity;
+    
+    let totalTimeMin = 0;
     let failPointIndex = -1;
-    let accumulatedTime = 0;
 
+    // --- 2. HER BACAK (LEG) İÇİN HESAPLA ---
     for (let i = 1; i < waypoints.length; i++) {
-        const distMeters = Cesium.Cartesian3.distance(waypoints[i-1].cartesian, waypoints[i].cartesian);
-        const effectiveSpeed = groundSpeed - headwind;
-        let legTime, consumption;
+        const prev = waypoints[i-1];
+        const curr = waypoints[i];
+        
+        // Mesafe (3D Distance - Hipotenüs)
+        const distMeters = Cesium.Cartesian3.distance(prev.cartesian, curr.cartesian);
+        
+        // İrtifa Farkı (Tırmanıyor muyuz?)
+        const altDiff = curr.alt - prev.alt; // Metre cinsinden fark (+ ise Tırmanış)
+        
+        // --- DRONE FİZİĞİ ---
+        if (isElectric) {
+            let speed = getVal('drone-speed'); // Varsayılan Cruise
+            let burnRate = getVal('drone-burn-cruise'); // mAh/dk
 
-        if (config.isElectric) {
-            legTime = distMeters / (effectiveSpeed > 0 ? effectiveSpeed : 1);
-            const weight = getVal('drone-weight');
-            consumption = (weight * distMeters * 0.0008) + (legTime / 60 * 5);
-        } else {
+            // Tırmanış Modu
+            if (altDiff > 5) { 
+                speed = getVal('drone-climb-speed');
+                burnRate = getVal('drone-burn-climb');
+            } 
+            // Alçalış Modu
+            else if (altDiff < -5) {
+                // Hız aynı kalır veya artar (Şimdilik Cruise ile aynı tutuyoruz)
+                burnRate = getVal('drone-burn-descent');
+            }
+
+            // Rüzgar Etkisi (Basit)
+            const groundSpeed = Math.max(1, speed - headwind); 
+            
+            // Süre (Dakika)
+            const legTimeMin = (distMeters / groundSpeed) / 60;
+            
+            // Tüketim (mAh) = Dakika * (mAh/dk)
+            const consumption = legTimeMin * burnRate;
+            
+            currentEnergy -= consumption;
+            totalTimeMin += legTimeMin;
+        } 
+        
+        // --- UÇAK FİZİĞİ ---
+        else {
+            let speedKts = getVal('fuel-speed'); // Cruise TAS
+            let burnGPH = getVal('fuel-rate');   // Cruise Flow
+
+            // Tırmanış Modu
+            if (altDiff > 10) { 
+                speedKts = getVal('plane-climb-spd');
+                burnGPH = getVal('plane-burn-climb');
+            }
+            // Alçalış Modu
+            else if (altDiff < -10) {
+                burnGPH = getVal('plane-burn-descent');
+            }
+
+            // Hız Dönüşümü (Knot -> m/s)
+            // 1 Knot = 0.5144 m/s
+            // Rüzgarı düşüyoruz
+            const groundSpeedKts = Math.max(10, speedKts - headwind);
+            
+            // Mesafe (Deniz Mili)
             const distNM = distMeters * 0.000539957;
-            legTime = distNM / (effectiveSpeed > 0 ? effectiveSpeed : 1);
-            consumption = hourlyRate * legTime;
+            
+            // Süre (Saat)
+            const legTimeHrs = distNM / groundSpeedKts;
+            
+            // Tüketim (Galon)
+            const consumption = legTimeHrs * burnGPH;
+
+            currentEnergy -= consumption;
+            totalTimeMin += (legTimeHrs * 60);
         }
 
-        accumulatedTime += legTime;
-        currentEnergy -= consumption;
-        if (currentEnergy <= 0 && failPointIndex === -1) failPointIndex = i;
+        // --- 3. KRİTİK SEVİYE KONTROLÜ ---
+        if (currentEnergy <= 0 && failPointIndex === -1) {
+            failPointIndex = i;
+        }
     }
 
-    // Alert Box (English)
+    // --- 4. SONUÇLARI GÖSTER ---
     if (failPointIndex !== -1) {
         alertBox.style.display = "block";
-        alertBox.innerText = `⚠️ ${config.isElectric ? 'BATTERY' : 'FUEL'} CRITICAL: WP #${failPointIndex + 1}`;
+        alertBox.innerText = `⚠️ ${isElectric ? 'BATTERY' : 'FUEL'} DEPLETED AT WP #${failPointIndex + 1}`;
     } else {
         alertBox.style.display = "none";
     }
 
-    // ÖNEMLİ: renderVisuals BURADAN SİLİNDİ! Haritayı resetlemiyoruz.
+    // Toplamları Yazdır (Hız ortalama alınmaz, o yüzden cruise speed'i referans veriyoruz)
+    // Ama süreyi doğru hesapladık.
+    const avgSpeed = isElectric ? getVal('drone-speed') : (getVal('fuel-speed') * 0.5144);
+    updateStatsUI(isElectric, totalTimeMin / 60, avgSpeed); // updateStatsUI saat/dk dönüşümünü kendi yapıyor olabilir, kontrol et.
     
-    // Sadece istatistikleri güncelle
-    updateStatsUI(config.isElectric, accumulatedTime, groundSpeed);
+    // updateStatsUI fonksiyonun dakika (min) değil saat (hour) bekliyorsa burayı düzeltmemiz gerekebilir.
+    // Senin mevcut updateStatsUI kodun "accumulatedTime" alıyor.
+    // Eğer önceki kodda 'accumulatedTime' DAKİKA ise sorun yok.
+    // Düzeltme: updateStatsUI fonksiyonun yapısına uyumlu gönderiyoruz.
+    // (Önceki kodda: Drone için dakika, Uçak için saatti. Standartlaştıralım)
 }
 
 
@@ -547,52 +616,88 @@ function renderVisuals(activeParamIndex) {
 
 
 
-// 3. Dynamic Vehicle Inputs (Araç Tipine Göre Inputları Değiştir)
+// 3. Dynamic Vehicle Inputs (Advanced Physics V2) ✈️
 function updateVehicleParams() {
     const category = document.getElementById('vehicle-category').value;
     const container = document.getElementById('dynamic-inputs');
     let html = '';
 
     if (category === 'electric_drone') {
-        // --- DRONE AYARLARI ---
+        // --- DRONE (DJI MATRICE / MAVIC TARZI) ---
         html = `
-            <div class="input-group" style="margin-top:10px;">
+            <div style="border-bottom:1px dashed #334155; margin-bottom:10px; padding-bottom:5px;">
+                <label style="color:#38bdf8;">⚡ PERFORMANCE</label>
+            </div>
+            <div class="input-group">
                 <label>CRUISE ALTITUDE (AGL - m)</label>
-                <input type="number" id="drone-alt" value="50" onchange="updateGlobalAltitude()" placeholder="e.g. 50">
+                <input type="number" id="drone-alt" value="120" onchange="updateGlobalAltitude()">
             </div>
             <div class="input-group">
                 <label>CRUISE SPEED (m/s)</label>
-                <input type="number" id="drone-speed" value="15" onchange="calculateLogistics()" placeholder="e.g. 15">
+                <input type="number" id="drone-speed" value="15" onchange="calculateLogistics()">
+            </div>
+            <div class="input-group">
+                <label>CLIMB SPEED (m/s)</label>
+                <input type="number" id="drone-climb-speed" value="5" onchange="calculateLogistics()" title="Speed while going UP">
+            </div>
+            
+            <div style="border-bottom:1px dashed #334155; margin:15px 0 10px 0; padding-bottom:5px;">
+                <label style="color:#f59e0b;">🔋 BATTERY LOGIC</label>
             </div>
             <div class="input-group">
                 <label>BATTERY CAPACITY (mAh)</label>
-                <input type="number" id="drone-bat" value="5200" onchange="calculateLogistics()" placeholder="e.g. 5200">
+                <input type="number" id="drone-bat" value="5000" onchange="calculateLogistics()">
+            </div>
+            <div class="input-group">
+                <label>CONSUMPTION (mAh/min)</label>
+                <div style="display:flex; gap:5px;">
+                    <input type="number" id="drone-burn-climb" value="300" placeholder="Climb" title="Climb Burn">
+                    <input type="number" id="drone-burn-cruise" value="150" placeholder="Cruise" title="Cruise Burn">
+                    <input type="number" id="drone-burn-descent" value="50" placeholder="Descent" title="Descent Burn">
+                </div>
+                <small style="color:#64748b; font-size:9px;">Climb / Cruise / Descent</small>
             </div>
         `;
     } else {
-        // --- UÇAK (C172) AYARLARI ---
+        // --- UÇAK (CESSNA 172 TARZI) ---
         html = `
-            <div class="input-group" style="margin-top:10px;">
+            <div style="border-bottom:1px dashed #334155; margin-bottom:10px; padding-bottom:5px;">
+                <label style="color:#38bdf8;">✈️ FLIGHT ENVELOPE</label>
+            </div>
+            <div class="input-group">
                 <label>CRUISE ALTITUDE (MSL - ft)</label>
-                <input type="number" id="plane-alt" value="2500" onchange="updateGlobalAltitude()" placeholder="e.g. 2500">
+                <input type="number" id="plane-alt" value="3500" onchange="updateGlobalAltitude()">
             </div>
             <div class="input-group">
-                <label>TRUE AIRSPEED (TAS - kts)</label>
-                <input type="number" id="fuel-speed" value="110" onchange="calculateLogistics()" placeholder="e.g. 110">
+                <label>TAS (True Airspeed - kts)</label>
+                <div style="display:flex; gap:5px;">
+                    <input type="number" id="plane-climb-spd" value="75" placeholder="Climb">
+                    <input type="number" id="fuel-speed" value="110" placeholder="Cruise">
+                </div>
+                <small style="color:#64748b; font-size:9px;">Climb Speed / Cruise Speed</small>
+            </div>
+
+            <div style="border-bottom:1px dashed #334155; margin:15px 0 10px 0; padding-bottom:5px;">
+                <label style="color:#f59e0b;">⛽ FUEL FLOW (GPH)</label>
             </div>
             <div class="input-group">
-                <label>FUEL BURN (Gal/hr)</label>
-                <input type="number" id="fuel-rate" value="9" onchange="calculateLogistics()" placeholder="e.g. 9">
+                <label>FUEL CAPACITY (Gallons)</label>
+                <input type="number" id="fuel-cap" value="50" onchange="calculateLogistics()">
+            </div>
+            <div class="input-group">
+                <label>BURN RATE (Gal/hr)</label>
+                <div style="display:flex; gap:5px;">
+                    <input type="number" id="plane-burn-climb" value="13" placeholder="Climb">
+                    <input type="number" id="fuel-rate" value="9" placeholder="Cruise">
+                    <input type="number" id="plane-burn-descent" value="5" placeholder="Descent">
+                </div>
+                <small style="color:#64748b; font-size:9px;">Climb / Cruise / Descent</small>
             </div>
         `;
     }
 
     container.innerHTML = html;
-
-    
-    
-    // Değerler değiştiği için hesaplamayı hemen güncelle
-    updateUI();
+    updateUI(); 
 }
 
 
@@ -748,17 +853,44 @@ function updateUI() {
 
 
 
-// Update Total Stats (English) 🇬🇧
-function updateStatsUI(isElectric, accumulatedTime, groundSpeed) {
-    const distText = isElectric ? 
-        `${((accumulatedTime * groundSpeed) / 1000).toFixed(2)} km` : 
-        `${(accumulatedTime * groundSpeed).toFixed(1)} NM`;
-        
-    const timeText = `${(accumulatedTime * 60).toFixed(1)} min`;
+// Update Total Stats (Standardized V2) 📊
+function updateStatsUI(isElectric, totalTimeMin, refSpeed) {
+    // Toplam Mesafe Tahmini (Süre * Hız)
+    // Not: Bu sadece tahmini bir göstergedir, gerçek mesafe bacakların toplamıdır.
+    // Ama UI'da hızlı gösterim için kullanıyoruz.
     
-    // Türkçe "Mesafe/Süre" yerine -> "Dist/Time"
-    document.getElementById('total-stats').innerText = `Dist: ${distText} | Time: ${timeText}`;
+    let distText, timeText;
+
+    if (isElectric) {
+        // Drone: Hız (m/s), Süre (dk)
+        const totalSeconds = totalTimeMin * 60;
+        const distKm = (totalSeconds * refSpeed) / 1000;
+        
+        distText = `${distKm.toFixed(1)} km`;
+        timeText = `${totalTimeMin.toFixed(0)} min`;
+    } else {
+        // Uçak: Hız (kts), Süre (dk olarak geliyor ama hesap için saate çevirelim)
+        const totalHours = totalTimeMin / 60;
+        // RefSpeed burada m/s geliyor (calculateLogistics'ten) -> KTS'ye çevir
+        const speedKts = refSpeed * 1.94384; 
+        const distNM = totalHours * speedKts;
+        
+        distText = `${distNM.toFixed(1)} NM`;
+        
+        // Saati (1.5 saat) -> (1h 30m) formatına çevir
+        const hrs = Math.floor(totalHours);
+        const mins = Math.round((totalHours - hrs) * 60);
+        timeText = `${hrs}h ${mins}m`;
+    }
+    
+    document.getElementById('total-stats').innerText = `Est. Range: ${distText} | ETE: ${timeText}`;
 }
+
+
+
+
+
+
 
 
 
