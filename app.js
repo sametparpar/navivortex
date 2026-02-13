@@ -2198,29 +2198,6 @@ function setupFlightPlanner() {
 
 
 
-// --- YASAL SAYFA MODALI ---
-function openLegal(type) {
-    const modal = document.getElementById('legal-modal');
-    const content = document.getElementById('legal-body');
-    if(!modal || !content) return;
-
-    modal.style.display = 'block';
-
-    const texts = {
-        'about': '<h2>About NaviVortex</h2><p>NaviVortex is an advanced flight planning tool utilizing CesiumJS for 3D visualization. Built for simulation enthusiasts.</p>',
-        'privacy': '<h2>Privacy Policy</h2><p>We use Google AdSense to serve ads. We do not sell your personal data. Missions are saved to Google Firebase securely.</p>',
-        'terms': '<h2>Terms of Use</h2><p>By using this tool, you agree that it is for SIMULATION PURPOSES ONLY.</p>',
-        'disclaimer': '<h2 style="color:red;">DISCLAIMER</h2><p><strong>NOT FOR REAL NAVIGATION.</strong> Data provided may not be accurate for real-world flight operations. Use at your own risk.</p>',
-        'contact': '<h2>Contact</h2><p>Email: support@navivortex.com</p>'
-    };
-
-    content.innerHTML = texts[type] || 'Loading...';
-}
-
-function closeLegal() {
-    const modal = document.getElementById('legal-modal');
-    if(modal) modal.style.display = 'none';
-}
 
 
 
