@@ -756,27 +756,33 @@ function updateVehicleParams() {
 
 
 
-// 7. Professional Nav Log Table (With Wind Triangle Physics 🌪️)
+// 7. Professional Nav Log Table (Hybrid Version: Advanced Physics + New Design)
 function updateUI() {
     const list = document.getElementById('wp-list');
+    const totalStats = document.getElementById('total-stats');
     const vehicleId = document.getElementById('vehicle-category').value;
-    const config = VEHICLE_CONFIGS[vehicleId];
     
-    // Rüzgar Verilerini Al
+    // Araç konfigürasyonunu al (Hata korumalı)
+    const config = (typeof VEHICLE_CONFIGS !== 'undefined') ? VEHICLE_CONFIGS[vehicleId] : { unitSystem: 'metric', isElectric: true };
+
+    // Rüzgar Verileri
     const windDir = parseFloat(document.getElementById('wind-direction').value || 0);
     const windSpd = parseFloat(document.getElementById('wind-speed').value || 0);
 
+    // Güvenlik kontrolleri
+    if (!list) return;
     if (waypoints.length < 2) {
-        list.innerHTML = "<p style='color:#94a3b8; font-size:11px; padding:10px; text-align:center;'>Select at least 2 points to calculate Wind Triangle.</p>";
+        list.innerHTML = "<p style='color:#64748b; font-size:11px; padding:20px; text-align:center;'>No active route.<br>Click map to add points.</p>";
+        if(totalStats) totalStats.innerHTML = "";
         return;
     }
 
+    // Tablo Başlığı (Gelişmiş Sütunlar Korundu)
     let tableHTML = `
         <table class="nav-log-table">
             <thead>
                 <tr>
                     <th>LEG</th>
-                    <th>CRS</th>
                     <th>HDG</th>
                     <th>GS</th>
                     <th>ETE</th>
@@ -786,77 +792,76 @@ function updateUI() {
             <tbody>
     `;
 
+    let totalDist = 0;
+    let totalTime = 0;
+
     for (let i = 1; i < waypoints.length; i++) {
         const prev = waypoints[i-1];
         const curr = waypoints[i];
         
-        // 1. Temel Mesafe (Distance)
+        // 1. Mesafe
         const d = Cesium.Cartesian3.distance(prev.cartesian, curr.cartesian);
-        
-        // 2. True Course (TC) Hesabı (İki nokta arasındaki açı)
-        // Cesium'dan yeryüzü açısını (bearing) alıyoruz
-        const vector = Cesium.Cartesian3.subtract(curr.cartesian, prev.cartesian, new Cesium.Cartesian3());
-        const east = Cesium.Cartesian3.cross(prev.cartesian, Cesium.Cartesian3.UNIT_Z, new Cesium.Cartesian3());
-        const north = Cesium.Cartesian3.cross(Cesium.Cartesian3.UNIT_Z, east, new Cesium.Cartesian3());
-        
-        // Basitleştirilmiş Yön Hesabı (Lat/Lon farkından)
-        const y = Math.sin(curr.lon * Math.PI/180 - prev.lon * Math.PI/180) * Math.cos(curr.lat * Math.PI/180);
+        totalDist += d;
+
+        // 2. True Course (Rota Açısı)
+        // Basit trigonometri ile açı bulma
+        const y = Math.sin((curr.lon - prev.lon) * Math.PI/180) * Math.cos(curr.lat * Math.PI/180);
         const x = Math.cos(prev.lat * Math.PI/180) * Math.sin(curr.lat * Math.PI/180) -
-                  Math.sin(prev.lat * Math.PI/180) * Math.cos(curr.lat * Math.PI/180) * Math.cos(curr.lon * Math.PI/180 - prev.lon * Math.PI/180);
-        let tc = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360; // True Course (Derece)
+                  Math.sin(prev.lat * Math.PI/180) * Math.cos(curr.lat * Math.PI/180) * Math.cos((curr.lon - prev.lon) * Math.PI/180);
+        let tc = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
 
-        // 3. Hız ve Rüzgar Vektörleri
+        // 3. Hız Ayarları
         const speedInputId = config.isElectric ? 'drone-speed' : 'fuel-speed';
-        let tas = parseFloat(document.getElementById(speedInputId)?.value || 1); // True Air Speed
-        
-        // Birim Dönüşümü (Hesaplamalar Knot/Saat veya m/s üzerinden yapılır)
-        // Eğer Drone ise (m/s), Rüzgar da m/s kabul edilir.
-        // Eğer Uçak ise (kts), Rüzgar da kts kabul edilir.
+        let tas = parseFloat(document.getElementById(speedInputId)?.value || 15); // Varsayılan hız
 
-        // 4. Rüzgar Üçgeni (The Wind Triangle) 📐
-        // WCA = asin( (WindSpeed * sin(WindDir - TC)) / TAS )
+        // 4. Rüzgar Üçgeni Fiziği (WCA Hesabı)
         const rad = Math.PI / 180;
-        const wcaRad = Math.asin((windSpd * Math.sin((windDir - tc) * rad)) / tas);
-        const wca = wcaRad * 180 / Math.PI;
-        
-        // Ground Speed (GS) = TAS * cos(WCA) + WindSpeed * cos(WindDir - TC)
-        // Basitleştirilmiş Vektör Hesabı:
+        // Rüzgar düzeltme açısı
+        const wcaRad = Math.asin((windSpd * Math.sin((windDir - tc) * rad)) / tas); 
+        // Yer Hızı (Ground Speed)
         let gs = tas * Math.cos(wcaRad) + windSpd * Math.cos((windDir - tc) * rad);
-        
-        // Heading (Baş) = Course + WCA (Rüzgar düzeltmesi eklenir)
-        let hdg = tc + wca;
-        if (isNaN(hdg)) hdg = tc; // Rüzgar hızı uçak hızından büyükse matematik hata verir
-        if (isNaN(gs)) gs = tas;
+        // Baş (Heading)
+        let hdg = tc + (wcaRad * 180 / Math.PI);
 
-        // 5. Sonuçları Formatla
-        let distDisplay, timeDisplay, burnDisplay, gsDisplay;
+        // Hata koruması (Rüzgar uçaktan hızlıysa NaN döner)
+        if (isNaN(hdg)) hdg = tc;
+        if (isNaN(gs) || gs < 1) gs = tas; // Hız 0 olamaz
+
+        // 5. Süre ve Yakıt
+        let timeMin, burnVal;
         const rate = parseFloat(document.getElementById(config.isElectric ? 'drone-bat' : 'fuel-rate')?.value || 0);
 
-        if (config.unitSystem === "metric") {
-            const distKm = d / 1000;
-            const timeMin = (distKm * 1000) / gs / 60; // gs is m/s
-            const burn = timeMin * 50; // Basit drone formülü
-            
-            distDisplay = `${distKm.toFixed(1)}km`;
-            gsDisplay = `${gs.toFixed(0)}m/s`;
-            timeDisplay = `${timeMin.toFixed(1)}m`;
-            burnDisplay = `~${burn.toFixed(0)}`;
-        } else {
-            const distNM = d * 0.000539957;
-            const timeHrs = distNM / gs; // gs is knots
-            const burn = timeHrs * rate;
+        // Birim Dönüşümleri ve Formatlama
+        let gsDisplay, timeDisplay, burnDisplay;
 
-            distDisplay = `${distNM.toFixed(1)}NM`;
-            gsDisplay = `${gs.toFixed(0)}kts`;
-            timeDisplay = `${(timeHrs * 60).toFixed(0)}m`;
-            burnDisplay = `${burn.toFixed(1)}L`;
+        if (config.unitSystem === "metric") {
+            // Drone (Metrik)
+            timeMin = (d / gs) / 60; // gs m/s cinsinden
+            // Basit tüketim mantığı: Dakika başına harcama (Varsayılan değerlerle)
+            const burnRate = parseFloat(document.getElementById('drone-burn-cruise')?.value || 150);
+            burnVal = timeMin * burnRate;
+
+            gsDisplay = `${gs.toFixed(0)}m/s`;
+            timeDisplay = `${timeMin.toFixed(0)}m`;
+            burnDisplay = `${(burnVal/1000).toFixed(1)}Ah`; // Amper-Saat gösterimi
+        } else {
+            // Uçak (Havacılık)
+            const distNM = d * 0.000539957;
+            timeMin = (distNM / gs) * 60; // gs Knot cinsinden
+            burnVal = (timeMin/60) * rate;
+
+            gsDisplay = `${gs.toFixed(0)}kt`;
+            timeDisplay = `${timeMin.toFixed(0)}m`;
+            burnDisplay = `${burnVal.toFixed(1)}gal`;
         }
 
+        totalTime += timeMin;
+
+        // HTML Satırı Ekle
         tableHTML += `
             <tr>
-                <td style="color:#fff;">WP${i}➔${i+1}</td>
-                <td>${tc.toFixed(0)}°</td>
-                <td style="color:#f59e0b; font-weight:bold;">${hdg.toFixed(0)}°</td>
+                <td>${i}</td>
+                <td style="color:#f59e0b;">${hdg.toFixed(0)}°</td>
                 <td>${gsDisplay}</td>
                 <td>${timeDisplay}</td>
                 <td>${burnDisplay}</td>
@@ -866,14 +871,25 @@ function updateUI() {
 
     tableHTML += `</tbody></table>`;
     
-    // Footer: Rüzgar Bilgisi
+    // Rüzgar Uyarısı (Footer)
     if (windSpd > 0) {
-        tableHTML += `<div style="margin-top:5px; font-size:9px; color:#f59e0b; text-align:right;">
-            ⚠️ Wind Correction Applied: ${windDir}° @ ${windSpd}
-        </div>`;
+        tableHTML += `<div style="font-size:9px; color:#f59e0b; text-align:right; margin-top:5px;">⚠️ Wind Cor. Applied</div>`;
     }
-    
+
     list.innerHTML = tableHTML;
+
+    // Üst Bilgi Alanını Güncelle (Yeni Tasarım İçin)
+    if (totalStats) {
+        const distUnit = config.unitSystem === "metric" ? "km" : "NM";
+        const distVal = config.unitSystem === "metric" ? (totalDist/1000) : (totalDist * 0.000539957);
+        
+        totalStats.innerHTML = `
+            <div style="display:flex; justify-content:space-between; font-size:11px; color:#38bdf8; border-bottom:1px dashed #334155; padding-bottom:5px;">
+                <span>DIST: ${distVal.toFixed(1)} ${distUnit}</span>
+                <span>ETE: ${totalTime.toFixed(0)} min</span>
+            </div>
+        `;
+    }
 }
 
 
