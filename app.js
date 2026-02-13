@@ -2198,25 +2198,28 @@ function setupFlightPlanner() {
 
 
 
+// --- YASAL SAYFA MODALI ---
 function openLegal(type) {
     const modal = document.getElementById('legal-modal');
-    const title = document.getElementById('legal-title');
     const content = document.getElementById('legal-body');
-    
+    if(!modal || !content) return;
+
     modal.style.display = 'block';
-    
+
     const texts = {
-        'disclaimer': '<h1>Disclaimer</h1><p>NaviVortex is a flight planning tool designed <strong>FOR SIMULATION PURPOSES ONLY</strong>. Data provided (elevation, wind, airports) may not be accurate for real-world aviation. Use at your own risk.</p>',
-        'privacy': '<h1>Privacy Policy</h1><p>We use cookies to personalize content and ads through Google AdSense. We do not share your private data with third parties.</p>',
-        'about': '<h1>About NaviVortex</h1><p>NaviVortex is an advanced web-based mission planner for pilots and drone enthusiasts, focused on high-accuracy 3D visualization.</p>',
-        'contact': '<h1>Contact</h1><p>For inquiries: support@navivortex.com</p>'
+        'about': '<h2>About NaviVortex</h2><p>NaviVortex is an advanced flight planning tool utilizing CesiumJS for 3D visualization. Built for simulation enthusiasts.</p>',
+        'privacy': '<h2>Privacy Policy</h2><p>We use Google AdSense to serve ads. We do not sell your personal data. Missions are saved to Google Firebase securely.</p>',
+        'terms': '<h2>Terms of Use</h2><p>By using this tool, you agree that it is for SIMULATION PURPOSES ONLY.</p>',
+        'disclaimer': '<h2 style="color:red;">DISCLAIMER</h2><p><strong>NOT FOR REAL NAVIGATION.</strong> Data provided may not be accurate for real-world flight operations. Use at your own risk.</p>',
+        'contact': '<h2>Contact</h2><p>Email: support@navivortex.com</p>'
     };
-    
-    content.innerHTML = texts[type] || 'Content coming soon...';
+
+    content.innerHTML = texts[type] || 'Loading...';
 }
 
 function closeLegal() {
-    document.getElementById('legal-modal').style.display = 'none';
+    const modal = document.getElementById('legal-modal');
+    if(modal) modal.style.display = 'none';
 }
 
 
