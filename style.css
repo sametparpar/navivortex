@@ -316,4 +316,36 @@ input:checked + .slider:before { transform: translateX(16px); }
 
 
 
+/* --- YASAL SAYFALAR & FOOTER --- */
+.legal-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: #0f172a;
+    border-top: 1px solid #1e293b;
+    text-align: center;
+    padding: 10px 0;
+    font-size: 11px;
+    z-index: 2000; /* Haritanın üzerinde kalsın */
+    color: #94a3b8;
+}
+.legal-footer a { color: #38bdf8; text-decoration: none; margin: 0 5px; cursor: pointer; }
+.legal-footer a:hover { text-decoration: underline; }
 
+/* MODAL PENCERE */
+.legal-modal {
+    display: none;
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%; max-width: 600px;
+    max-height: 80vh;
+    background: #0f172a;
+    border: 1px solid #38bdf8;
+    box-shadow: 0 0 20px rgba(0,0,0,0.8);
+    z-index: 3000; /* En üstte */
+    overflow-y: auto;
+    padding: 20px;
+    border-radius: 8px;
+}
