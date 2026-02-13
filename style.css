@@ -277,3 +277,30 @@ input:checked + .slider:before { transform: translateX(16px); }
     overflow-y: auto;
     color: #cbd5e1;
 }
+
+
+
+
+
+
+
+
+/* Reklamın footer arkasında kalmasını engeller */
+.sidebar-ad-area {
+    margin-top: 20px;
+    padding: 10px;
+    background: rgba(30, 41, 59, 0.4);
+    border-radius: 8px;
+    min-height: 250px;
+    z-index: 1; /* Altta kalması için düşük değer */
+}
+
+/* Footer her zaman en üstte ve görünür kalır */
+.legal-footer {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    z-index: 1000; /* Reklamın üzerine çıkması için yüksek değer */
+    background: #0f172a; 
+    border-top: 1px solid #1e293b;
+}
