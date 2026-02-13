@@ -2196,7 +2196,26 @@ function setupFlightPlanner() {
 
 
 
+function openLegal(type) {
+    const modal = document.getElementById('legal-modal');
+    const title = document.getElementById('legal-title');
+    const content = document.getElementById('legal-body');
+    
+    modal.style.display = 'block';
+    
+    const texts = {
+        'disclaimer': '<h1>Disclaimer</h1><p>NaviVortex is a flight planning tool designed <strong>FOR SIMULATION PURPOSES ONLY</strong>. Data provided (elevation, wind, airports) may not be accurate for real-world aviation. Use at your own risk.</p>',
+        'privacy': '<h1>Privacy Policy</h1><p>We use cookies to personalize content and ads through Google AdSense. We do not share your private data with third parties.</p>',
+        'about': '<h1>About NaviVortex</h1><p>NaviVortex is an advanced web-based mission planner for pilots and drone enthusiasts, focused on high-accuracy 3D visualization.</p>',
+        'contact': '<h1>Contact</h1><p>For inquiries: support@navivortex.com</p>'
+    };
+    
+    content.innerHTML = texts[type] || 'Content coming soon...';
+}
 
+function closeLegal() {
+    document.getElementById('legal-modal').style.display = 'none';
+}
 
 
 
