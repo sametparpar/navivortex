@@ -3,29 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <title>Privacy Policy - NaviVortex</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body { background: #0f172a; color: #cbd5e1; font-family: sans-serif; line-height: 1.6; padding: 40px; }
-        h1 { color: #38bdf8; }
-        .container { max-width: 800px; margin: auto; }
+        /* NaviVortex Global Legal Style */
+        body { 
+            background: #0f172a; 
+            color: #cbd5e1; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            line-height: 1.6; 
+            padding: 40px; 
+            margin: 0; 
+        }
+        .container { 
+            max-width: 800px; 
+            margin: auto; 
+            background: rgba(30, 41, 59, 0.5); /* Hafif şeffaf koyu kutu */
+            padding: 40px; 
+            border-radius: 8px; 
+            border: 1px solid #1e293b; 
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+        h1 { 
+            color: #38bdf8; /* NaviVortex Mavisi */
+            border-bottom: 1px solid #0ea5e9; 
+            padding-bottom: 15px; 
+            margin-top: 0; 
+        }
+        h3 { 
+            color: #f1f5f9; 
+            margin-top: 30px; 
+            border-left: 3px solid #38bdf8; 
+            padding-left: 10px;
+        }
+        strong { color: #fff; }
+        a { color: #38bdf8; text-decoration: none; }
+        a:hover { text-decoration: underline; color: #fff; }
+        p { margin-bottom: 15px; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Privacy Policy</h1>
-        <p>Last Updated: February 2026</p>
-        <p>At NaviVortex, we take your privacy seriously. This policy describes how we collect and use data.</p>
+        <p><strong>Last Updated:</strong> February 2026</p>
+        <p>At NaviVortex, we prioritize your privacy. This policy outlines the types of personal information that is received and collected by our application and how it is used.</p>
         
         <h3>1. Information Collection</h3>
-        <p>We collect information you provide directly to us, such as when you sign in via <strong>Google Firebase</strong>. This may include your name, email address, and profile picture. We use this data solely to provide cloud synchronization for your flight missions.</p>
+        <p>We collect minimal information necessary to provide our services. When you sign in via <strong>Google Firebase Authentication</strong>, we may receive basic profile information such as your name, email address, and profile picture. We use this data solely to authenticate your identity and provide cloud synchronization for your flight missions.</p>
         
         <h3>2. Cookies and Third-Party Advertising</h3>
-        <p>We use cookies to enhance your experience. <strong>Google AdSense</strong>, as a third-party vendor, uses cookies to serve ads on our site based on your prior visits to NaviVortex or other websites. You can opt out of personalized advertising by visiting <a href="https://www.google.com/settings/ads" style="color:#38bdf8">Google Ads Settings</a>.</p>
+        <p>We use cookies to enhance your user experience. <strong>Google AdSense</strong>, as a third-party vendor, uses cookies to serve ads on NaviVortex. Google's use of advertising cookies enables it and its partners to serve ads to our users based on their visit to our site and/or other sites on the Internet.</p>
+        <p>Users may opt out of personalized advertising by visiting <a href="https://www.google.com/settings/ads" target="_blank">Google Ads Settings</a>.</p>
         
-        <h3>3. Flight Data</h3>
-        <p>Coordinates and mission parameters you create are stored on <strong>Google Cloud (Firebase)</strong>. We do not sell or share this data with third parties. You have the right to delete your saved missions at any time via the application interface.</p>
+        <h3>3. Flight & Mission Data</h3>
+        <p>The coordinates, waypoints, and mission parameters you create are stored securely on <strong>Google Cloud (Firestore)</strong>. This data is private to your account unless you explicitly choose to share it. We do not sell, trade, or rent your flight data to third parties.</p>
         
         <h3>4. Security</h3>
-        <p>We implement industry-standard security measures to protect your information. However, no method of transmission over the internet is 100% secure.</p>
+        <p>We implement industry-standard security measures to protect your personal information. All data transmission happens over secure <strong>SSL/TLS (HTTPS)</strong> channels. However, please be aware that no method of transmission over the internet is 100% secure.</p>
+
+        <h3>5. Contact Us</h3>
+        <p>If you have any questions about this Privacy Policy, please contact us at:<br>
+        <strong>support@navivortex.com</strong></p>
     </div>
 </body>
 </html>
