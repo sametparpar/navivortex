@@ -244,39 +244,49 @@ input:checked + .slider:before { transform: translateX(16px); }
 
 
 
+/* --- FOOTER & REKLAM AYARLARI --- */
+
+/* Footer her zaman en altta sabit kalır */
 .legal-footer {
     position: fixed;
     bottom: 0;
+    left: 0;
     width: 100%;
-    background: rgba(15, 23, 42, 0.9);
-    color: #94a3b8;
-    text-align: center;
-    padding: 10px 0;
-    font-size: 11px;
-    z-index: 1000;
+    background: #0f172a; /* Koyu lacivert */
     border-top: 1px solid #1e293b;
+    text-align: center;
+    padding: 8px 0;
+    font-size: 11px;
+    z-index: 2000; /* Haritanın ve her şeyin üstünde */
+    color: #94a3b8;
 }
+
 .legal-footer a {
-    color: #38bdf8;
+    color: #38bdf8; /* Mavi link rengi */
     text-decoration: none;
-    margin: 0 5px;
+    margin: 0 8px;
+    font-weight: bold;
 }
-.legal-modal {
-    display: none;
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 80%;
-    max-width: 600px;
-    max-height: 80vh;
-    background: #0f172a;
-    border: 1px solid #38bdf8;
-    padding: 20px;
-    z-index: 2000;
-    overflow-y: auto;
-    color: #cbd5e1;
+
+.legal-footer a:hover {
+    text-decoration: underline;
+    color: #fff;
 }
+
+/* Sol paneldeki reklam alanı */
+.sidebar-ad-area {
+    margin-top: 20px;
+    padding: 5px;
+    background: rgba(0, 0, 0, 0.2); /* Hafif koyu zemin */
+    border-radius: 6px;
+    min-height: 250px; /* Reklam gelene kadar yer tutsun */
+    text-align: center;
+    /* Footer'ın arkasında kalmaması için alt boşluk */
+    margin-bottom: 40px; 
+}
+
+
+
 
 
 
@@ -295,15 +305,7 @@ input:checked + .slider:before { transform: translateX(16px); }
     z-index: 1; /* Altta kalması için düşük değer */
 }
 
-/* Footer her zaman en üstte ve görünür kalır */
-.legal-footer {
-    position: fixed;
-    bottom: 0;
-    width: 100%;
-    z-index: 1000; /* Reklamın üzerine çıkması için yüksek değer */
-    background: #0f172a; 
-    border-top: 1px solid #1e293b;
-}
+
 
 
 
@@ -335,8 +337,7 @@ input:checked + .slider:before { transform: translateX(16px); }
 
 /* MODAL PENCERE */
 .legal-modal {
-    display: none;
-    position: fixed;
+    display: none;    position: fixed;
     top: 50%; left: 50%;
     transform: translate(-50%, -50%);
     width: 90%; max-width: 600px;
