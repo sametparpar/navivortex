@@ -1890,32 +1890,11 @@ function toggleAeroLayer() {
 
 
 
-// --- YENİ NESİL BULUT ARAMA SİSTEMİ ☁️ ---
 
-// Bu fonksiyon artık dev dosyayı indirmez. Sadece arayüzü hazırlar.
-async function initGlobalAirportDB() {
-    console.log("System Ready via Vercel API");
-    // İndirme yapmadığımız için direkt butonu aktif et
-    const btn = document.getElementById('btn-create-route');
-    if(btn) {
-        btn.disabled = false;
-        btn.innerText = "🚀 FIND & FLY";
-    }
-}
 
-async function resolveLocation(query) {
-    if (!query) return null;
-    const q = query.trim();
 
-    // 1. KOORDİNAT KONTROLÜ (İstemcide - En Hızlı)
-    const coordParts = q.split(',');
-    if (coordParts.length === 2) {
-        const lat = parseFloat(coordParts[0]);
-        const lon = parseFloat(coordParts[1]);
-        if (!isNaN(lat) && !isNaN(lon)) {
-            return { lat: lat, lon: lon, alt: 100, name: `Coord (${q})`, type: 'coord' };
-        }
-    }
+
+
 
     // 2. VERCEL API SORGUSU (Bizim api/search.js çalışacak)
     try {
@@ -1977,15 +1956,64 @@ async function resolveLocation(query) {
 
 
 
-// ---------------------------------------------------------
-// 28. SMART UI & AUTOCOMPLETE ENGINE (GÜNCELLENDİ) 🧠✨
-// ---------------------------------------------------------
 
+
+
+
+
+
+// =========================================================
+// 🚀 NAVIVORTEX FLIGHT WIZARD (AdSense Compatible Mode) 💰
+// =========================================================
+
+// Global Veritabanı (RAM'de tutulacak)
+window.GLOBAL_AIRPORTS = [];
+window.isDBReady = false;
+
+// 1. VERİTABANINI BAŞLAT VE OPTİMİZE ET
+async function initGlobalAirportDB() {
+    const statusLabel = document.getElementById('db-status-label');
+    const btn = document.getElementById('btn-create-route');
+
+    // Kullanıcıya bilgi ver
+    if(btn) { btn.disabled = true; btn.innerText = "⏳ DB LOADING..."; }
+    console.log("Downloading Airport Database...");
+
+    try {
+        // GitHub'dan ham veriyi çek (Bu işlem 1-2 sn sürebilir)
+        const response = await fetch('https://raw.githubusercontent.com/mwgg/Airports/master/airports.json');
+        const rawData = await response.json();
+
+        // Veriyi Küçült (Optimization)
+        // Gereksiz detayları atıp sadece lazım olanları alıyoruz.
+        window.GLOBAL_AIRPORTS = Object.entries(rawData).map(([icao, data]) => ({
+            code: icao,             // ICAO (LTFJ)
+            iata: data.iata || "",  // IATA (SAW)
+            name: data.name,        // İsim
+            city: data.city || "",  // Şehir
+            lat: data.lat,
+            lon: data.lon,
+            alt: data.elevation
+        }));
+
+        window.isDBReady = true;
+        console.log(`✅ DB Ready: ${window.GLOBAL_AIRPORTS.length} airports loaded locally.`);
+        
+        // Arayüzü güncelle
+        if(statusLabel) { statusLabel.innerText = "✅ Ready"; statusLabel.style.color = "#4ade80"; }
+        if(btn) { btn.disabled = false; btn.innerText = "🚀 FIND & FLY"; }
+
+    } catch (error) {
+        console.error("DB Load Error:", error);
+        if(btn) { btn.disabled = false; btn.innerText = "🚀 FIND & FLY (Online)"; }
+    }
+}
+
+// 2. UI KURULUMU (Arayüz)
 function setupFlightPlanner() {
     const panel = document.getElementById('params-panel');
     if (!panel || document.getElementById('flight-wizard-section')) return;
 
-    // Araç tipine göre etiket
     const vehicleId = document.getElementById('vehicle-category').value;
     const isDrone = (vehicleId === 'electric_drone');
     const labelFrom = isDrone ? "HOME POINT" : "DEPARTURE";
@@ -1997,11 +2025,11 @@ function setupFlightPlanner() {
     div.style.marginBottom = "10px";
     div.style.border = "1px solid #38bdf8";
 
-    // Not: "API Ready" yazısını kaldırdım.
     div.innerHTML = `
         <div class="menu-header" onclick="toggleMenu('wizard-content')" style="background:rgba(56, 189, 248, 0.1);">
             <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
                 <span style="color:#38bdf8;">✈️ FLIGHT WIZARD</span>
+                <span id="db-status-label" style="font-size:10px; color:#f59e0b;">⏳ Init...</span>
             </div>
             <span class="toggle-icon">▼</span>
         </div>
@@ -2009,14 +2037,14 @@ function setupFlightPlanner() {
             
             <div class="input-wrapper">
                 <label style="color:#94a3b8; font-size:10px;">${labelFrom}</label>
-                <input type="text" id="dep-input" placeholder="Airport, City, or Code..." 
+                <input type="text" id="dep-input" placeholder="Airport, City or Code..." 
                        onkeyup="handleInput(this, 'dep-suggestions')" autocomplete="off" style="width:100%;">
                 <div id="dep-suggestions" class="suggestion-box"></div>
             </div>
 
             <div class="input-wrapper">
                 <label style="color:#94a3b8; font-size:10px;">${labelTo}</label>
-                <input type="text" id="arr-input" placeholder="Airport, City, or Code..." 
+                <input type="text" id="arr-input" placeholder="Airport, City or Code..." 
                        onkeyup="handleInput(this, 'arr-suggestions')" autocomplete="off" style="width:100%;">
                 <div id="arr-suggestions" class="suggestion-box"></div>
             </div>
@@ -2029,7 +2057,6 @@ function setupFlightPlanner() {
     if (title) title.insertAdjacentElement('afterend', div);
     else panel.prepend(div);
 
-    // Ekranda boş bir yere tıklayınca öneri kutusunu kapat
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.input-wrapper')) {
             document.querySelectorAll('.suggestion-box').forEach(el => el.style.display = 'none');
@@ -2037,98 +2064,116 @@ function setupFlightPlanner() {
     });
 }
 
-// --- OTOMATİK TAMAMLAMA MOTORU ---
-let timeoutId = null; // Hızlı yazmayı engellemek için
-
-async function handleInput(input, boxId) {
-    const query = input.value.trim();
+// 3. AUTOCOMPLETE (RAM'den Anlık Arama)
+function handleInput(input, boxId) {
+    const query = input.value.trim().toUpperCase();
     const box = document.getElementById(boxId);
 
-    // 2 harften azsa kutuyu gizle ve çık
-    if (query.length < 2) {
+    if (query.length < 2 || !window.isDBReady) {
         box.style.display = 'none';
         return;
     }
 
-    // Kullanıcı yazmayı bitirene kadar bekle (300ms)
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(async () => {
-        
-        // Kutuyu aç ve 'Aranıyor...' yaz
+    // RAM'deki listeden filtrele (Max 5 sonuç)
+    // Şunu arar: Kod (LTFJ) VEYA Iata (SAW) VEYA İsim (Sabiha) VEYA Şehir (Istanbul)
+    const results = window.GLOBAL_AIRPORTS.filter(item => 
+        item.code.includes(query) || 
+        item.iata.includes(query) || 
+        item.name.toUpperCase().includes(query) ||
+        item.city.toUpperCase().includes(query)
+    ).slice(0, 5);
+
+    box.innerHTML = '';
+    
+    if (results.length > 0) {
         box.style.display = 'block';
-        box.innerHTML = '<div class="suggestion-item" style="color:#94a3b8;">Searching...</div>';
-
-        try {
-            // Vercel API'ye sor
-            const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        results.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'suggestion-item';
             
-            if (!res.ok) throw new Error("API Error");
+            // Görünüm: SAW - Sabiha Gokcen (Istanbul)
+            const displayCode = item.iata || item.code;
+            div.innerHTML = `<strong>${displayCode}</strong> - ${item.name} <span style="color:#64748b; font-size:10px;">(${item.city})</span>`;
             
-            const data = await res.json();
-            box.innerHTML = ''; // İçeriği temizle
-
-            if (data.length === 0) {
-                box.innerHTML = '<div class="suggestion-item" style="color:#94a3b8;">No results found</div>';
-            } else {
-                // Maksimum 5 sonuç göster
-                data.slice(0, 5).forEach(item => {
-                    const div = document.createElement('div');
-                    div.className = 'suggestion-item';
-                    
-                    // Görünüm: "SAW - Sabiha Gokcen" (Kod kalın olsun)
-                    const code = item.iata || item.icao;
-                    div.innerHTML = `<strong>${code}</strong> - ${item.name} <span style="color:#64748b; font-size:10px;">(${item.city})</span>`;
-                    
-                    // Tıklayınca kutuya yaz
-                    div.onclick = () => {
-                        input.value = `${code} - ${item.name}`; // Kutuya yaz
-                        box.style.display = 'none'; // Listeyi kapat
-                    };
-                    
-                    box.appendChild(div);
-                });
-            }
-        } catch (err) {
-            console.error(err);
-            // Hata olsa bile kullanıcıya hissettirme, OSM yedeği zaten butona basınca çalışacak.
-            box.style.display = 'none'; 
-        }
-    }, 300);
+            div.onclick = () => {
+                input.value = `${displayCode} - ${item.name}`;
+                box.style.display = 'none';
+            };
+            box.appendChild(div);
+        });
+    } else {
+        box.style.display = 'none';
+    }
 }
 
+// 4. KONUM ÇÖZÜCÜ (Logic Engine)
+async function resolveLocation(query) {
+    if (!query) return null;
+    const q = query.trim().toUpperCase();
 
+    // A) Koordinat mı? (40.1, 29.5)
+    const coordParts = q.split(',');
+    if (coordParts.length === 2) {
+        const lat = parseFloat(coordParts[0]);
+        const lon = parseFloat(coordParts[1]);
+        if (!isNaN(lat) && !isNaN(lon)) return { lat, lon, alt: 100, name: `Coord`, type: 'coord' };
+    }
 
+    // B) Veritabanında Var mı?
+    if (window.isDBReady) {
+        // Tam eşleşme ara (Kod veya İsim)
+        const found = window.GLOBAL_AIRPORTS.find(item => 
+            item.code === q || item.iata === q || item.name.toUpperCase() === q
+        );
+        
+        // Eğer tam eşleşme yoksa ama input "SAW - Sabiha..." formatındaysa kod kısmını alıp tekrar dene
+        if (!found && q.includes('-')) {
+            const codePart = q.split('-')[0].trim();
+            const foundByCode = window.GLOBAL_AIRPORTS.find(item => item.code === codePart || item.iata === codePart);
+            if(foundByCode) return {
+                lat: foundByCode.lat, lon: foundByCode.lon, alt: foundByCode.alt ? foundByCode.alt * 0.3048 : 100,
+                name: foundByCode.name, type: 'airport'
+            };
+        }
 
+        if (found) {
+            return {
+                lat: found.lat,
+                lon: found.lon,
+                alt: found.alt ? found.alt * 0.3048 : 100,
+                name: found.name,
+                type: 'airport'
+            };
+        }
+    }
 
+    // C) Hiçbiri değilse OSM'ye sor (İnternetten adres ara)
+    try {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data && data.length > 0) {
+            return {
+                lat: parseFloat(data[0].lat),
+                lon: parseFloat(data[0].lon),
+                alt: 100,
+                name: data[0].display_name.split(',')[0],
+                type: 'address'
+            };
+        }
+    } catch (e) { console.error(e); }
+    
+    return null;
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// --- ROTA OLUŞTURUCU ---
+// 5. ROTA OLUŞTURUCU
 async function generateSmartRoute() {
     let depText = document.getElementById('dep-input').value;
     let arrText = document.getElementById('arr-input').value;
-
-    // Eğer kutuda "SAW - Sabiha..." yazıyorsa, sadece baştaki kodu (SAW) al.
-    if(depText.includes('-')) depText = depText.split('-')[0].trim();
-    if(arrText.includes('-')) arrText = arrText.split('-')[0].trim();
-
     const btn = document.getElementById('btn-create-route');
 
     if (!depText || !arrText) { 
-        showToast("Please enter Start & End points!", "error"); 
-        return; 
+        showToast("Please enter Start & End points!", "error"); return; 
     }
 
     btn.disabled = true;
@@ -2143,7 +2188,7 @@ async function generateSmartRoute() {
         if (!dep) { showToast(`Not found: ${depText}`, "error"); throw "err"; }
         if (!arr) { showToast(`Not found: ${arrText}`, "error"); throw "err"; }
 
-        // Rotayı Çiz
+        // Rota Çiz
         waypoints = [];
         viewer.entities.removeAll();
         waypointEntities = [];
@@ -2170,12 +2215,29 @@ async function generateSmartRoute() {
         showToast(`Route created!`, "success");
 
     } catch (e) {
-        // Hata zaten toast ile gösterildi
+        // Hata loglandı
     } finally {
         btn.disabled = false;
         btn.innerText = "🚀 FIND & FLY";
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2234,6 +2296,7 @@ window.onload = () => {
     initCesium();               // Haritayı ve Handler'ı kurar
     buildDynamicMenu();         // Menüyü oluşturur
     updateVehicleParams();      // Ayarları çeker
+    initGlobalAirportDB(); // Veritabanını indirir (YENİ EKLENDİ)
     setupFlightPlanner();
 };
 
