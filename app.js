@@ -1335,27 +1335,62 @@ function deleteMission(event, missionId) {
 
 
 
-
-
-
-
-
-// 15. UI Interaction (Accordion Menu)
-function toggleMenu(sectionId) {
-    const section = document.getElementById(sectionId);
-    const allSections = document.querySelectorAll('.menu-content');
-    
-    // İsteğe bağlı: Diğerlerini kapat, sadece tıklananı aç (Daha temiz görünüm için)
-    // allSections.forEach(div => {
-    //    if(div.id !== sectionId) div.style.display = 'none';
-    // });
-
-    if (section.style.display === 'none' || section.style.display === '') {
-        section.style.display = 'block';
-    } else {
-        section.style.display = 'none';
+// Menü açma/kapama hatasını çözer
+function toggleMenu(id) {
+    const section = document.getElementById(id);
+    if (section) {
+        section.style.display = (section.style.display === 'none' || section.style.display === '') ? 'block' : 'none';
     }
 }
+
+
+
+
+// "Find & Fly" butonunun ana motoru (ASENKRON OLMALI)
+// Başına async eklediğinden emin ol
+async function generateSmartRoute() {
+    const depInput = document.getElementById('dep-input').value;
+    const arrInput = document.getElementById('arr-input').value;
+    const btn = document.getElementById('btn-create-route');
+
+    if (!depInput || !arrInput) { 
+        showToast("Please fill both points!", "error"); 
+        return; 
+    }
+
+    btn.innerText = "🔍 ROUTING...";
+    
+    // Artık await burada hata vermeyecek
+    const dep = await resolveLocation(depInput);
+    const arr = await resolveLocation(arrInput);
+
+    if (dep && arr) {
+        waypoints = [
+            { lat: dep.lat, lon: dep.lon, alt: dep.alt, cartesian: Cesium.Cartesian3.fromDegrees(dep.lon, dep.lat, dep.alt) },
+            { lat: arr.lat, lon: arr.lon, alt: arr.alt, cartesian: Cesium.Cartesian3.fromDegrees(arr.lon, arr.lat, arr.alt) }
+        ];
+        renderVisuals(-1);
+        updateUI();
+        calculateLogistics();
+        
+        viewer.camera.flyTo({
+            destination: Cesium.Cartesian3.fromDegrees((dep.lon + arr.lon) / 2, (dep.lat + arr.lat) / 2, 40000)
+        });
+    }
+    btn.innerText = "🚀 FIND & FLY";
+}
+
+
+
+
+
+
+
+
+
+
+
+
 
 // 16. Live Weather Fetch (OpenWeatherMap API)
 async function getLiveWeather() {
@@ -1978,17 +2013,43 @@ async function initGlobalAirportDB() {
 async function resolveLocation(query) {
     if (!query) return null;
     const q = query.trim().toUpperCase();
-    if (window.isDBReady) {
-        let searchQ = q.includes('-') ? q.split('-')[0].trim() : q;
-        const found = window.GLOBAL_AIRPORTS.find(item => item.code === searchQ || item.iata === searchQ);
-        if (found) return { lat: found.lat, lon: found.lon, alt: (found.alt || 300) * 0.3048, name: found.name };
+
+    // A) KOORDİNAT KONTROLÜ (40.1, 29.5 gibi)
+    const coordParts = q.split(',');
+    if (coordParts.length === 2) {
+        const lat = parseFloat(coordParts[0]);
+        const lon = parseFloat(coordParts[1]);
+        if (!isNaN(lat) && !isNaN(lon)) return { lat, lon, alt: 100, name: "Target Point" };
     }
-    // Eğer DB'de yoksa OSM'den ara (Adresler için)
+
+    // B) HAVALİMANI DB KONTROLÜ
+    if (window.isDBReady) {
+        // Eğer input "SAW - Sabiha..." formatındaysa sadece "SAW" kısmını al
+        let searchCode = q.includes(' - ') ? q.split(' - ')[0].trim() : q;
+        
+        const found = window.GLOBAL_AIRPORTS.find(item => 
+            item.code === searchCode || item.iata === searchCode
+        );
+        
+        if (found) return {
+            lat: found.lat,
+            lon: found.lon,
+            alt: (found.alt || 300) * 0.3048, // Feet to Meter
+            name: found.name
+        };
+    }
+
+    // C) OSM FALLBACK (Şehir isimleri için)
     try {
         const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
         const data = await res.json();
-        if (data && data.length > 0) return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), alt: 100, name: data[0].display_name.split(',')[0] };
-    } catch (e) {}
+        if (data && data.length > 0) return {
+            lat: parseFloat(data[0].lat),
+            lon: parseFloat(data[0].lon),
+            alt: 100,
+            name: data[0].display_name.split(',')[0]
+        };
+    } catch (e) { console.error("Search error:", e); }
     return null;
 }
 
@@ -2007,12 +2068,19 @@ async function resolveLocation(query) {
 function handleInput(input, boxId) {
     const query = input.value.trim().toUpperCase();
     const box = document.getElementById(boxId);
-    if (query.length < 2 || !window.isDBReady) { box.style.display = 'none'; return; }
 
+    if (query.length < 2 || !window.isDBReady) {
+        box.style.display = 'none';
+        return;
+    }
+
+    // Gelişmiş Filtre: Kod, IATA, İsim veya Şehir eşleşmesi
     const results = window.GLOBAL_AIRPORTS.filter(item => 
-        item.code.includes(query) || item.iata.includes(query) || 
-        item.name.toUpperCase().includes(query) || item.city.toUpperCase().includes(query)
-    ).slice(0, 5); // MAKSİMUM 5 SONUÇ SINIRI 🎯
+        (item.code && item.code.toUpperCase().includes(query)) || 
+        (item.iata && item.iata.toUpperCase().includes(query)) || 
+        (item.name && item.name.toUpperCase().includes(query)) ||
+        (item.city && item.city.toUpperCase().includes(query))
+    ).slice(0, 5); // Sonuçları 5 ile sınırla
 
     box.innerHTML = '';
     if (results.length > 0) {
@@ -2021,8 +2089,11 @@ function handleInput(input, boxId) {
             const div = document.createElement('div');
             div.className = 'suggestion-item';
             const displayCode = item.iata || item.code;
-            div.innerHTML = `<strong>${displayCode}</strong> - ${item.name}`;
-            div.onclick = () => { input.value = `${displayCode} - ${item.name}`; box.style.display = 'none'; };
+            div.innerHTML = `<strong>${displayCode}</strong> - ${item.name} <span style="opacity:0.5; font-size:10px;">(${item.city})</span>`;
+            div.onclick = () => {
+                input.value = `${displayCode} - ${item.name}`; // Seçilen format
+                box.style.display = 'none';
+            };
             box.appendChild(div);
         });
     } else { box.style.display = 'none'; }
