@@ -340,3 +340,18 @@ input:checked + .slider:before { transform: translateX(16px); }
     text-align: center;
     margin-top: 20px;
 }
+
+
+
+
+
+/* Eski updateUI fonksiyonunun ürettiği içerik görünsün diye */
+#wp-list {
+    color: #cbd5e1;
+    font-size: 11px;
+    padding: 10px;
+}
+#wp-list table {
+    width: 100%;
+    color: white;
+}
