@@ -239,3 +239,41 @@ input:checked + .slider:before { transform: translateX(16px); }
 .suggestion-item:hover strong {
     color: #000;
 }
+
+
+
+
+
+.legal-footer {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    background: rgba(15, 23, 42, 0.9);
+    color: #94a3b8;
+    text-align: center;
+    padding: 10px 0;
+    font-size: 11px;
+    z-index: 1000;
+    border-top: 1px solid #1e293b;
+}
+.legal-footer a {
+    color: #38bdf8;
+    text-decoration: none;
+    margin: 0 5px;
+}
+.legal-modal {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80%;
+    max-width: 600px;
+    max-height: 80vh;
+    background: #0f172a;
+    border: 1px solid #38bdf8;
+    padding: 20px;
+    z-index: 2000;
+    overflow-y: auto;
+    color: #cbd5e1;
+}
