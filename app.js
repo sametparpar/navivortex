@@ -1896,46 +1896,7 @@ function toggleAeroLayer() {
 
 
 
-    // 2. VERCEL API SORGUSU (Bizim api/search.js çalışacak)
-    try {
-        // 'api/search' yolu Vercel'de otomatik olarak yönlenir.
-        const response = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-        const data = await response.json();
-
-        if (data && data.length > 0) {
-            const best = data[0]; 
-            return {
-                lat: best.lat,
-                lon: best.lon,
-                alt: best.alt ? best.alt * 0.3048 : 100, // Feet -> Meter
-                name: `${best.iata || best.icao} - ${best.name}`,
-                type: 'airport'
-            };
-        }
-    } catch (err) {
-        console.warn("API Error, falling back to OSM...", err);
-    }
-
-    // 3. OSM (YEDEK)
-    try {
-        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`;
-        const response = await fetch(url);
-        const osmData = await response.json();
-
-        if (osmData && osmData.length > 0) {
-            const bestMatch = osmData[0];
-            return {
-                lat: parseFloat(bestMatch.lat),
-                lon: parseFloat(bestMatch.lon),
-                alt: 100,
-                name: bestMatch.display_name.split(',')[0],
-                type: 'address'
-            };
-        }
-    } catch (e) { console.error(e); }
-
-    return null;
-}
+    
 
 
 
@@ -1970,257 +1931,155 @@ function toggleAeroLayer() {
 window.GLOBAL_AIRPORTS = [];
 window.isDBReady = false;
 
-// 1. VERİTABANINI BAŞLAT VE OPTİMİZE ET
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 async function initGlobalAirportDB() {
     const statusLabel = document.getElementById('db-status-label');
     const btn = document.getElementById('btn-create-route');
-
-    // Kullanıcıya bilgi ver
-    if(btn) { btn.disabled = true; btn.innerText = "⏳ DB LOADING..."; }
-    console.log("Downloading Airport Database...");
-
     try {
-        // GitHub'dan ham veriyi çek (Bu işlem 1-2 sn sürebilir)
         const response = await fetch('https://raw.githubusercontent.com/mwgg/Airports/master/airports.json');
         const rawData = await response.json();
-
-        // Veriyi Küçült (Optimization)
-        // Gereksiz detayları atıp sadece lazım olanları alıyoruz.
+        // Sadece lazım olanları alıp hafızayı yormuyoruz
         window.GLOBAL_AIRPORTS = Object.entries(rawData).map(([icao, data]) => ({
-            code: icao,             // ICAO (LTFJ)
-            iata: data.iata || "",  // IATA (SAW)
-            name: data.name,        // İsim
-            city: data.city || "",  // Şehir
-            lat: data.lat,
-            lon: data.lon,
-            alt: data.elevation
+            code: icao, iata: data.iata || "", name: data.name, city: data.city || "",
+            lat: data.lat, lon: data.lon, alt: data.elevation
         }));
-
         window.isDBReady = true;
-        console.log(`✅ DB Ready: ${window.GLOBAL_AIRPORTS.length} airports loaded locally.`);
-        
-        // Arayüzü güncelle
         if(statusLabel) { statusLabel.innerText = "✅ Ready"; statusLabel.style.color = "#4ade80"; }
-        if(btn) { btn.disabled = false; btn.innerText = "🚀 FIND & FLY"; }
+        if(btn) btn.disabled = false;
+    } catch (e) { console.error("DB Load Error", e); }
+}
 
-    } catch (error) {
-        console.error("DB Load Error:", error);
-        if(btn) { btn.disabled = false; btn.innerText = "🚀 FIND & FLY (Online)"; }
+async function resolveLocation(query) {
+    if (!query) return null;
+    const q = query.trim().toUpperCase();
+    if (window.isDBReady) {
+        let searchQ = q.includes('-') ? q.split('-')[0].trim() : q;
+        const found = window.GLOBAL_AIRPORTS.find(item => item.code === searchQ || item.iata === searchQ);
+        if (found) return { lat: found.lat, lon: found.lon, alt: (found.alt || 300) * 0.3048, name: found.name };
     }
+    // Eğer DB'de yoksa OSM'den ara (Adresler için)
+    try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        if (data && data.length > 0) return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), alt: 100, name: data[0].display_name.split(',')[0] };
+    } catch (e) {}
+    return null;
 }
 
-// 2. UI KURULUMU (Arayüz)
-function setupFlightPlanner() {
-    const panel = document.getElementById('params-panel');
-    if (!panel || document.getElementById('flight-wizard-section')) return;
 
-    const vehicleId = document.getElementById('vehicle-category').value;
-    const isDrone = (vehicleId === 'electric_drone');
-    const labelFrom = isDrone ? "HOME POINT" : "DEPARTURE";
-    const labelTo = isDrone ? "TARGET POINT" : "ARRIVAL";
 
-    const div = document.createElement('div');
-    div.id = 'flight-wizard-section';
-    div.className = 'menu-section';
-    div.style.marginBottom = "10px";
-    div.style.border = "1px solid #38bdf8";
 
-    div.innerHTML = `
-        <div class="menu-header" onclick="toggleMenu('wizard-content')" style="background:rgba(56, 189, 248, 0.1);">
-            <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
-                <span style="color:#38bdf8;">✈️ FLIGHT WIZARD</span>
-                <span id="db-status-label" style="font-size:10px; color:#f59e0b;">⏳ Init...</span>
-            </div>
-            <span class="toggle-icon">▼</span>
-        </div>
-        <div id="wizard-content" class="menu-content" style="display:block; padding:10px;">
-            
-            <div class="input-wrapper">
-                <label style="color:#94a3b8; font-size:10px;">${labelFrom}</label>
-                <input type="text" id="dep-input" placeholder="Airport, City or Code..." 
-                       onkeyup="handleInput(this, 'dep-suggestions')" autocomplete="off" style="width:100%;">
-                <div id="dep-suggestions" class="suggestion-box"></div>
-            </div>
 
-            <div class="input-wrapper">
-                <label style="color:#94a3b8; font-size:10px;">${labelTo}</label>
-                <input type="text" id="arr-input" placeholder="Airport, City or Code..." 
-                       onkeyup="handleInput(this, 'arr-suggestions')" autocomplete="off" style="width:100%;">
-                <div id="arr-suggestions" class="suggestion-box"></div>
-            </div>
 
-            <button id="btn-create-route" class="btn-primary" onclick="generateSmartRoute()">🚀 FIND & FLY</button>
-        </div>
-    `;
 
-    const title = panel.querySelector('h3');
-    if (title) title.insertAdjacentElement('afterend', div);
-    else panel.prepend(div);
 
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('.input-wrapper')) {
-            document.querySelectorAll('.suggestion-box').forEach(el => el.style.display = 'none');
-        }
-    });
-}
 
-// 3. AUTOCOMPLETE (RAM'den Anlık Arama)
+
+
+
+
 function handleInput(input, boxId) {
     const query = input.value.trim().toUpperCase();
     const box = document.getElementById(boxId);
+    if (query.length < 2 || !window.isDBReady) { box.style.display = 'none'; return; }
 
-    if (query.length < 2 || !window.isDBReady) {
-        box.style.display = 'none';
-        return;
-    }
-
-    // RAM'deki listeden filtrele (Max 5 sonuç)
-    // Şunu arar: Kod (LTFJ) VEYA Iata (SAW) VEYA İsim (Sabiha) VEYA Şehir (Istanbul)
     const results = window.GLOBAL_AIRPORTS.filter(item => 
-        item.code.includes(query) || 
-        item.iata.includes(query) || 
-        item.name.toUpperCase().includes(query) ||
-        item.city.toUpperCase().includes(query)
-    ).slice(0, 5);
+        item.code.includes(query) || item.iata.includes(query) || 
+        item.name.toUpperCase().includes(query) || item.city.toUpperCase().includes(query)
+    ).slice(0, 5); // MAKSİMUM 5 SONUÇ SINIRI 🎯
 
     box.innerHTML = '';
-    
     if (results.length > 0) {
         box.style.display = 'block';
         results.forEach(item => {
             const div = document.createElement('div');
             div.className = 'suggestion-item';
-            
-            // Görünüm: SAW - Sabiha Gokcen (Istanbul)
             const displayCode = item.iata || item.code;
-            div.innerHTML = `<strong>${displayCode}</strong> - ${item.name} <span style="color:#64748b; font-size:10px;">(${item.city})</span>`;
-            
-            div.onclick = () => {
-                input.value = `${displayCode} - ${item.name}`;
-                box.style.display = 'none';
-            };
+            div.innerHTML = `<strong>${displayCode}</strong> - ${item.name}`;
+            div.onclick = () => { input.value = `${displayCode} - ${item.name}`; box.style.display = 'none'; };
             box.appendChild(div);
         });
-    } else {
-        box.style.display = 'none';
-    }
+    } else { box.style.display = 'none'; }
 }
 
-// 4. KONUM ÇÖZÜCÜ (Logic Engine)
-async function resolveLocation(query) {
-    if (!query) return null;
-    const q = query.trim().toUpperCase();
 
-    // A) Koordinat mı? (40.1, 29.5)
-    const coordParts = q.split(',');
-    if (coordParts.length === 2) {
-        const lat = parseFloat(coordParts[0]);
-        const lon = parseFloat(coordParts[1]);
-        if (!isNaN(lat) && !isNaN(lon)) return { lat, lon, alt: 100, name: `Coord`, type: 'coord' };
-    }
 
-    // B) Veritabanında Var mı?
-    if (window.isDBReady) {
-        // Tam eşleşme ara (Kod veya İsim)
-        const found = window.GLOBAL_AIRPORTS.find(item => 
-            item.code === q || item.iata === q || item.name.toUpperCase() === q
-        );
-        
-        // Eğer tam eşleşme yoksa ama input "SAW - Sabiha..." formatındaysa kod kısmını alıp tekrar dene
-        if (!found && q.includes('-')) {
-            const codePart = q.split('-')[0].trim();
-            const foundByCode = window.GLOBAL_AIRPORTS.find(item => item.code === codePart || item.iata === codePart);
-            if(foundByCode) return {
-                lat: foundByCode.lat, lon: foundByCode.lon, alt: foundByCode.alt ? foundByCode.alt * 0.3048 : 100,
-                name: foundByCode.name, type: 'airport'
-            };
-        }
 
-        if (found) {
-            return {
-                lat: found.lat,
-                lon: found.lon,
-                alt: found.alt ? found.alt * 0.3048 : 100,
-                name: found.name,
-                type: 'airport'
-            };
-        }
-    }
 
-    // C) Hiçbiri değilse OSM'ye sor (İnternetten adres ara)
-    try {
-        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
-        const res = await fetch(url);
-        const data = await res.json();
-        if (data && data.length > 0) {
-            return {
-                lat: parseFloat(data[0].lat),
-                lon: parseFloat(data[0].lon),
-                alt: 100,
-                name: data[0].display_name.split(',')[0],
-                type: 'address'
-            };
-        }
-    } catch (e) { console.error(e); }
-    
-    return null;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function setupFlightPlanner() {
+    const panel = document.getElementById('params-panel');
+    if (!panel || document.getElementById('flight-wizard-section')) return;
+    const div = document.createElement('div');
+    div.id = 'flight-wizard-section';
+    div.className = 'menu-section';
+    div.innerHTML = `
+        <div class="menu-header" onclick="toggleMenu('wizard-content')"><span style="color:#38bdf8;">✈️ FLIGHT WIZARD</span><span id="db-status-label" style="font-size:10px;">⏳</span></div>
+        <div id="wizard-content" class="menu-content" style="display:block; padding:10px;">
+            <div class="input-wrapper"><input type="text" id="dep-input" placeholder="Departure..." onkeyup="handleInput(this, 'dep-suggestions')" autocomplete="off" style="width:100%;">
+            <div id="dep-suggestions" class="suggestion-box"></div></div>
+            <div class="input-wrapper" style="margin-top:10px;"><input type="text" id="arr-input" placeholder="Arrival..." onkeyup="handleInput(this, 'arr-suggestions')" autocomplete="off" style="width:100%;">
+            <div id="arr-suggestions" class="suggestion-box"></div></div>
+            <button class="btn-primary" id="btn-create-route" onclick="generateSmartRoute()" style="width:100%; margin-top:10px;">🚀 FIND & FLY</button>
+        </div>`;
+    panel.prepend(div);
 }
 
-// 5. ROTA OLUŞTURUCU
-async function generateSmartRoute() {
-    let depText = document.getElementById('dep-input').value;
-    let arrText = document.getElementById('arr-input').value;
-    const btn = document.getElementById('btn-create-route');
 
-    if (!depText || !arrText) { 
-        showToast("Please enter Start & End points!", "error"); return; 
-    }
 
-    btn.disabled = true;
-    btn.innerText = "🔍 Routing...";
-    
-    try {
-        const [dep, arr] = await Promise.all([
-            resolveLocation(depText),
-            resolveLocation(arrText)
-        ]);
 
-        if (!dep) { showToast(`Not found: ${depText}`, "error"); throw "err"; }
-        if (!arr) { showToast(`Not found: ${arrText}`, "error"); throw "err"; }
 
-        // Rota Çiz
-        waypoints = [];
-        viewer.entities.removeAll();
-        waypointEntities = [];
 
-        [dep, arr].forEach(p => {
-            waypoints.push({
-                lat: p.lat, lon: p.lon, alt: p.alt || 100,
-                cartesian: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt || 100)
-            });
-        });
 
-        renderVisuals(-1);
-        updateUI();
-        calculateLogistics();
 
-        const dist = Cesium.Cartesian3.distance(waypoints[0].cartesian, waypoints[1].cartesian);
-        viewer.camera.flyTo({
-            destination: Cesium.Cartesian3.fromDegrees(
-                (dep.lon + arr.lon) / 2, (dep.lat + arr.lat) / 2,
-                dist * 2.5
-            )
-        });
 
-        showToast(`Route created!`, "success");
 
-    } catch (e) {
-        // Hata loglandı
-    } finally {
-        btn.disabled = false;
-        btn.innerText = "🚀 FIND & FLY";
-    }
-}
+
+
 
 
 
@@ -2294,7 +2153,6 @@ async function generateSmartRoute() {
 // 8. Başlatıcı (TEMİZLENMİŞ HALİ)
 window.onload = () => {
     initCesium();               // Haritayı ve Handler'ı kurar
-    buildDynamicMenu();         // Menüyü oluşturur
     updateVehicleParams();      // Ayarları çeker
     initGlobalAirportDB(); // Veritabanını indirir (YENİ EKLENDİ)
     setupFlightPlanner();
