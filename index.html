@@ -59,7 +59,34 @@
 }
 </script>
 
-
+<script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [{
+        "@type": "Question",
+        "name": "How do I calculate wind correction angle for my flight?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "NaviVortex automatically calculates the wind correction angle (WCA) and ground speed. Simply enter your aircraft's cruise speed, wind direction, and wind speed in the Wind & Weather panel to get real-time navigation logs."
+        }
+      }, {
+        "@type": "Question",
+        "name": "Can I export waypoints to Litchi?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes! NaviVortex allows you to plan your drone missions in 3D and export the coordinates directly as a CSV file compatible with the Litchi app."
+        }
+      }, {
+        "@type": "Question",
+        "name": "How do I create a drone search grid?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Use the Smart Tools (Grid) section. Draw a polygon on the map, set your desired altitude and leg spacing, and click Generate to automatically create a full coverage search pattern."
+        }
+      }]
+    }
+    </script>
     
     
 </head>
@@ -413,6 +440,7 @@
     
 </body>
 </html>
+
 
 
 
