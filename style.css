@@ -355,31 +355,35 @@ input:checked + .slider:before { transform: translateX(16px); }
 
 
 
-/* --- FEEDBACK BUTONU --- */
+/* --- FEEDBACK BUTONU (GÜNCELLENMİŞ) --- */
 #feedback-btn {
     position: fixed;
-    right: -35px; /* Butonu kenara yapıştırır */
+    right: 0; /* Tam sağ kenara yapıştırır, eksi değere gerek kalmaz */
     top: 50%;
-    transform: translateY(-50%) rotate(-90deg); /* Dikey durmasını sağlar */
-    background: #f59e0b; /* Dikkat çekici turuncu */
+    transform: translateY(-50%); /* Sadece dikeyde ortalar */
+    background: #f59e0b;
     color: #fff;
     border: none;
-    padding: 8px 16px;
-    font-size: 13px;
+    padding: 16px 8px; /* Dikeyde uzun, yatayda dar */
+    font-size: 14px;
     font-weight: bold;
-    border-radius: 8px 8px 0 0;
+    border-radius: 8px 0 0 8px; /* Sadece sol köşeleri yuvarlatır */
     cursor: pointer;
-    z-index: 2500;
-    box-shadow: 0 -2px 10px rgba(0,0,0,0.5);
+    z-index: 9999; /* Haritanın ve ayarların kesinlikle üstünde kalsın */
+    box-shadow: -2px 0 10px rgba(0,0,0,0.5); /* Gölgelik sola doğru */
     transition: 0.3s;
+    
+    /* İŞTE SİHİRLİ KOD: Yazıyı dikey yapar, rotate hatasını engeller */
+    writing-mode: vertical-rl; 
+    text-orientation: mixed;
 }
 
 #feedback-btn:hover {
     background: #d97706;
-    padding-bottom: 12px; /* Üzerine gelince hafif dışarı çıkar */
+    padding-right: 16px; /* Üzerine gelince yavaşça sola doğru dışarı çıkar */
 }
 
-/* Modal içindeki buton efekti */
+/* Modal içindeki buton efekti (Burası aynı kalıyor) */
 #feedback-form button:hover {
     background: #059669;
 }
