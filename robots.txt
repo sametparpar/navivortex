@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://sametparpar.github.io/navivortex/sitemap.xml
+Sitemap: https://navivortex.com/sitemap.xml
