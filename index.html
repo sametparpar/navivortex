@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>NaviVortex - 11.10</title>
+    <title>NaviVortex - 15.48</title>
     <meta name="description" content="NaviVortex is an advanced web-based 3D flight and drone mission planner. Calculate wind triangles, estimate fuel/battery logic, and export Litchi waypoints.">
     <meta name="keywords" content="flight planner, drone mission planner, uav routing, cesiumjs map, wind triangle calculator, litchi waypoint export, aviation logistics">
     <meta name="author" content="NaviVortex">
@@ -436,10 +436,47 @@
         <button onclick="document.getElementById('cookie-banner').style.display='none'" style="background:#10b981; color:white; border:none; padding:6px 20px; border-radius:4px; cursor:pointer; font-weight:bold;">I Understand</button>
     </div>
 
+
+
+
+
+
+
+
+<button id="feedback-btn" onclick="openFeedback()">💬 Feedback</button>
+
+    <div id="feedback-modal" class="legal-modal" style="display:none; z-index: 4000;">
+        <span onclick="closeFeedback()" style="float:right; cursor:pointer; font-size:24px; color:#ef4444;">&times;</span>
+        <h2 style="color:#38bdf8; margin-top:0;">Send Feedback</h2>
+        <p style="font-size:12px; color:#94a3b8; margin-bottom:15px;">Spotted a bug, have a feature request, or just want to say hi? Let me know!</p>
+        
+        <form id="feedback-form" action="https://formspree.io/f/mnjbbopj" method="POST">
+            
+            <label style="font-size:11px; color:#cbd5e1;">Topic</label>
+            <select name="type" required style="width:100%; padding:8px; margin-bottom:10px; background:#1e293b; color:white; border:1px solid #334155; border-radius:4px;">
+                <option value="Bug Report">🐛 Report a Bug</option>
+                <option value="Feature Request">💡 Feature Request</option>
+                <option value="General">💬 General Feedback</option>
+            </select>
+            
+            <label style="font-size:11px; color:#cbd5e1;">Message</label>
+            <textarea name="message" required placeholder="Describe your issue or idea here..." style="width:100%; height:100px; padding:8px; margin-bottom:10px; background:#1e293b; color:white; border:1px solid #334155; border-radius:4px; font-family:sans-serif;"></textarea>
+            
+            <label style="font-size:11px; color:#cbd5e1;">Email (Optional - if you want a reply)</label>
+            <input type="email" name="email" placeholder="pilot@example.com" style="width:100%; padding:8px; margin-bottom:15px; background:#1e293b; color:white; border:1px solid #334155; border-radius:4px;">
+            
+            <button type="submit" style="width:100%; background:#10b981; color:white; border:none; padding:12px; border-radius:4px; cursor:pointer; font-weight:bold; transition:0.3s;">🚀 SEND FEEDBACK</button>
+        </form>
+    </div>
+
+
+
+
     
     
 </body>
 </html>
+
 
 
 
