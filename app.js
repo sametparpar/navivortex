@@ -2214,7 +2214,9 @@ function setupFlightPlanner() {
 
 
 
-
+// --- FEEDBACK MODAL ---
+function openFeedback() { document.getElementById('feedback-modal').style.display = 'block'; }
+function closeFeedback() { document.getElementById('feedback-modal').style.display = 'none'; }
 
 
 
