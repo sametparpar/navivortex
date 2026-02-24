@@ -2231,6 +2231,72 @@ function setupFlightPlanner() {
 
 
 
+// =========================================================
+// 🚀 FAZ 1 (ADIM 2): KML & GEOJSON IMPORT ENGINE
+// =========================================================
+let importedLayers = []; // Yüklenen harici katmanları hafızada tutmak için
+
+async function importMapData(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const fileName = file.name.toLowerCase();
+    showToast(`Loading ${file.name}...`, "info");
+
+    try {
+        let dataSource;
+
+        // Dosya tipine göre Cesium'un okuyucusunu seçiyoruz
+        if (fileName.endsWith('.kml') || fileName.endsWith('.kmz')) {
+            dataSource = await Cesium.KmlDataSource.load(file, {
+                camera: viewer.scene.camera,
+                canvas: viewer.scene.canvas,
+                clampToGround: true // Çizgileri araziye yapıştırır
+            });
+        } else if (fileName.endsWith('.geojson') || fileName.endsWith('.json')) {
+            // GeoJSON okuma işlemi
+            const fileText = await file.text();
+            const jsonData = JSON.parse(fileText);
+            dataSource = await Cesium.GeoJsonDataSource.load(jsonData, {
+                clampToGround: true,
+                stroke: Cesium.Color.fromCssColorString('#10b981'), // Yeşil çizgi
+                fill: Cesium.Color.fromCssColorString('#10b981').withAlpha(0.2),
+                strokeWidth: 3
+            });
+        } else {
+            alert("Unsupported file format! Please upload .kml, .kmz, or .geojson");
+            return;
+        }
+
+        // Haritaya Ekle
+        viewer.dataSources.add(dataSource);
+        importedLayers.push(dataSource);
+
+        // Kamerayı yüklenen dosyanın sınırlarına (bölgeye) uçur
+        viewer.flyTo(dataSource);
+        
+        showToast("✅ Boundary File Imported Successfully!", "success");
+
+        // Input'u sıfırla ki aynı dosyayı tekrar yüklemek istersek çalışsın
+        event.target.value = ''; 
+
+    } catch (error) {
+        console.error("Import Error: ", error);
+        alert("Could not read the file. Ensure it is a valid KML/GeoJSON format.");
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
