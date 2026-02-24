@@ -206,23 +206,31 @@
 
 
         
-    <div class="menu-section">
+<div class="menu-section">
         <div class="menu-header" onclick="toggleMenu('sec-actions')">
             <span>💾 MISSION ACTIONS</span>
             <span class="toggle-icon">▼</span>
         </div>
         <div id="sec-actions" class="menu-content">
-            <button class="btn-pdf" onclick="generateMissionBriefing()" style="background:#8b5cf6;">📄 PDF BRIEFING</button>
-            <button class="btn-export" onclick="exportMission('LITCHI')">📥 EXPORT CSV</button>
+            <button class="btn-pdf" onclick="generateMissionBriefing()" style="background:#8b5cf6; margin-bottom:10px; width:100%;">📄 PDF BRIEFING</button>
+            <button class="btn-export" onclick="exportMission('LITCHI')" style="margin-bottom:15px; width:100%;">📥 EXPORT CSV</button>
             
+            <div style="border-top:1px dashed #334155; padding-top:15px; padding-bottom:15px;">
+                <label style="color:#10b981; font-size:11px; display:block; margin-bottom:5px;">📂 IMPORT BOUNDARIES</label>
+                <input type="file" id="kml-upload" accept=".kml,.kmz,.geojson,.json" style="display:none;" onchange="importMapData(event)">
+                <button class="btn-primary" onclick="document.getElementById('kml-upload').click()" style="width:100%; background:#1e293b; border:1px solid #10b981; color:#10b981;">
+                    ➕ UPLOAD KML / GEOJSON
+                </button>
+            </div>
+
             <div id="auth-section" style="margin-top:10px; border-top:1px dashed #334155; padding-top:10px;">
-                <button id="btn-login" onclick="loginWithGoogle()" style="background:#4285F4;">
+                <button id="btn-login" onclick="loginWithGoogle()" style="background:#4285F4; width:100%;">
                     G SIGN IN
                 </button>
                 <div id="user-panel" style="display:none;">
                     <p id="user-name" style="color:#94a3b8; font-size:10px; margin-bottom:5px;">User</p>
-                    <button onclick="saveMissionToCloud()" style="background:#f59e0b;">☁️ SAVE CLOUD</button>
-                    <button onclick="logout()" style="background:#ef4444; margin-top:5px;">EXIT</button>
+                    <button onclick="saveMissionToCloud()" style="background:#f59e0b; width:100%;">☁️ SAVE CLOUD</button>
+                    <button onclick="logout()" style="background:#ef4444; margin-top:5px; width:100%;">EXIT</button>
                 </div>
             </div>
         </div>
@@ -497,6 +505,7 @@
     
 </body>
 </html>
+
 
 
 
