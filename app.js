@@ -1458,65 +1458,56 @@ async function generateSmartRoute() {
 
 
 
-// 16. Live Weather Fetch (OpenWeatherMap API)
+// 16. Live Weather Fetch (Open-Meteo API - No Key Required & Global Coverage) 🌤️
 async function getLiveWeather() {
-    // ⚠️ DİKKAT: Buraya kendi API anahtarını alıp yazmalısın.
-    // Ücretsiz almak için: https://home.openweathermap.org/users/sign_up
-    const API_KEY = "86b7d3ff9069982fcbdca23d170f0a70"; 
-    
     if (waypoints.length === 0) {
-        alert("Please place at least one point on the map to get local weather.");
+        showToast("Please place at least one point on the map to get local weather.", "warning");
         return;
     }
 
-    // İlk noktanın konumunu al
+    // İlk noktanın konumunu al (Rotanın başladığı yerin havasına bakıyoruz)
     const lat = waypoints[0].lat;
     const lon = waypoints[0].lon;
     const btn = document.querySelector('button[onclick="getLiveWeather()"]');
 
-    btn.innerText = "⏳ Loading...";
+    const originalText = btn.innerText;
+    btn.innerText = "⏳ FETCHING...";
 
     try {
-        // Eğer API Key yoksa (Demo Modu) - Kullanıcıyı üzmemek için rastgele veri
-        if (API_KEY === "86b7d3ff9069982fcbdca23d170f0a70") {
-            console.warn("API Key eksik. Demo verisi gösteriliyor.");
-            setTimeout(() => {
-                alert("⚠️ API Key not found! Showing DEMO weather data.\n(Edit app.js line ~400 to add your OpenWeatherMap Key)");
-                document.getElementById('wind-direction').value = Math.floor(Math.random() * 360);
-                document.getElementById('wind-speed').value = Math.floor(Math.random() * 20) + 5;
-                updateUI();
-                btn.innerText = "☁️ GET LIVE";
-            }, 1000);
-            return;
-        }
-
-        // Gerçek API Çağrısı
-        const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`);
+        // Ücretsiz, limitsiz ve anahtarsız uydu hava durumu verisi
+        const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
         const data = await response.json();
 
-        if (data.wind) {
-            // Açıyı ve hızı kutulara yaz
-            document.getElementById('wind-direction').value = data.wind.deg;
-            
-            // API m/s verir. Eğer uçak seçiliyse (knot) dönüştür.
-            const vehicleId = document.getElementById('vehicle-category').value;
-            const config = VEHICLE_CONFIGS[vehicleId];
-            
-            let speedVal = data.wind.speed; // m/s
-            if (!config.isElectric) { // Uçaksa (Aviation mode)
-                speedVal = speedVal * 1.94384; // m/s to knots
+        if (data && data.current_weather) {
+            const windDeg = data.current_weather.winddirection;
+            let speedKmh = data.current_weather.windspeed; // API hızı km/h olarak verir
+
+            // km/h -> m/s dönüşümü (Dronelar için)
+            let speedMs = speedKmh / 3.6;
+
+            const category = document.getElementById('vehicle-category').value;
+            const isElectric = (category === 'electric_drone');
+
+            let finalSpeed = speedMs;
+            if (!isElectric) { 
+                // Uçaksa m/s'yi knot'a çeviriyoruz
+                finalSpeed = speedMs * 1.94384; 
             }
+
+            // Açı ve hızı arayüzdeki kutulara yaz
+            document.getElementById('wind-direction').value = Math.round(windDeg);
+            document.getElementById('wind-speed').value = finalSpeed.toFixed(1);
             
-            document.getElementById('wind-speed').value = speedVal.toFixed(1);
-            
-            updateUI(); // Haritadaki vektörleri güncelle
-            alert(`✅ Weather Updated for ${data.name}:\nWind: ${data.wind.deg}° at ${speedVal.toFixed(1)} ${config.isElectric ? 'm/s' : 'kts'}`);
+            updateUI(); // Haritadaki Rüzgar Üçgenini (NavLog) hemen güncelle
+            showToast(`✅ Live Weather Applied: ${windDeg}° at ${finalSpeed.toFixed(1)} ${isElectric ? 'm/s' : 'kts'}`, "success");
+        } else {
+            showToast("Could not retrieve weather data.", "error");
         }
     } catch (error) {
-        console.error(error);
-        alert("Weather fetch failed. Check console.");
+        console.error("Weather API Error:", error);
+        showToast("Weather fetch failed. Check connection.", "error");
     } finally {
-        btn.innerText = "☁️ GET LIVE";
+        btn.innerText = originalText;
     }
 }
 
