@@ -2391,6 +2391,105 @@ function calculatePhotogrammetry() {
 
 
 
+// =========================================================
+// 🚀 FAZ 2 (ADIM 2): 3D AIRSPACE & NO-FLY ZONE (NFZ) SCANNER
+// =========================================================
+let airspaceEntities = [];
+
+function scanAirspace() {
+    // 1. Önceki taramadan kalan kırmızı bölgeleri temizle
+    airspaceEntities.forEach(e => viewer.entities.remove(e));
+    airspaceEntities = [];
+
+    // Veritabanı inmiş mi kontrol et
+    if (!window.isDBReady || !window.GLOBAL_AIRPORTS) {
+        showToast("Airport Database is still loading...", "warning");
+        return;
+    }
+
+    const btn = document.getElementById('btn-radar');
+    btn.innerText = "⏳ SCANNING...";
+    btn.style.background = "rgba(245, 158, 11, 0.8)"; // Turuncuya dön
+
+    setTimeout(() => {
+        // 2. Kameranın şu an baktığı merkez koordinatı al
+        const cameraPt = viewer.camera.positionCartographic;
+        const camLat = Cesium.Math.toDegrees(cameraPt.latitude);
+        const camLon = Cesium.Math.toDegrees(cameraPt.longitude);
+
+        let count = 0;
+
+        // 3. Hafızadaki 28.000 havalimanını tara
+        window.GLOBAL_AIRPORTS.forEach(ap => {
+            // Basit mesafe filtresi (Kameraya yaklaşık 100 km'den yakın olanlar)
+            const dLat = ap.lat - camLat;
+            const dLon = ap.lon - camLon;
+            const distDeg = Math.sqrt(dLat * dLat + dLon * dLon);
+
+            if (distDeg < 1.0) { // 1.0 derece yaklaşık 111 km yapar
+                
+                // 4. Havalimanının etrafına 3D Kırmızı Silindir (CTR) Çiz
+                const entity = viewer.entities.add({
+                    position: Cesium.Cartesian3.fromDegrees(ap.lon, ap.lat, 500), // Silindirin merkezi 500m yüksekte
+                    cylinder: {
+                        length: 1000, // 1000 metre yükseklik
+                        topRadius: 3000, // 3 KM yarıçap (Drone yasak bölgesi)
+                        bottomRadius: 3000,
+                        material: Cesium.Color.RED.withAlpha(0.2), // Şeffaf Kırmızı Cam
+                        outline: true,
+                        outlineColor: Cesium.Color.RED.withAlpha(0.5)
+                    },
+                    label: {
+                        text: "⛔ NFZ: " + (ap.iata || ap.code),
+                        font: '14px sans-serif',
+                        fillColor: Cesium.Color.WHITE,
+                        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                        outlineColor: Cesium.Color.BLACK,
+                        outlineWidth: 2,
+                        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                        pixelOffset: new Cesium.Cartesian2(0, -30),
+                        disableDepthTestDistance: Number.POSITIVE_INFINITY // Uzaktan da yazısı okunsun
+                    }
+                });
+
+                airspaceEntities.push(entity);
+                count++;
+            }
+        });
+
+        // 5. İşlem bitti, butonu eski haline getir
+        btn.innerText = "📡 SCAN AIRSPACE (NFZ)";
+        btn.style.background = "rgba(239, 68, 68, 0.8)";
+        
+        if (count > 0) {
+            showToast(`⚠️ Radar found ${count} Restricted Zones (NFZ) near you.`, "error");
+        } else {
+            showToast("✅ Airspace is CLEAR.", "success");
+        }
+
+    }, 500); // UI donmasın diye yarım saniye gecikmeli çalıştırıyoruz
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
