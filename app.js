@@ -652,6 +652,52 @@ function renderVisuals(activeParamIndex) {
 
 
 
+// --- 🚀 FAZ 1: HAZIR ARAÇ PROFİLLERİ (DATABASE) ---
+const VEHICLE_PRESETS = {
+    // Dronelar
+    "custom_drone": { cruise: 15, climb: 5, bat: 5000, burn_climb: 300, burn_cruise: 150, burn_descent: 50, alt: 120 },
+    "mavic3e": { cruise: 15, climb: 6, bat: 5000, burn_climb: 250, burn_cruise: 110, burn_descent: 40, alt: 100 },
+    "phantom4rtk": { cruise: 10, climb: 5, bat: 5870, burn_climb: 320, burn_cruise: 195, burn_descent: 60, alt: 100 },
+    "matrice300": { cruise: 15, climb: 5, bat: 15000, burn_climb: 500, burn_cruise: 340, burn_descent: 100, alt: 120 },
+    
+    // Uçaklar
+    "custom_aircraft": { cruise: 110, climb_spd: 75, alt: 3500, cap: 50, burn_climb: 13, burn_cruise: 9, burn_descent: 5 },
+    "c172": { cruise: 110, climb_spd: 75, alt: 3500, cap: 53, burn_climb: 14, burn_cruise: 8.5, burn_descent: 5 },
+    "pa28": { cruise: 120, climb_spd: 80, alt: 4500, cap: 50, burn_climb: 15, burn_cruise: 10, burn_descent: 6 },
+    "da40": { cruise: 135, climb_spd: 80, alt: 5500, cap: 40, burn_climb: 12, burn_cruise: 9, burn_descent: 4 }
+};
+
+function applyVehiclePreset() {
+    const presetId = document.getElementById('vehicle-preset-select').value;
+    if (!presetId || !VEHICLE_PRESETS[presetId]) return;
+    const p = VEHICLE_PRESETS[presetId];
+    const category = document.getElementById('vehicle-category').value;
+
+    // Kutuları otomatik doldur
+    if (category === 'electric_drone') {
+        document.getElementById('drone-alt').value = p.alt;
+        document.getElementById('drone-speed').value = p.cruise;
+        document.getElementById('drone-climb-speed').value = p.climb;
+        document.getElementById('drone-bat').value = p.bat;
+        document.getElementById('drone-burn-climb').value = p.burn_climb;
+        document.getElementById('drone-burn-cruise').value = p.burn_cruise;
+        document.getElementById('drone-burn-descent').value = p.burn_descent;
+    } else {
+        document.getElementById('plane-alt').value = p.alt;
+        document.getElementById('plane-climb-spd').value = p.climb_spd;
+        document.getElementById('fuel-speed').value = p.cruise;
+        document.getElementById('fuel-cap').value = p.cap;
+        document.getElementById('plane-burn-climb').value = p.burn_climb;
+        document.getElementById('fuel-rate').value = p.burn_cruise;
+        document.getElementById('plane-burn-descent').value = p.burn_descent;
+    }
+    
+    // Yeni değerlere göre rotayı ve yakıtı tekrar hesapla
+    updateGlobalAltitude(); 
+    calculateLogistics(); 
+    showToast("Profile Loaded: " + document.getElementById('vehicle-preset-select').options[document.getElementById('vehicle-preset-select').selectedIndex].text, "success");
+}
+
 // 3. Dynamic Vehicle Inputs (Advanced Physics V2) ✈️
 function updateVehicleParams() {
     const category = document.getElementById('vehicle-category').value;
@@ -661,6 +707,15 @@ function updateVehicleParams() {
     if (category === 'electric_drone') {
         // --- DRONE (DJI MATRICE / MAVIC TARZI) ---
         html = `
+            <div class="input-group" style="margin-bottom: 15px; background: rgba(16, 185, 129, 0.1); padding: 8px; border-radius: 4px; border: 1px solid #10b981;">
+                <label style="color:#10b981;">🚀 QUICK LOAD PROFILE</label>
+                <select id="vehicle-preset-select" onchange="applyVehiclePreset()" style="width:100%; padding:5px; background:#1e293b; color:white; border:1px solid #334155; border-radius:4px; margin-top:5px; outline:none;">
+                    <option value="custom_drone" selected>Custom Drone (Manual)</option>
+                    <option value="mavic3e">DJI Mavic 3 Enterprise</option>
+                    <option value="phantom4rtk">DJI Phantom 4 RTK</option>
+                    <option value="matrice300">DJI Matrice 300 RTK</option>
+                </select>
+            </div>
             <div style="border-bottom:1px dashed #334155; margin-bottom:10px; padding-bottom:5px;">
                 <label style="color:#38bdf8;">⚡ PERFORMANCE</label>
             </div>
@@ -697,6 +752,15 @@ function updateVehicleParams() {
     } else {
         // --- UÇAK (CESSNA 172 TARZI) ---
         html = `
+            <div class="input-group" style="margin-bottom: 15px; background: rgba(16, 185, 129, 0.1); padding: 8px; border-radius: 4px; border: 1px solid #10b981;">
+                <label style="color:#10b981;">🚀 QUICK LOAD PROFILE</label>
+                <select id="vehicle-preset-select" onchange="applyVehiclePreset()" style="width:100%; padding:5px; background:#1e293b; color:white; border:1px solid #334155; border-radius:4px; margin-top:5px; outline:none;">
+                    <option value="custom_aircraft" selected>Custom Aircraft (Manual)</option>
+                    <option value="c172">Cessna 172 Skyhawk</option>
+                    <option value="pa28">Piper PA-28 Cherokee</option>
+                    <option value="da40">Diamond DA40</option>
+                </select>
+            </div>
             <div style="border-bottom:1px dashed #334155; margin-bottom:10px; padding-bottom:5px;">
                 <label style="color:#38bdf8;">✈️ FLIGHT ENVELOPE</label>
             </div>
