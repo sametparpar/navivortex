@@ -2305,6 +2305,90 @@ async function importMapData(event) {
 
 
 
+// =========================================================
+// 🚀 FAZ 2 (ADIM 1): PHOTOGRAMMETRY & CAMERA MATH ENGINE
+// =========================================================
+
+// Popüler Kameraların Sensör Veritabanı
+// sw: Sensör Genişliği (mm), sh: Sensör Yüksekliği (mm), fl: Odak Uzaklığı / Focal Length (mm)
+const CAMERAS = {
+    "m3e": { name: "Mavic 3E", sw: 17.3, sh: 13.0, fl: 12.29 },
+    "p4rtk": { name: "Phantom 4 RTK", sw: 13.2, sh: 8.8, fl: 8.8 },
+    "zenmuse_p1": { name: "Zenmuse P1 (35mm)", sw: 35.9, sh: 24.0, fl: 35.0 }
+};
+
+function calculatePhotogrammetry() {
+    const camId = document.getElementById('camera-sensor').value;
+    const overlapDiv = document.getElementById('overlap-settings');
+    
+    // UI Elementleri (Müdahale edeceğimiz kutular)
+    const spacingInput = document.getElementById('grid-spacing');
+    const spacingSlider = document.getElementById('grid-spacing-slider');
+    const altitude = parseFloat(document.getElementById('grid-alt').value);
+
+    if (camId === 'manual') {
+        // Kullanıcı manuel moddaysa sliderları serbest bırak ve menüyü gizle
+        overlapDiv.style.display = 'none';
+        spacingInput.disabled = false;
+        spacingSlider.disabled = false;
+        document.getElementById('photo-interval-info').innerText = "";
+        return;
+    }
+
+    // Kamera seçildiyse Overlap menüsünü göster ve manuel kutuları kilitle
+    overlapDiv.style.display = 'block';
+    spacingInput.disabled = true;
+    spacingSlider.disabled = true;
+
+    // Formül Değerlerini Çek
+    const cam = CAMERAS[camId];
+    const sideLap = parseFloat(document.getElementById('side-lap').value) / 100; // Örn: %70 -> 0.70
+    const frontLap = parseFloat(document.getElementById('front-lap').value) / 100; // Örn: %80 -> 0.80
+
+    // 📐 FOTOGRAMETRİ MATEMATİĞİ (GSD & İzdüşüm)
+    // Yerdeki Görüntü Genişliği (Image Width on Ground) = (Sensör Genişliği * İrtifa) / Odak Uzaklığı
+    const groundWidth = (cam.sw * altitude) / cam.fl; 
+    
+    // Yerdeki Görüntü Yüksekliği (Image Height on Ground)
+    const groundHeight = (cam.sh * altitude) / cam.fl;
+
+    // 1. LEG SPACING (Satırlar arası mesafe = Side-lap'ten kalan boşluk)
+    let legSpacing = groundWidth * (1 - sideLap);
+    
+    // 2. PHOTO INTERVAL (Aynı satırda kaç metrede bir fotoğraf çekilecek = Front-lap'ten kalan boşluk)
+    let photoInterval = groundHeight * (1 - frontLap);
+
+    // Güvenlik sınırları (Grid çok küçük olmasın diye)
+    if (legSpacing < 2) legSpacing = 2;
+
+    // Arayüzü Güncelle (Küsüratları atıp yuvarlıyoruz)
+    spacingInput.value = Math.round(legSpacing);
+    spacingSlider.value = Math.round(legSpacing);
+    
+    // Kullanıcıya bilgi ver
+    document.getElementById('photo-interval-info').innerText = 
+        `Auto Spacing: ${Math.round(legSpacing)}m | Photo Every: ${Math.round(photoInterval)}m`;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
