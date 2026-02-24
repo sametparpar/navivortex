@@ -153,6 +153,10 @@
 
 
 
+
+
+
+
 <div class="menu-section">
     <div class="menu-header" onclick="toggleMenu('sec-tools')">
         <span>🛠️ SMART TOOLS (GRID)</span>
@@ -166,18 +170,38 @@
         </p>
 
         <div class="input-group">
-    <label>GRID ALTITUDE (m)</label>
-    <div style="display:flex; align-items:center; gap:10px;">
-        <input type="number" id="grid-alt" value="40" min="5" style="width:60px; padding:5px; background:#0f172a; border:1px solid #334155; color:white; border-radius:4px;">
-        
-        <div style="display:flex; align-items:center;">
-            <input type="checkbox" id="terrain-follow" checked style="margin-right:5px;">
-            <label for="terrain-follow" style="font-size:9px; cursor:pointer;">TERRAIN FOLLOW (AGL)</label>
+            <label>GRID ALTITUDE (m)</label>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <input type="number" id="grid-alt" value="40" min="5" onchange="calculatePhotogrammetry()" style="width:60px; padding:5px; background:#0f172a; border:1px solid #334155; color:white; border-radius:4px;">
+                
+                <div style="display:flex; align-items:center;">
+                    <input type="checkbox" id="terrain-follow" checked style="margin-right:5px;">
+                    <label for="terrain-follow" style="font-size:9px; cursor:pointer;">TERRAIN FOLLOW (AGL)</label>
+                </div>
+            </div>
         </div>
-    </div>
-</div>
 
-        <div class="input-group" style="margin-top:5px;">
+        <div class="input-group" style="margin-top:10px; border-top:1px dashed #334155; padding-top:10px;">
+            <label style="color:#f59e0b;">📸 PHOTOGRAMMETRY (OVERLAP)</label>
+            <select id="camera-sensor" onchange="calculatePhotogrammetry()" style="width:100%; padding:5px; background:#1e293b; color:white; border:1px solid #334155; border-radius:4px; margin-top:5px; outline:none;">
+                <option value="manual" selected>Manual Spacing (No Camera)</option>
+                <option value="m3e">DJI Mavic 3 Enterprise</option>
+                <option value="p4rtk">DJI Phantom 4 RTK</option>
+                <option value="zenmuse_p1">DJI Zenmuse P1 (35mm)</option>
+            </select>
+            
+            <div id="overlap-settings" style="display:none; margin-top:10px; background:rgba(0,0,0,0.2); padding:8px; border-radius:4px;">
+                <label style="font-size:9px; color:#94a3b8;">SIDE-LAP (%) <span id="side-lap-val" style="color:#38bdf8; float:right;">70%</span></label>
+                <input type="range" id="side-lap" min="10" max="90" value="70" oninput="document.getElementById('side-lap-val').innerText=this.value+'%'; calculatePhotogrammetry();" style="width:100%;">
+                
+                <label style="font-size:9px; color:#94a3b8; margin-top:5px;">FRONT-LAP (%) <span id="front-lap-val" style="color:#38bdf8; float:right;">80%</span></label>
+                <input type="range" id="front-lap" min="10" max="90" value="80" oninput="document.getElementById('front-lap-val').innerText=this.value+'%'; calculatePhotogrammetry();" style="width:100%;">
+                
+                <div id="photo-interval-info" style="margin-top:5px; font-size:10px; color:#10b981; text-align:center; font-weight:bold;"></div>
+            </div>
+        </div>
+
+        <div class="input-group" style="margin-top:10px;">
             <label>LEG SPACING (m)</label>
             <div style="display:flex; align-items:center; gap:5px;">
                 <input type="range" id="grid-spacing-slider" min="10" max="200" value="30" oninput="syncGridInputs('spacing')" style="flex:1;">
@@ -198,6 +222,9 @@
         </button>
     </div>
 </div>
+
+
+        
 
 
 
@@ -505,6 +532,7 @@
     
 </body>
 </html>
+
 
 
 
